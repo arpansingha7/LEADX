@@ -1,4 +1,4 @@
-// LEADX Frontend Engine
+// LeadX Dashboard Orchestrator
 const API_BASE = '/leads';
 let currentTenant = 'default-tenant';
 let tenantWeights = {
@@ -8,22 +8,28 @@ let tenantWeights = {
   behavioural_signals: 0.15,
   prior_interaction: 0.15
 };
+let allLeads = [];
+let currentFilter = 'all';
 
 // DOM Elements
 const tenantIdInput = document.getElementById('tenantIdInput');
 const loadTenantBtn = document.getElementById('loadTenantBtn');
+const clientBadgeLink = document.getElementById('clientBadgeLink');
+
+// Ingestion Form Elements
 const singleIngestForm = document.getElementById('singleIngestForm');
 const submitSingleBtn = document.getElementById('submitSingleBtn');
-
 const batchJsonArea = document.getElementById('batchJsonArea');
 const loadSampleBatchBtn = document.getElementById('loadSampleBatchBtn');
 const submitBatchBtn = document.getElementById('submitBatchBtn');
 
+// Config Sliders
 const saveConfigBtn = document.getElementById('saveConfigBtn');
 const sumIndicator = document.getElementById('sumIndicator');
 const rescoreAllBtn = document.getElementById('rescoreAllBtn');
 const leadsList = document.getElementById('leadsList');
 const leadsCount = document.getElementById('leadsCount');
+const sidebarLeadsCount = document.getElementById('sidebarLeadsCount');
 
 const sliders = {
   demographic_fit: document.getElementById('weight-demographic_fit'),
@@ -41,21 +47,60 @@ const sliderVals = {
   prior_interaction: document.getElementById('val-prior_interaction')
 };
 
-// Toast Elements
+// Toast Notification Elements
 const toast = document.getElementById('notificationToast');
 const toastIcon = document.getElementById('toastIcon');
 const toastTitle = document.getElementById('toastTitle');
 const toastBody = document.getElementById('toastBody');
-const toastClose = document.querySelector('.toast-close');
+const toastCloseBtn = document.getElementById('toastCloseBtn');
 
-// Initialize
+// Initialize Dashboard
 window.addEventListener('DOMContentLoaded', () => {
+  setupNavigation();
   setupEventListeners();
   loadTenantData();
+  startActivitySimulator();
+  seedInitialDataIfEmpty();
 });
 
+// 1. Navigation Panel Handler
+function setupNavigation() {
+  const sidebarItems = document.querySelectorAll('.lx-sidebar-item');
+  const pages = document.querySelectorAll('.lx-page');
+
+  sidebarItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const pageId = item.getAttribute('data-page');
+      if (!pageId) return;
+
+      // Update sidebar active class
+      sidebarItems.forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+
+      // Show/Hide pages
+      pages.forEach(p => p.classList.remove('show'));
+      const activePage = document.getElementById(`page-${pageId}`);
+      if (activePage) {
+        activePage.classList.add('show');
+      }
+    });
+  });
+
+  // Client badge link in top bar shortcut
+  if (clientBadgeLink) {
+    clientBadgeLink.addEventListener('click', () => {
+      // Find Client Portal item in sidebar and trigger click
+      const clientItem = document.querySelector('.lx-sidebar-item[data-page="client"]');
+      if (clientItem) {
+        clientItem.click();
+      }
+    });
+  }
+}
+
+// 2. Set Up Event Listeners
 function setupEventListeners() {
-  // Tenant loading
+  // Switch Tenant Context
   loadTenantBtn.addEventListener('click', () => {
     const val = tenantIdInput.value.trim();
     if (val) {
@@ -65,19 +110,60 @@ function setupEventListeners() {
     }
   });
 
-  // Slider adjustments
+  // Dynamic slider input listeners
   Object.keys(sliders).forEach(key => {
-    sliders[key].addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      sliderVals[key].textContent = val.toFixed(2);
-      updateWeightsSum();
+    if (sliders[key]) {
+      sliders[key].addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (sliderVals[key]) sliderVals[key].textContent = val.toFixed(2);
+        updateWeightsSum();
+      });
+    }
+  });
+
+  // Save weights config
+  saveConfigBtn.addEventListener('click', saveWeightsConfig);
+
+  // Ingest forms pill tab toggling
+  const ingestTabs = document.querySelectorAll('#ingest-mode-tabs .lx-pill-tab');
+  ingestTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      ingestTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      const tabId = tab.getAttribute('data-tab');
+      document.getElementById('ingest-form-single').className = 'tab-content' + (tabId === 'single' ? ' show' : '');
+      document.getElementById('ingest-form-batch').className = 'tab-content' + (tabId === 'batch' ? ' show' : '');
     });
   });
 
-  // Save weights
-  saveConfigBtn.addEventListener('click', saveWeightsConfig);
+  // Campaign modes pill tab toggling
+  const campaignTabs = document.querySelectorAll('#campaign-mode-tabs .lx-pill-tab');
+  campaignTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      campaignTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
 
-  // Single Ingest form submit
+      const mode = tab.getAttribute('data-mode');
+      
+      // Update config column header title
+      const configHeader = document.getElementById('campaign-config-header');
+      if (mode === 'rt') configHeader.innerHTML = 'Real-Time Config Options <span class="sub">Active campaign settings</span>';
+      else if (mode === 'nonrt') configHeader.innerHTML = 'Non-RT Config Options <span class="sub">Batch dialing limits</span>';
+      else if (mode === 'scheduled') configHeader.innerHTML = 'Pre-Flight Preparation <span class="sub">Schedule new campaigns</span>';
+
+      // Toggle Campaign contents and config forms
+      document.getElementById('camp-content-rt').className = 'tab-content' + (mode === 'rt' ? ' show' : '');
+      document.getElementById('camp-content-nonrt').className = 'tab-content' + (mode === 'nonrt' ? ' show' : '');
+      document.getElementById('camp-content-scheduled').className = 'tab-content' + (mode === 'scheduled' ? ' show' : '');
+
+      document.getElementById('config-form-rt').className = 'tab-content' + (mode === 'rt' ? ' show' : '');
+      document.getElementById('config-form-nonrt').className = 'tab-content' + (mode === 'nonrt' ? ' show' : '');
+      document.getElementById('config-form-scheduled').className = 'tab-content' + (mode === 'scheduled' ? ' show' : '');
+    });
+  });
+
+  // Single Ingest Submit
   singleIngestForm.addEventListener('submit', handleSingleIngest);
 
   // Sample Batch loading
@@ -89,20 +175,42 @@ function setupEventListeners() {
   // Rescore All Leads
   rescoreAllBtn.addEventListener('click', handleRescoreAll);
 
+  // Leads Filter Badges
+  const filterBadges = document.querySelectorAll('#leads-filter-badges span');
+  filterBadges.forEach(badge => {
+    badge.addEventListener('click', () => {
+      filterBadges.forEach(b => {
+        b.className = 'lx-badge badge-gray';
+      });
+      badge.className = 'lx-badge badge-accent';
+      currentFilter = badge.getAttribute('data-filter');
+      renderLeads(allLeads);
+    });
+  });
+
   // Toast Close
-  toastClose.addEventListener('click', () => toast.classList.remove('show'));
+  toastCloseBtn.addEventListener('click', () => toast.classList.remove('show'));
+
+  // Update Concurrency label dynamic feedback
+  const concurrencySlider = document.getElementById('cfg-nonrt-concurrency');
+  const concurrencyVal = document.getElementById('cfg-nonrt-concurrency-val');
+  if (concurrencySlider && concurrencyVal) {
+    concurrencySlider.addEventListener('input', (e) => {
+      concurrencyVal.textContent = e.target.value;
+    });
+  }
 }
 
-// Weights logic
+// 3. Dynamic Weight Calculation & Delta Checking
 function updateWeightsSum() {
   let sum = 0;
   Object.keys(sliders).forEach(key => {
-    sum += parseFloat(sliders[key].value);
+    if (sliders[key]) sum += parseFloat(sliders[key].value);
   });
   
   sumIndicator.textContent = `Sum: ${sum.toFixed(3)}`;
   
-  // Weights check
+  // Weights check within 0.001 delta tolerance
   if (Math.abs(sum - 1.0) <= 0.001) {
     sumIndicator.className = 'sum-indicator valid';
     saveConfigBtn.removeAttribute('disabled');
@@ -112,29 +220,31 @@ function updateWeightsSum() {
   }
 }
 
-// Fetch Weights and Leads from server
+// 4. Fetch Tenant Configs & Lead feeds
 async function loadTenantData() {
   try {
-    // 1. Fetch config
+    // A. Fetch config weights
     const configRes = await fetch(`${API_BASE}/config?tenant_id=${currentTenant}`);
     if (configRes.ok) {
       const configData = await configRes.json();
       if (configData.success && configData.weights) {
         tenantWeights = configData.weights;
-        // Update slider UI
+        // Update slider values
         Object.keys(tenantWeights).forEach(key => {
-          sliders[key].value = tenantWeights[key];
-          sliderVals[key].textContent = tenantWeights[key].toFixed(2);
+          if (sliders[key]) {
+            sliders[key].value = tenantWeights[key];
+            if (sliderVals[key]) sliderVals[key].textContent = tenantWeights[key].toFixed(2);
+          }
         });
         updateWeightsSum();
       }
     }
 
-    // 2. Fetch Leads
+    // B. Fetch Leads list
     await fetchLeadsList();
   } catch (error) {
     console.error('Error fetching tenant details:', error);
-    showToast('Load Error', 'Failed to retrieve tenant details from backend server.', '❌', 'error');
+    showToast('Load Error', 'Failed to retrieve tenant configuration details from backend server.', '❌', 'error');
   }
 }
 
@@ -144,63 +254,163 @@ async function fetchLeadsList() {
     if (leadsRes.ok) {
       const leadsData = await leadsRes.json();
       if (leadsData.success) {
-        renderLeads(leadsData.leads);
+        allLeads = leadsData.leads;
+        renderLeads(allLeads);
+        updateDashboardKPIs(allLeads);
       }
     }
   } catch (err) {
     console.error('Error fetching leads:', err);
-    showToast('Fetch Error', 'Failed to update leads feed.', '❌', 'error');
+    showToast('Fetch Error', 'Failed to update lead intelligence feed from backend.', '❌', 'error');
   }
 }
 
+// 5. Render Lead Feed & Dynamic UI Elements
 function renderLeads(leads) {
+  // Update badges count
   leadsCount.textContent = leads.length;
-  if (leads.length === 0) {
+  sidebarLeadsCount.textContent = leads.length;
+
+  let filtered = leads;
+  if (currentFilter === 'hot') {
+    filtered = leads.filter(l => l.score >= 80);
+  } else if (currentFilter === 'warm') {
+    filtered = leads.filter(l => l.score >= 50 && l.score < 80);
+  } else if (currentFilter === 'cold') {
+    filtered = leads.filter(l => l.score < 50);
+  }
+
+  if (filtered.length === 0) {
     leadsList.innerHTML = `
-      <div class="empty-state">
-        <span class="empty-icon">⏳</span>
-        <p>No leads ingested yet. Ingest a lead to get started.</p>
-      </div>
+      <tr class="lx-empty-row">
+        <td colspan="7" style="text-align: center; padding: 24px;">
+          <div class="lx-empty">
+            <span>⏳</span>
+            <div>No leads match the filter criteria. Ingest leads or switch filter.</div>
+          </div>
+        </td>
+      </tr>
     `;
     return;
   }
 
-  leadsList.innerHTML = leads.map(lead => {
-    const score = lead.score;
-    let badgeClass = 'cold';
-    if (score >= 80) badgeClass = 'hot';
-    else if (score >= 50) badgeClass = 'warm';
+  leadsList.innerHTML = filtered.map(lead => {
+    const score = lead.score || 0;
+    
+    // Bandings
+    let badgeClass = 'badge-red';
+    let dispText = 'No Intent';
+    if (score >= 80) {
+      badgeClass = 'badge-green';
+      dispText = 'Hot Lead';
+    } else if (score >= 65) {
+      badgeClass = 'badge-accent';
+      dispText = 'Qualified';
+    } else if (score >= 50) {
+      badgeClass = 'badge-amber';
+      dispText = 'Warm Lead';
+    }
 
-    const city = lead.raw_data?.city || 'Unknown City';
+    // Mask phone number for security
+    const rawPhone = lead.phone || '';
+    let maskedPhone = rawPhone;
+    if (rawPhone.length > 6) {
+      maskedPhone = rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2);
+    }
+
+    const city = lead.raw_data?.city || 'Unknown';
     const age = lead.raw_data?.age || 'N/A';
-    const source = lead.source || 'Direct';
+    const source = lead.source || 'Ads';
+    const timeStr = lead.created_at ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just Now';
 
     return `
-      <div class="lead-item" id="lead-item-${lead.id}">
-        <div class="lead-info-main">
-          <div class="lead-name-row">
-            <span class="lead-name">${lead.name || 'Unnamed Lead'}</span>
-            <span class="lead-source-badge">${source}</span>
+      <tr id="lead-tr-${lead.id}">
+        <td>
+          <div style="font-weight: 700;">${lead.name || 'Anonymous User'}</div>
+          <div style="font-size: 10.5px; color: var(--lx-muted);">📍 ${city} (Age: ${age})</div>
+        </td>
+        <td><span style="font-family: var(--lx-mono);">${maskedPhone}</span></td>
+        <td><span class="lx-badge badge-gray">${source}</span></td>
+        <td style="text-align: center;">
+          <strong style="font-family: var(--lx-mono); font-size:13px; color: ${score >= 80 ? 'var(--lx-green)' : (score >= 50 ? 'var(--lx-amber)' : 'var(--lx-red)')}">${score}</strong>
+        </td>
+        <td><span class="lx-badge ${badgeClass}">${dispText}</span></td>
+        <td><span style="font-size: 11px; color: var(--lx-muted);">${timeStr}</span></td>
+        <td style="text-align: right;">
+          <div style="display: flex; gap: 4px; justify-content: flex-end;">
+            <button class="lx-btn lx-btn-small" onclick="triggerMockCall('${lead.id}', '${lead.name}', '${lead.phone}', ${score})" title="Call Now via VOIZ">📞 Call</button>
+            <button class="lx-btn lx-btn-small" style="border-color: rgba(30, 201, 183, 0.3); color: var(--lx-teal);" onclick="triggerMockHandoff('${lead.id}', '${lead.name}')" title="Initiate Warm Handoff">🤝 Handoff</button>
+            <button class="lx-btn-icon" onclick="triggerMockDnc('${lead.id}', '${lead.phone}')" title="Flag DNC/NDNC" style="color: var(--lx-red);">🚫</button>
+            <button class="lx-btn-icon" onclick="rescoreSingleLead('${lead.id}')" title="Rescore lead">🔄</button>
           </div>
-          <div class="lead-details-row">
-            <span class="lead-details-item">📞 ${lead.phone}</span>
-            <span class="lead-details-item">📍 ${city} (Age: ${age})</span>
-          </div>
-        </div>
-        <div class="lead-score-area">
-          <div class="score-badge ${badgeClass}" title="Score: ${score}">${score}</div>
-          <button class="rescore-item-btn" onclick="rescoreSingleLead('${lead.id}')" title="Rescore lead">🔄</button>
-        </div>
-      </div>
+        </td>
+      </tr>
     `;
   }).join('');
 }
 
-// API Call - Save weights
+// 6. Update KPIs based on leads
+function updateDashboardKPIs(leads) {
+  const hotLeads = leads.filter(l => l.score >= 80);
+  const warmLeads = leads.filter(l => l.score >= 50 && l.score < 80);
+  
+  // Simple ratios
+  const totalCallsCount = 14800 + leads.length * 3;
+  const connectRate = 68.4;
+  const qualifiedLeads = 3100 + hotLeads.length;
+
+  document.getElementById('kpi-total-calls').textContent = totalCallsCount.toLocaleString();
+  document.getElementById('kpi-qualified-leads').textContent = qualifiedLeads.toLocaleString();
+  document.getElementById('kpi-hot-leads').textContent = (930 + hotLeads.length).toLocaleString();
+
+  // Render Hot Leads rings strip on Home page
+  const ringList = document.getElementById('hot-leads-ring-list');
+  if (ringList) {
+    if (hotLeads.length === 0) {
+      ringList.innerHTML = `
+        <div style="font-size: 11.5px; color: var(--lx-hint); text-align: center; padding: 20px 0;">
+          No high-intent leads recorded yet.
+        </div>
+      `;
+      return;
+    }
+
+    // Grab top 3 hot leads
+    const topHot = [...hotLeads].sort((a,b) => b.score - a.score).slice(0, 3);
+    ringList.innerHTML = topHot.map(lead => {
+      const score = lead.score;
+      const pctOffset = 131.9 - (131.9 * score) / 100;
+      
+      const rawPhone = lead.phone || '';
+      let maskedPhone = rawPhone;
+      if (rawPhone.length > 6) {
+        maskedPhone = rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2);
+      }
+
+      return `
+        <div class="hotlead-row">
+          <div class="hlr-name">
+            <strong>${lead.name || 'Hot Lead'}</strong>
+            <div class="hlr-meta">📞 ${maskedPhone} | ${lead.raw_data?.city || 'India'}</div>
+          </div>
+          <div class="score-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="3"></circle>
+              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="3.5" stroke-dasharray="131.9" stroke-dashoffset="${pctOffset}" transform="rotate(-90 26 26)"></circle>
+            </svg>
+            <div class="score-num" style="color: var(--lx-green)">${score}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// 7. Save Weights config API
 async function saveWeightsConfig() {
   const weights = {};
   Object.keys(sliders).forEach(key => {
-    weights[key] = parseFloat(sliders[key].value);
+    if (sliders[key]) weights[key] = parseFloat(sliders[key].value);
   });
 
   try {
@@ -210,7 +420,7 @@ async function saveWeightsConfig() {
       body: JSON.stringify({
         tenant_id: currentTenant,
         weights,
-        changed_by: 'arpan-dashboard'
+        changed_by: 'intern-dashboard'
       })
     });
 
@@ -218,6 +428,7 @@ async function saveWeightsConfig() {
     if (res.ok && data.success) {
       showToast('Config Saved', 'Scoring weights updated successfully on server.', '✅');
       loadTenantData();
+      logActivityFeed('Configuration weights modified by user context.');
     } else {
       showToast('Save Failed', data.message || 'Validation failed on server.', '❌', 'error');
     }
@@ -227,7 +438,7 @@ async function saveWeightsConfig() {
   }
 }
 
-// API Call - Ingest Single Lead
+// 8. Ingest Single Lead API Handler
 async function handleSingleIngest(e) {
   e.preventDefault();
   
@@ -274,11 +485,12 @@ async function handleSingleIngest(e) {
 
     const data = await res.json();
     if (res.status === 201) {
-      showToast('Lead Ingested', `Successfully created lead with score ${data.lead.score}`, '🎉');
+      showToast('Lead Ingested', `Created lead: ${data.lead.name || 'Anonymous'} | Score: ${data.lead.score}`, '🎉');
       singleIngestForm.reset();
-      fetchLeadsList();
+      await fetchLeadsList();
+      logActivityFeed(`New lead <strong>${data.lead.name || 'Anonymous'}</strong> ingested successfully (Score: ${data.lead.score}).`);
     } else if (res.status === 409) {
-      showToast('Duplicate Lead', '409: Phone number already exists for this tenant.', '⚠️', 'warning');
+      showToast('Duplicate Lead', '409 Conflict: Phone number already exists for this tenant.', '⚠️', 'warning');
     } else {
       showToast('Ingest Failed', data.message || 'Payload validation error.', '❌', 'error');
     }
@@ -291,7 +503,7 @@ async function handleSingleIngest(e) {
   }
 }
 
-// In-window helper to load template JSON for testing
+// 9. Batch JSON template loader
 function loadSampleJsonTemplate() {
   const template = [
     {
@@ -326,10 +538,10 @@ function loadSampleJsonTemplate() {
     }
   ];
   batchJsonArea.value = JSON.stringify(template, null, 2);
-  showToast('Template Loaded', 'JSON structure populated in text editor.', '📝');
+  showToast('Template Loaded', 'JSON array template populated in workspace.', '📝');
 }
 
-// API Call - Batch Ingest
+// 10. Batch Ingest API Handler
 async function handleBatchIngest() {
   const jsonStr = batchJsonArea.value.trim();
   if (!jsonStr) {
@@ -349,7 +561,7 @@ async function handleBatchIngest() {
   }
 
   submitBatchBtn.setAttribute('disabled', 'true');
-  submitBatchBtn.textContent = 'Processing Batch...';
+  submitBatchBtn.textContent = 'Processing...';
 
   try {
     const res = await fetch(`${API_BASE}/batch`, {
@@ -365,7 +577,8 @@ async function handleBatchIngest() {
     if (res.ok) {
       showToast('Batch Complete', `Accepted: ${data.accepted} | Rejected: ${data.rejected} | Duplicates: ${data.duplicates}`, '📂');
       batchJsonArea.value = '';
-      fetchLeadsList();
+      await fetchLeadsList();
+      logActivityFeed(`Batch ingested: <strong>${data.accepted} accepted</strong>, ${data.rejected} rejected, ${data.duplicates} duplicates.`);
     } else {
       showToast('Batch Failed', data.message || 'Validation failed for batch schema.', '❌', 'error');
     }
@@ -378,11 +591,11 @@ async function handleBatchIngest() {
   }
 }
 
-// API Call - Rescore Single Lead
+// 11. Rescore Single Lead API Handler
 window.rescoreSingleLead = async function(leadId) {
-  const itemEl = document.getElementById(`lead-item-${leadId}`);
-  if (itemEl) {
-    itemEl.style.opacity = '0.5';
+  const trEl = document.getElementById(`lead-tr-${leadId}`);
+  if (trEl) {
+    trEl.style.opacity = '0.5';
   }
 
   try {
@@ -391,23 +604,23 @@ window.rescoreSingleLead = async function(leadId) {
     });
     const data = await res.json();
     if (res.ok && data.success) {
-      showToast('Lead Rescored', `Lead rescored from ${data.old_score} ➡️ ${data.new_score}`, '🔄');
-      fetchLeadsList();
+      showToast('Lead Rescored', `Lead score updated: ${data.old_score} ➡️ ${data.new_score}`, '🔄');
+      await fetchLeadsList();
+      logActivityFeed(`Lead <strong>${data.lead.name || 'Anonymous'}</strong> rescored from ${data.old_score} to ${data.new_score}.`);
     } else {
       showToast('Rescore Failed', data.message || 'Unable to update lead score.', '❌', 'error');
-      if (itemEl) itemEl.style.opacity = '1';
+      if (trEl) trEl.style.opacity = '1';
     }
   } catch (error) {
     console.error('Rescore single lead error:', error);
     showToast('Network Error', 'Failed to connect to rescoring endpoint.', '❌', 'error');
-    if (itemEl) itemEl.style.opacity = '1';
+    if (trEl) trEl.style.opacity = '1';
   }
 };
 
-// API Call - Rescore All Leads
+// 12. Rescore All Leads API Handler
 async function handleRescoreAll() {
-  const leadItems = leadsList.getElementsByClassName('lead-item');
-  if (leadItems.length === 0) {
+  if (allLeads.length === 0) {
     showToast('No Leads', 'There are no active leads loaded to rescore.', '⚠️', 'warning');
     return;
   }
@@ -416,13 +629,8 @@ async function handleRescoreAll() {
   rescoreAllBtn.textContent = 'Recalculating...';
 
   try {
-    const res = await fetch(`${API_BASE}?tenant_id=${currentTenant}`);
-    if (!res.ok) throw new Error('Failed to fetch lead list');
-    const data = await res.json();
-    const leads = data.leads;
-
-    // Rescore all in parallel
-    const promises = leads.map(l => 
+    // Fetch and trigger rescore in parallel
+    const promises = allLeads.map(l => 
       fetch(`${API_BASE}/${l.id}/rescore`, { method: 'POST' })
         .then(r => r.json())
         .catch(err => ({ success: false }))
@@ -432,7 +640,8 @@ async function handleRescoreAll() {
     const successful = results.filter(r => r.success).length;
 
     showToast('Recalculation Complete', `Successfully rescored ${successful} leads.`, '🚀');
-    fetchLeadsList();
+    await fetchLeadsList();
+    logActivityFeed(`Bulk recalculation completed for <strong>${successful} leads</strong>.`);
   } catch (error) {
     console.error('Rescore all error:', error);
     showToast('Recalculation Failed', 'Error batch rescoring tenant leads.', '❌', 'error');
@@ -442,28 +651,280 @@ async function handleRescoreAll() {
   }
 }
 
-// Toast Helper
-let toastTimer = null;
-function showToast(title, body, icon = 'ℹ️', type = 'info') {
-  if (toastTimer) {
-    clearTimeout(toastTimer);
-  }
+// 13. Interactive Mock Operations (VOIZ dialer simulator)
+window.triggerMockCall = function(leadId, leadName, leadPhone, score) {
+  showToast('Initiating Dial', `Connecting VOIZ Roster to ${leadName}...`, '📞');
+  logActivityFeed(`VOIZ dialer attempting connection for: <strong>${leadName}</strong> (${leadPhone}).`);
 
+  // Switch to Live Monitor automatically to show the waveform animation!
+  setTimeout(() => {
+    const liveMonitorItem = document.querySelector('.lx-sidebar-item[data-page="monitor"]');
+    if (liveMonitorItem) {
+      liveMonitorItem.click();
+    }
+    
+    // Add call card to list dynamically
+    const liveList = document.getElementById('live-calls-list');
+    const newCallCard = document.createElement('div');
+    newCallCard.className = 'lx-livecall';
+    newCallCard.id = `livecall-sim-${leadId}`;
+    newCallCard.style.borderLeft = '4px solid var(--lx-green)';
+    
+    // Create random waveform animation
+    newCallCard.innerHTML = `
+      <div class="lc-header">
+        <span class="lx-badge badge-green">ON CALL</span>
+        <strong class="lc-title">${leadName}</strong>
+        <span class="lc-sub">VOIZ-01 (Kavita) connected</span>
+      </div>
+      <div class="lc-grid">
+        <div class="lc-item">
+          <span class="lc-item-label">Phone</span>
+          <span class="lc-item-val">${leadPhone.substring(0, leadPhone.length - 5) + '***' + leadPhone.substring(leadPhone.length - 2)}</span>
+        </div>
+        <div class="lc-item">
+          <span class="lc-item-label">Intent Score</span>
+          <span class="lc-item-val" style="color: var(--lx-green);">${score} / 100</span>
+        </div>
+        <div class="lc-item" style="display:flex; align-items:center; justify-content:space-between; flex-direction:row;">
+          <div>
+            <span class="lc-item-label">Live Stream</span>
+            <span class="lc-item-val" id="stream-timer-${leadId}">00:01s</span>
+          </div>
+          <div class="call-wave">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Prepend to top of list
+    liveList.insertBefore(newCallCard, liveList.firstChild);
+    updateLiveCallsCountBadge();
+
+    // Start a mock timer for the call duration
+    let secs = 1;
+    const interval = setInterval(() => {
+      const timerVal = document.getElementById(`stream-timer-${leadId}`);
+      if (timerVal) {
+        secs++;
+        const minsStr = Math.floor(secs / 60).toString().padStart(2, '0');
+        const secsStr = (secs % 60).toString().padStart(2, '0');
+        timerVal.textContent = `${minsStr}:${secsStr}s`;
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    // After 15 seconds, complete call or simulate disconnect
+    setTimeout(() => {
+      clearInterval(interval);
+      const simCard = document.getElementById(`livecall-sim-${leadId}`);
+      if (simCard) {
+        simCard.remove();
+        updateLiveCallsCountBadge();
+        showToast('Call Completed', `VOIZ call finished for ${leadName}. Syncing outcome.`, '✅');
+        logActivityFeed(`VOIZ dialer completed call with <strong>${leadName}</strong>. Dispositioned: Interested.`);
+      }
+    }, 15000);
+  }, 1200);
+};
+
+window.triggerMockHandoff = function(leadId, leadName) {
+  showToast('Warm Handoff', `Routing high-intent lead ${leadName} to Muthoot Finance specialist...`, '🤝');
+  logActivityFeed(`Warm handoff triggered for <strong>${leadName}</strong>. Routing to specialist queue.`);
+
+  // Auto switch to Live monitor to show handoff highlight
+  setTimeout(() => {
+    const liveMonitorItem = document.querySelector('.lx-sidebar-item[data-page="monitor"]');
+    if (liveMonitorItem) {
+      liveMonitorItem.click();
+    }
+  }, 1000);
+};
+
+window.triggerMockDnc = function(leadId, leadPhone) {
+  showToast('Added to DNC', `Phone number ${leadPhone} has been added to the Do Not Call registry.`, '🚫', 'warning');
+  logActivityFeed(`DNC block enforced on lead phone: <strong>${leadPhone}</strong>. Auto-purged from dialer queues.`);
+  
+  // Highlight and remove row
+  const row = document.getElementById(`lead-tr-${leadId}`);
+  if (row) {
+    row.style.background = 'rgba(240, 84, 100, 0.15)';
+    setTimeout(() => {
+      row.remove();
+      // Update count
+      allLeads = allLeads.filter(l => l.id !== leadId);
+      renderLeads(allLeads);
+      updateDashboardKPIs(allLeads);
+    }, 1500);
+  }
+};
+
+// 14. Campaign config mock save handlers
+window.saveCampaignConfig = function(modeName) {
+  showToast('Config Saved', `${modeName} campaign configurations updated successfully.`, '⚙️');
+  logActivityFeed(`Campaign settings updated for <strong>${modeName}</strong>. Configs saved.`);
+};
+
+window.preflightVerifyCampaign = function() {
+  const campName = document.getElementById('cfg-sch-name').value.trim() || 'Scheduled Campaign';
+  showToast('Verification', `Running pre-flight checks for ${campName}...`, '🧪');
+  
+  setTimeout(() => {
+    showToast('Checks Passed', 'Dynamic weights, DNC registries, and VOIZ agent rosters validated.', '✅');
+    logActivityFeed(`Pre-flight checks passed for scheduled campaign: <strong>${campName}</strong>.`);
+  }, 1500);
+};
+
+// 15. Client portal interactions
+window.exportClientReport = function() {
+  showToast('Exporting Report', 'Compiling Muthoot Finance performance sheets...', '📂');
+  setTimeout(() => {
+    showToast('Download Ready', 'LeadX_Muthoot_Report_June.pdf has been generated.', '📥');
+  }, 1500);
+};
+
+// 16. Utility Helpers
+function showToast(title, body, icon = 'ℹ️', type = 'info') {
   toastIcon.textContent = icon;
   toastTitle.textContent = title;
   toastBody.textContent = body;
 
-  // Set colors based on type
   toast.className = 'toast show';
   if (type === 'error') {
-    toast.style.borderLeft = '4px solid #e63946';
+    toast.style.borderLeft = '4px solid var(--lx-red)';
   } else if (type === 'warning') {
-    toast.style.borderLeft = '4px solid #ffb703';
+    toast.style.borderLeft = '4px solid var(--lx-amber)';
   } else {
-    toast.style.borderLeft = '4px solid #00f5d4';
+    toast.style.borderLeft = '4px solid var(--lx-teal)';
   }
 
-  toastTimer = setTimeout(() => {
+  // Auto hide
+  setTimeout(() => {
     toast.classList.remove('show');
-  }, 4500);
+  }, 5000);
+}
+
+function logActivityFeed(text) {
+  const timeline = document.getElementById('system-activity-timeline');
+  if (timeline) {
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const item = document.createElement('div');
+    item.className = 'tl-item';
+    item.innerHTML = `
+      <span class="tl-dot sd-green"></span>
+      <span class="tl-time">${time}</span>
+      <span class="tl-text">${text}</span>
+    `;
+    // Prepend
+    timeline.insertBefore(item, timeline.firstChild);
+    
+    // Cap at 6 events
+    if (timeline.children.length > 6) {
+      timeline.removeChild(timeline.lastChild);
+    }
+  }
+}
+
+function updateLiveCallsCountBadge() {
+  const list = document.getElementById('live-calls-list');
+  const badge = document.getElementById('liveCallCount');
+  if (list && badge) {
+    const activeCount = list.children.length;
+    badge.textContent = activeCount;
+  }
+}
+
+// Periodically updates live monitor counts and timers to feel interactive
+function updateLiveMonitorQueue() {
+  const queueBody = document.getElementById('monitor-queue-tbody');
+  if (queueBody) {
+    const rows = queueBody.getElementsByTagName('tr');
+    for (let r of rows) {
+      const waitCell = r.getElementsByTagName('td')[1];
+      if (waitCell && waitCell.textContent.includes('second')) {
+        let currentSeconds = parseInt(waitCell.textContent);
+        currentSeconds += Math.floor(Math.random() * 3) + 1;
+        waitCell.innerHTML = `<span style="font-family: var(--lx-mono);">${currentSeconds} seconds</span>`;
+      }
+    }
+  }
+}
+
+// 17. Seed initial leads in mock DB if database is empty on page load
+async function seedInitialDataIfEmpty() {
+  try {
+    const leadsRes = await fetch(`${API_BASE}?tenant_id=${currentTenant}`);
+    if (leadsRes.ok) {
+      const data = await leadsRes.json();
+      if (data.success && data.leads.length === 0) {
+        // Seed 4-5 dummy leads automatically
+        const sampleLeads = [
+          {
+            "name": "Raman Iyer",
+            "phone": "+919908188223",
+            "email": "raman.iyer@gmail.com",
+            "source": "referral",
+            "raw_data": { "age": 31, "city": "Mumbai", "income": 650000, "pages_visited": 10, "video_watched": true }
+          },
+          {
+            "name": "Arjun Mehta",
+            "phone": "+919812499155",
+            "source": "organic",
+            "raw_data": { "age": 28, "city": "Mumbai", "income": 450000, "pages_visited": 7, "video_watched": true }
+          },
+          {
+            "name": "Priya Sharma",
+            "phone": "+917738200112",
+            "source": "paid_ads",
+            "raw_data": { "age": 24, "city": "Delhi", "income": 320000, "pages_visited": 5, "video_watched": true }
+          },
+          {
+            "name": "Karan Malhotra",
+            "phone": "+919822411077",
+            "source": "re-engagement",
+            "raw_data": { "age": 42, "city": "Pune", "pages_visited": 4, "video_watched": false }
+          }
+        ];
+
+        for (let lead of sampleLeads) {
+          await fetch(`${API_BASE}/ingest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenant_id: currentTenant, ...lead })
+          });
+        }
+        
+        // Reload
+        loadTenantData();
+      }
+    }
+  } catch (err) {
+    console.error('Seed helper error:', err);
+  }
+}
+
+// Activity timeline simulator
+function startActivitySimulator() {
+  updateLiveCallsCountBadge();
+  
+  // Random timeline events interval
+  setInterval(() => {
+    const events = [
+      "CRM sync succeeded for tenant: <strong>default-tenant</strong>.",
+      "VOIZ dialer completed call with <strong>Jane Smith</strong>.",
+      "Lead <strong>Alex Mercer</strong> qualification score verified.",
+      "Dialing retry scheduled for lead: +91 99343 ***12.",
+      "Non-RT Campaign concurrency adjusted: 15 threads.",
+      "Webhook ingested lead from AdWords API (source: paid_ads)."
+    ];
+    const randomEvent = events[Math.floor(Math.random() * events.length)];
+    logActivityFeed(randomEvent);
+    updateLiveMonitorQueue();
+  }, 12000);
 }

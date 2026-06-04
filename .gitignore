@@ -4,4 +4,3 @@ database.db
 dist/
 .DS_Store
 .gemini/
-docs/

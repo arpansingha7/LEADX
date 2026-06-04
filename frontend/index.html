@@ -3,198 +3,1180 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LEADX Ingestion & Scoring Control Center</title>
+  <title>LeadX — AI Lead Qualification & Conversion Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="glow-container">
-    <div class="glow-ball glow-ball-1"></div>
-    <div class="glow-ball glow-ball-2"></div>
+  <div class="lx-wrap">
+    <!-- Top Header Bar -->
+    <header class="lx-topbar">
+      <div class="lx-logo">
+        <div class="lx-logo-mark">LX</div>
+        <div>
+          <strong>LeadX</strong>
+          <span style="font-size: 10px; color: var(--lx-muted); display: block; margin-top: -2px;">Orchestrator v1.0</span>
+        </div>
+      </div>
+      
+      <!-- Tenant switcher integrated inside header -->
+      <div class="lx-tenant-section">
+        <label for="tenantIdInput">Tenant ID:</label>
+        <input type="text" id="tenantIdInput" value="default-tenant" class="lx-tenant-input" placeholder="tenant-id">
+        <button id="loadTenantBtn" class="lx-btn lx-btn-small">Switch</button>
+      </div>
+
+      <!-- Top Right Status Info -->
+      <div class="lx-topbar-right">
+        <div class="lx-client-badge" id="clientBadgeLink" title="View Shareable Client Dashboard">
+          <span class="lx-dot"></span>
+          <span>Client: Muthoot Finance</span>
+        </div>
+        <div class="lx-avatar">AF</div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="lx-body">
+      <!-- Sidebar Navigation -->
+      <aside class="lx-sidebar">
+        <div class="lx-sidebar-section">Main Operations</div>
+        <div class="lx-sidebar-item active" data-page="home">
+          <span>🏠</span> Dashboard
+        </div>
+        <div class="lx-sidebar-item" data-page="campaigns">
+          <span>🎯</span> Campaigns
+        </div>
+        <div class="lx-sidebar-item" data-page="agents">
+          <span>🤖</span> VOIZ Roster
+        </div>
+        <div class="lx-sidebar-item" data-page="leads">
+          <span>⚡</span> Lead Intelligence
+          <span class="count" id="sidebarLeadsCount">0</span>
+        </div>
+        <div class="lx-sidebar-section">Real-Time</div>
+        <div class="lx-sidebar-item" data-page="monitor">
+          <span>📡</span> Live Monitor
+          <span class="count badge-green" style="background: rgba(46, 204, 138, 0.2); animation: pulse 2s infinite;" id="liveCallCount">0</span>
+        </div>
+        <div class="lx-sidebar-section">Reports & Shares</div>
+        <div class="lx-sidebar-item" data-page="client">
+          <span>💼</span> Client Portal
+        </div>
+      </aside>
+
+      <!-- Main Pages Area -->
+      <main class="lx-main">
+        
+        <!-- 1. DASHBOARD PAGE -->
+        <section class="lx-page show" id="page-home">
+          <div class="lx-section-title">
+            Dashboard
+            <span class="sub">Performance Overview & Funnel Metrics</span>
+          </div>
+
+          <!-- KPI Strip -->
+          <div class="lx-row" style="grid-template-columns: repeat(5, 1fr);">
+            <div class="lx-stat">
+              <div class="lx-stat-label">TOTAL CALLS TODAY</div>
+              <div class="lx-stat-val" id="kpi-total-calls">14,892</div>
+              <div class="lx-stat-delta badge-green">↑ 12.4% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+            </div>
+            <div class="lx-stat">
+              <div class="lx-stat-label">CONNECT RATE</div>
+              <div class="lx-stat-val" id="kpi-connect-rate">68.4%</div>
+              <div class="lx-stat-delta badge-green">↑ 3.1% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+            </div>
+            <div class="lx-stat">
+              <div class="lx-stat-label">QUALIFIED LEADS</div>
+              <div class="lx-stat-val" id="kpi-qualified-leads">3,128</div>
+              <div class="lx-stat-delta badge-green">↑ 8.7% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+            </div>
+            <div class="lx-stat">
+              <div class="lx-stat-label">HOT LEADS (SCORE ≥ 80)</div>
+              <div class="lx-stat-val" id="kpi-hot-leads">942</div>
+              <div class="lx-stat-delta badge-green">↑ 14.2% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+            </div>
+            <div class="lx-stat">
+              <div class="lx-stat-label">ACTIVE VOIZ AGENTS</div>
+              <div class="lx-stat-val" id="kpi-active-agents">24 <span style="font-size: 14px; font-weight: normal; color: var(--lx-muted);">/ 30</span></div>
+              <div class="lx-stat-delta badge-teal"><span class="lx-dot" style="display:inline-block; margin-right:4px;"></span>Live Dialing</div>
+            </div>
+          </div>
+
+          <!-- Funnel & Lists Layout -->
+          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-top: 4px;">
+            <!-- Left Panel: Campaign Funnel -->
+            <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div class="lx-section-title" style="margin-bottom: 12px;">
+                  Campaign Funnel Progress
+                  <span class="sub">7-Stage Ingestion to Qualification Funnel</span>
+                </div>
+                <!-- 7 Stage Funnel -->
+                <div class="lx-funnel">
+                  <div class="funnel-stage">
+                    <span class="funnel-label">1. Ingested</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 100%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">10,000 leads</div>
+                    </div>
+                    <span class="funnel-count">100%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">2. Scrubbed (DNC)</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 98.5%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">9,850 leads</div>
+                    </div>
+                    <span class="funnel-count">98.5%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">3. Scored</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 98.5%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">9,850 leads</div>
+                    </div>
+                    <span class="funnel-count">98.5%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">4. Queued</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 75%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">7,500 leads</div>
+                    </div>
+                    <span class="funnel-count">75.0%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">5. Attempted</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 62%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">6,200 calls</div>
+                    </div>
+                    <span class="funnel-count">62.0%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">6. Connected</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 42.4%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">4,240 connects</div>
+                    </div>
+                    <span class="funnel-count">42.4%</span>
+                  </div>
+                  <div class="funnel-stage">
+                    <span class="funnel-label">7. Qualified</span>
+                    <div class="funnel-bar-wrap">
+                      <div class="funnel-fill" style="width: 31.3%; background: linear-gradient(90deg, #1ec9b7, #2ecc8a);">3,128 qualified</div>
+                    </div>
+                    <span class="funnel-count">31.3%</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Conversion Metrics Grid -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 16px;">
+                <div style="text-align: center;">
+                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">INGEST ➡️ CONNECT</div>
+                  <strong style="font-size: 16px; color: var(--lx-text); font-family: var(--lx-mono);">42.4%</strong>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">CONNECT ➡️ QUALIFIED</div>
+                  <strong style="font-size: 16px; color: var(--lx-teal); font-family: var(--lx-mono);">73.8%</strong>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">OVERALL CONVERSION</div>
+                  <strong style="font-size: 16px; color: var(--lx-green); font-family: var(--lx-mono);">31.3%</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Panel: Hot Leads Ring Gauges & Activity Feed -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Hot Leads intent Score list -->
+              <div class="lx-card">
+                <div class="lx-section-title">
+                  Real-time Hot Leads (Score ≥ 80)
+                  <span class="sub">Dynamic intent signals</span>
+                </div>
+                <div id="hot-leads-ring-list">
+                  <!-- JS will dynamically populate or show mockup -->
+                  <div class="hotlead-row">
+                    <div class="hlr-name">
+                      <strong>Arjun Mehta</strong>
+                      <div class="hlr-meta">📞 +91 98124 ***55 | Mumbai</div>
+                    </div>
+                    <div class="score-ring">
+                      <svg width="52" height="52" viewBox="0 0 52 52">
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="2.6" transform="rotate(-90 26 26)"></circle>
+                      </svg>
+                      <div class="score-num" style="color: var(--lx-green)">98</div>
+                    </div>
+                  </div>
+                  <div class="hotlead-row">
+                    <div class="hlr-name">
+                      <strong>Priya Sharma</strong>
+                      <div class="hlr-meta">📞 +91 77382 ***12 | Delhi</div>
+                    </div>
+                    <div class="score-ring">
+                      <svg width="52" height="52" viewBox="0 0 52 52">
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="6.6" transform="rotate(-90 26 26)"></circle>
+                      </svg>
+                      <div class="score-num" style="color: var(--lx-green)">95</div>
+                    </div>
+                  </div>
+                  <div class="hotlead-row">
+                    <div class="hlr-name">
+                      <strong>Rohit Nair</strong>
+                      <div class="hlr-meta">📞 +91 99870 ***67 | Bangalore</div>
+                    </div>
+                    <div class="score-ring">
+                      <svg width="52" height="52" viewBox="0 0 52 52">
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-accent)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="14.5" transform="rotate(-90 26 26)"></circle>
+                      </svg>
+                      <div class="score-num" style="color: var(--lx-accent)">89</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Real-time Activity Feed -->
+              <div class="lx-card" style="flex: 1;">
+                <div class="lx-section-title">
+                  System Activity Feed
+                  <span class="sub">Live orchestrations</span>
+                </div>
+                <div class="lx-timeline" id="system-activity-timeline">
+                  <div class="tl-item">
+                    <span class="tl-dot sd-green"></span>
+                    <span class="tl-time">23:09</span>
+                    <span class="tl-text">VOIZ agent <strong>V-02</strong> qualified lead <strong>Arjun Mehta</strong> (Gold Loan interest confirmed).</span>
+                  </div>
+                  <div class="tl-item">
+                    <span class="tl-dot sd-amber"></span>
+                    <span class="tl-time">23:07</span>
+                    <span class="tl-text">CRM write-back succeeded for tenant: <strong>default-tenant</strong> (Muthoot Lead Sync).</span>
+                  </div>
+                  <div class="tl-item">
+                    <span class="tl-dot sd-green"></span>
+                    <span class="tl-time">23:04</span>
+                    <span class="tl-text">Batch ingestion completed: <strong>140 leads</strong> ingested. 2 duplicates auto-filtered.</span>
+                  </div>
+                  <div class="tl-item">
+                    <span class="tl-dot sd-gray"></span>
+                    <span class="tl-time">22:58</span>
+                    <span class="tl-text">VOIZ agent <strong>V-05</strong> switched state to <strong>Idle</strong>.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. CAMPAIGNS PAGE -->
+        <section class="lx-page" id="page-campaigns">
+          <div class="lx-section-title">
+            Campaign Manager
+            <span class="sub">Orchestrate dials, schedules, and configurations</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+            <!-- Left Side: Campaigns list -->
+            <div>
+              <div class="lx-pill-tabs" id="campaign-mode-tabs">
+                <button class="lx-pill-tab active" data-mode="rt">Real-Time (RT)</button>
+                <button class="lx-pill-tab" data-mode="nonrt">Non-RT (Batch)</button>
+                <button class="lx-pill-tab" data-mode="scheduled">Scheduled</button>
+              </div>
+
+              <!-- RT Tab Content -->
+              <div class="tab-content show" id="camp-content-rt">
+                <div class="campaign-card">
+                  <div class="cc-top">
+                    <div>
+                      <div class="cc-name">Muthoot Gold Loan RT Ingestion</div>
+                      <div class="cc-sub">Mode: Real-Time Dialing | Tenant: default-tenant</div>
+                    </div>
+                    <span class="lx-badge badge-green">ACTIVE</span>
+                  </div>
+                  <div class="cc-stats">
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">12,450</div>
+                      <div class="cc-stat-label">Ingested</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">9,870</div>
+                      <div class="cc-stat-label">Attempted</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">8,204</div>
+                      <div class="cc-stat-label">Connected</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">82.6%</div>
+                      <div class="cc-stat-label">Connect Rate</div>
+                    </div>
+                  </div>
+                  <div class="cc-progress">
+                    <div class="cc-progress-label">
+                      <span>Roster: 8 VOIZ agents assigned</span>
+                      <span>Progress: 79%</span>
+                    </div>
+                    <div class="lx-progress-bar">
+                      <div class="lx-progress-fill" style="width: 79%; background: var(--lx-accent);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="campaign-card">
+                  <div class="cc-top">
+                    <div>
+                      <div class="cc-name">Muthoot Home Loan Re-engagement</div>
+                      <div class="cc-sub">Mode: Real-Time Triggers | Tenant: default-tenant</div>
+                    </div>
+                    <span class="lx-badge badge-green">ACTIVE</span>
+                  </div>
+                  <div class="cc-stats">
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">2,142</div>
+                      <div class="cc-stat-label">Ingested</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">1,209</div>
+                      <div class="cc-stat-label">Attempted</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">812</div>
+                      <div class="cc-stat-label">Connected</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">67.1%</div>
+                      <div class="cc-stat-label">Connect Rate</div>
+                    </div>
+                  </div>
+                  <div class="cc-progress">
+                    <div class="cc-progress-label">
+                      <span>Roster: 4 VOIZ agents assigned</span>
+                      <span>Progress: 56%</span>
+                    </div>
+                    <div class="lx-progress-bar">
+                      <div class="lx-progress-fill" style="width: 56%; background: var(--lx-accent);"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Non-RT Tab Content -->
+              <div class="tab-content" id="camp-content-nonrt">
+                <div class="campaign-card">
+                  <div class="cc-top">
+                    <div>
+                      <div class="cc-name">Muthoot Finance Personal Loan Batch</div>
+                      <div class="cc-sub">Mode: Non-RT Batch Outbound | Concurrency: 15</div>
+                    </div>
+                    <span class="lx-badge badge-amber">PAUSED</span>
+                  </div>
+                  <div class="cc-stats">
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">5,000</div>
+                      <div class="cc-stat-label">Batch Size</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">3,120</div>
+                      <div class="cc-stat-label">Attempted</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">1,822</div>
+                      <div class="cc-stat-label">Connected</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">58.4%</div>
+                      <div class="cc-stat-label">Connect Rate</div>
+                    </div>
+                  </div>
+                  <div class="cc-progress">
+                    <div class="cc-progress-label">
+                      <span>Roster: 6 VOIZ agents assigned</span>
+                      <span>Progress: 62%</span>
+                    </div>
+                    <div class="lx-progress-bar">
+                      <div class="lx-progress-fill" style="width: 62%; background: var(--lx-amber);"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scheduled Tab Content -->
+              <div class="tab-content" id="camp-content-scheduled">
+                <div class="campaign-card">
+                  <div class="cc-top">
+                    <div>
+                      <div class="cc-name">Muthoot Gold Ingest Scheduled Q3</div>
+                      <div class="cc-sub">Mode: Scheduled Outbound | Starts: Tomorrow 10:00 AM</div>
+                    </div>
+                    <span class="lx-badge badge-gray">SCHEDULED</span>
+                  </div>
+                  <div class="cc-stats">
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">8,500</div>
+                      <div class="cc-stat-label">Expected Leads</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">0</div>
+                      <div class="cc-stat-label">Attempted</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">0</div>
+                      <div class="cc-stat-label">Connected</div>
+                    </div>
+                    <div class="cc-stat">
+                      <div class="cc-stat-val">0%</div>
+                      <div class="cc-stat-label">Connect Rate</div>
+                    </div>
+                  </div>
+                  <div class="cc-progress">
+                    <div class="cc-progress-label">
+                      <span>Roster: 10 VOIZ agents reserved</span>
+                      <span>Progress: 0%</span>
+                    </div>
+                    <div class="lx-progress-bar">
+                      <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Config panels based on selected tab -->
+            <div class="lx-card" style="align-self: flex-start;">
+              <!-- Dynamic config headers -->
+              <div id="campaign-config-header" class="lx-section-title" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px;">
+                Real-Time Config Options
+                <span class="sub">Active campaign settings</span>
+              </div>
+              
+              <!-- 1. RT Config Options -->
+              <div id="config-form-rt" class="tab-content show">
+                <div class="config-row">
+                  <div>
+                    <div class="config-label">Trigger Dialing on Ingest</div>
+                    <div class="config-sub">Dial VOIZ agents within 60s of lead ingestion</div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" checked id="cfg-rt-trigger">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="config-row">
+                  <div>
+                    <div class="config-label">Smart Retry Logic</div>
+                    <div class="config-sub">Retry 3 times (15m, 1h, 4h intervals) if no connect</div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" checked id="cfg-rt-retry">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="config-row">
+                  <div>
+                    <div class="config-label">Warm Human Handoff</div>
+                    <div class="config-sub">Transfer hot leads instantly to human specialists</div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" checked id="cfg-rt-handoff">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="config-row">
+                  <div>
+                    <div class="config-label">DNC Registry Check</div>
+                    <div class="config-sub">Cross-verify numbers with national NDNC database</div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" checked id="cfg-rt-dnc">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+                <div style="margin-top: 14px;">
+                  <button class="lx-btn primary btn-block" onclick="saveCampaignConfig('Real-Time')">Apply RT Config</button>
+                </div>
+              </div>
+
+              <!-- 2. Non-RT Config Options -->
+              <div id="config-form-nonrt" class="tab-content">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="form-group">
+                    <label>Batch Call Window</label>
+                    <input type="text" value="09:00 AM - 07:00 PM" class="lx-input" id="cfg-nonrt-window">
+                  </div>
+                  <div class="form-group">
+                    <label>Max Concurrency (Simultaneous Calls)</label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <input type="range" min="1" max="100" value="15" style="flex:1" id="cfg-nonrt-concurrency">
+                      <span style="font-family:var(--lx-mono); width:28px;" id="cfg-nonrt-concurrency-val">15</span>
+                    </div>
+                  </div>
+                  <div class="config-row" style="border-bottom:none; padding: 4px 0;">
+                    <div>
+                      <div class="config-label">Immediate CRM Sync</div>
+                      <div class="config-sub">Write outcomes back to CRM immediately after call</div>
+                    </div>
+                    <label class="lx-toggle">
+                      <input type="checkbox" checked id="cfg-nonrt-crm">
+                      <span class="lx-toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="margin-top: 6px;">
+                    <button class="lx-btn primary btn-block" onclick="saveCampaignConfig('Non-RT')">Apply Batch Config</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Scheduled Pre-Flight Form -->
+              <div id="config-form-scheduled" class="tab-content">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div class="form-group">
+                    <label>Campaign Name</label>
+                    <input type="text" placeholder="e.g. Muthoot Gold Loan Q4" class="lx-input" id="cfg-sch-name">
+                  </div>
+                  <div class="form-group">
+                    <label>Target Audience (Lead List)</label>
+                    <select class="lx-input" id="cfg-sch-source">
+                      <option value="muthoot_facebook_ads">Muthoot Facebook Ads June</option>
+                      <option value="muthoot_google_search">Google Search High Intent</option>
+                      <option value="dormant_users">Re-activation List</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Schedule Date & Time</label>
+                    <input type="datetime-local" class="lx-input" id="cfg-sch-datetime" value="2026-06-05T10:00">
+                  </div>
+                  <div class="form-group">
+                    <label>Assigned Roster Count</label>
+                    <input type="number" value="10" class="lx-input" id="cfg-sch-roster" min="1" max="50">
+                  </div>
+                  <div style="margin-top: 8px;">
+                    <button class="lx-btn primary btn-block" onclick="preflightVerifyCampaign()">Pre-Flight Verification</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. AGENTS PAGE -->
+        <section class="lx-page" id="page-agents">
+          <div class="lx-section-title">
+            VOIZ Roster Manager
+            <span class="sub">Monitor active dialing agents and performance</span>
+          </div>
+
+          <!-- Roster Cards Grid -->
+          <div class="lx-row" style="grid-template-columns: repeat(4, 1fr);" id="agents-roster-grid">
+            <!-- Card 1 -->
+            <div class="agent-card online">
+              <div class="agent-status-row">
+                <span class="lx-badge badge-green">ON CALL</span>
+                <span class="status-dot sd-green"></span>
+              </div>
+              <div class="agent-name">VOIZ-01 (Kavita)</div>
+              <div class="agent-meta">🔊 Hindi / English | Female-1</div>
+              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
+                <span>Calls today: <strong>148</strong></span>
+                <span>Qual rate: <strong style="color:var(--lx-green)">42%</strong></span>
+              </div>
+              <div class="lx-progress-bar">
+                <div class="lx-progress-fill" style="width: 42%; background: var(--lx-green);"></div>
+              </div>
+            </div>
+            <!-- Card 2 -->
+            <div class="agent-card busy">
+              <div class="agent-status-row">
+                <span class="lx-badge badge-accent">ON CALL (TRANSFER)</span>
+                <span class="status-dot sd-green"></span>
+              </div>
+              <div class="agent-name">VOIZ-02 (Rohan)</div>
+              <div class="agent-meta">🔊 English / Tamil | Male-1</div>
+              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
+                <span>Calls today: <strong>112</strong></span>
+                <span>Qual rate: <strong style="color:var(--lx-accent)">35%</strong></span>
+              </div>
+              <div class="lx-progress-bar">
+                <div class="lx-progress-fill" style="width: 35%; background: var(--lx-accent);"></div>
+              </div>
+            </div>
+            <!-- Card 3 -->
+            <div class="agent-card idle">
+              <div class="agent-status-row">
+                <span class="lx-badge badge-amber">IDLE</span>
+                <span class="status-dot sd-amber"></span>
+              </div>
+              <div class="agent-name">VOIZ-03 (Meera)</div>
+              <div class="agent-meta">🔊 Telugu / English | Female-2</div>
+              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
+                <span>Calls today: <strong>98</strong></span>
+                <span>Qual rate: <strong style="color:var(--lx-amber)">28%</strong></span>
+              </div>
+              <div class="lx-progress-bar">
+                <div class="lx-progress-fill" style="width: 28%; background: var(--lx-amber);"></div>
+              </div>
+            </div>
+            <!-- Card 4 -->
+            <div class="agent-card offline">
+              <div class="agent-status-row">
+                <span class="lx-badge badge-gray">OFFLINE</span>
+                <span class="status-dot sd-gray"></span>
+              </div>
+              <div class="agent-name">VOIZ-04 (Vikram)</div>
+              <div class="agent-meta">🔊 Kannada / English | Male-2</div>
+              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
+                <span>Calls today: <strong>0</strong></span>
+                <span>Qual rate: <strong>0%</strong></span>
+              </div>
+              <div class="lx-progress-bar">
+                <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Performance Comparison Table -->
+          <div class="lx-card" style="margin-top: 12px;">
+            <div class="lx-section-title">
+              Roster Performance Table
+              <span class="sub">Side-by-side execution metrics</span>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="lx-table">
+                <thead>
+                  <tr>
+                    <th>Agent ID</th>
+                    <th>Status</th>
+                    <th>Languages Configured</th>
+                    <th>Today's Calls</th>
+                    <th>Calls Connected</th>
+                    <th>Leads Qualified</th>
+                    <th>Qualification Rate</th>
+                  </tr>
+                </thead>
+                <tbody id="agents-performance-tbody">
+                  <tr>
+                    <td><strong>VOIZ-01 (Kavita)</strong></td>
+                    <td><span class="lx-badge badge-green">ON CALL</span></td>
+                    <td>Hindi, English</td>
+                    <td>148</td>
+                    <td>105</td>
+                    <td>62</td>
+                    <td><strong style="color: var(--lx-green)">41.9%</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>VOIZ-02 (Rohan)</strong></td>
+                    <td><span class="lx-badge badge-accent">ON CALL (TRANSFER)</span></td>
+                    <td>English, Tamil</td>
+                    <td>112</td>
+                    <td>82</td>
+                    <td>39</td>
+                    <td><strong style="color: var(--lx-accent)">34.8%</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>VOIZ-03 (Meera)</strong></td>
+                    <td><span class="lx-badge badge-amber">IDLE</span></td>
+                    <td>Telugu, English</td>
+                    <td>98</td>
+                    <td>68</td>
+                    <td>27</td>
+                    <td><strong style="color: var(--lx-amber)">27.5%</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>VOIZ-04 (Vikram)</strong></td>
+                    <td><span class="lx-badge badge-gray">OFFLINE</span></td>
+                    <td>Kannada, English</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td><strong>0%</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. LEADS (LEAD INTELLIGENCE) PAGE -->
+        <section class="lx-page" id="page-leads">
+          <div class="lx-section-title">
+            Lead Intelligence Center
+            <span class="sub">Ingest, score, configure weights, and view lead intelligence</span>
+          </div>
+
+          <!-- Configuration and Ingest Row -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <!-- Left: Weights Config Panel -->
+            <div class="lx-card">
+              <div class="config-header">
+                <div class="lx-section-title" style="margin-bottom: 0;">
+                  ⚙️ Dynamic Scoring Weights
+                </div>
+                <div id="sumIndicator" class="sum-indicator valid">Sum: 1.000</div>
+              </div>
+              <p style="font-size: 11px; color: var(--lx-muted); margin-bottom: 10px;">
+                Changes update the math immediately on the server. Make sure sum matches 1.00.
+              </p>
+              
+              <div class="weights-sliders" style="gap: 8px;">
+                <div class="slider-group">
+                  <div class="slider-info">
+                    <span>Demographic Fit</span>
+                    <span id="val-demographic_fit" class="slider-val">0.25</span>
+                  </div>
+                  <input type="range" id="weight-demographic_fit" min="0" max="1" step="0.01" value="0.25" class="slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-info">
+                    <span>Source Quality</span>
+                    <span id="val-source_quality" class="slider-val">0.25</span>
+                  </div>
+                  <input type="range" id="weight-source_quality" min="0" max="1" step="0.01" value="0.25" class="slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-info">
+                    <span>Recency (minutes elapsed)</span>
+                    <span id="val-recency" class="slider-val">0.20</span>
+                  </div>
+                  <input type="range" id="weight-recency" min="0" max="1" step="0.01" value="0.20" class="slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-info">
+                    <span>Behavioural Signals</span>
+                    <span id="val-behavioural_signals" class="slider-val">0.15</span>
+                  </div>
+                  <input type="range" id="weight-behavioural_signals" min="0" max="1" step="0.01" value="0.15" class="slider">
+                </div>
+
+                <div class="slider-group">
+                  <div class="slider-info">
+                    <span>Prior Interaction</span>
+                    <span id="val-prior_interaction" class="slider-val">0.15</span>
+                  </div>
+                  <input type="range" id="weight-prior_interaction" min="0" max="1" step="0.01" value="0.15" class="slider">
+                </div>
+              </div>
+
+              <button id="saveConfigBtn" class="lx-btn primary btn-block" style="margin-top: 8px;">Save Scoring Weights</button>
+            </div>
+
+            <!-- Right: Tabs for Ingestion -->
+            <div class="lx-card" style="display: flex; flex-direction: column;">
+              <div class="lx-pill-tabs" id="ingest-mode-tabs" style="margin-bottom: 8px;">
+                <button class="lx-pill-tab active" data-tab="single">Ingest Single Lead</button>
+                <button class="lx-pill-tab" data-tab="batch">Batch JSON Upload</button>
+              </div>
+
+              <!-- Single Form -->
+              <div class="tab-content show" id="ingest-form-single" style="flex:1;">
+                <form id="singleIngestForm" style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div class="form-group">
+                      <label for="leadName">Full Name</label>
+                      <input type="text" id="leadName" placeholder="John Doe" class="lx-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="leadPhone">Phone Number *</label>
+                      <input type="tel" id="leadPhone" placeholder="+919876543210" required class="lx-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="leadEmail">Email Address</label>
+                      <input type="email" id="leadEmail" placeholder="john@example.com" class="lx-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="leadSource">Source *</label>
+                      <select id="leadSource" required class="lx-input">
+                        <option value="referral">Referral (High Fit)</option>
+                        <option value="organic">Organic Search</option>
+                        <option value="re-engagement">Re-engagement</option>
+                        <option value="paid_ads" selected>Paid Ads (AdWords/Meta)</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px;">
+                    <div class="form-group">
+                      <label for="leadAge">Age</label>
+                      <input type="number" id="leadAge" placeholder="25" min="1" max="100" class="lx-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="leadCity">City</label>
+                      <input type="text" id="leadCity" placeholder="Mumbai" class="lx-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="leadIncome">Monthly Income (₹)</label>
+                      <input type="number" id="leadIncome" placeholder="60000" class="lx-input">
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px;">
+                    <div class="form-group">
+                      <label for="leadPages">Pages Visited</label>
+                      <input type="number" id="leadPages" placeholder="3" min="0" value="0" class="lx-input">
+                    </div>
+                    <div class="form-group" style="flex-direction:row; align-items:center; justify-content:center; padding-top:14px;">
+                      <input type="checkbox" id="leadVideo" style="margin-right: 6px; cursor: pointer;">
+                      <label for="leadVideo" style="cursor: pointer; margin-bottom: 0;">Watched Video</label>
+                    </div>
+                    <div class="form-group" style="flex-direction:row; align-items:center; justify-content:center; padding-top:14px;">
+                      <input type="checkbox" id="leadCourse" style="margin-right: 6px; cursor: pointer;">
+                      <label for="leadCourse" style="cursor: pointer; margin-bottom: 0;">Viewed Course</label>
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-top: 2px;">
+                    <label for="leadPriorOutcome">Prior Outcome (Status)</label>
+                    <select id="leadPriorOutcome" class="lx-input">
+                      <option value="pending" selected>None (First Attempt)</option>
+                      <option value="callback_requested">Callback Requested</option>
+                      <option value="no_answer">No Answer / Busy</option>
+                      <option value="not_interested">Not Interested</option>
+                    </select>
+                  </div>
+
+                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block" style="margin-top: 8px;">Ingest Lead</button>
+                </form>
+              </div>
+
+              <!-- Batch JSON Form -->
+              <div class="tab-content" id="ingest-form-batch" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <p style="font-size: 11px; color: var(--lx-muted);">
+                  Upload multiple leads at once (JSON format, up to 500 leads).
+                </p>
+                <div style="flex:1;">
+                  <textarea id="batchJsonArea" rows="6" class="lx-input" style="font-family: var(--lx-mono); font-size:11px; height:130px; resize: none;" placeholder="Paste JSON array here..."></textarea>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;">Load Template</button>
+                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;">Ingest Batch</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Leads Intelligence Table -->
+          <div class="lx-card">
+            <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px;">
+              <div class="lx-section-title" style="margin-bottom:0;">
+                ⚡ Leads Intelligence Feed (<span id="leadsCount">0</span>)
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <!-- Filter badge tags -->
+                <div style="display:flex; gap:4px;" id="leads-filter-badges">
+                  <span class="lx-badge badge-accent" style="cursor:pointer;" data-filter="all">All</span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="hot">Hot</span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm">Warm</span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold">Cold</span>
+                </div>
+                <button id="rescoreAllBtn" class="lx-btn lx-btn-small">Rescore All Leads</button>
+              </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="lx-table">
+                <thead>
+                  <tr>
+                    <th>Lead Info</th>
+                    <th>Phone Number</th>
+                    <th>Source</th>
+                    <th style="width: 80px; text-align: center;">Intent Score</th>
+                    <th>Disposition</th>
+                    <th>Last Active</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="leadsList">
+                  <!-- JS will dynamically populate rows here -->
+                  <tr class="lx-empty-row">
+                    <td colspan="7" style="text-align: center; padding: 24px;">
+                      <div class="lx-empty">
+                        <span>⏳</span>
+                        <div>No leads found in database. Ingest single or batch leads above.</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. LIVE MONITOR PAGE -->
+        <section class="lx-page" id="page-monitor">
+          <div class="lx-section-title">
+            Live Call Monitor
+            <span class="sub">View real-time dialing queues and active waveforms</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+            <!-- Left Panel: Live call grid -->
+            <div>
+              <div class="lx-section-title" style="margin-bottom: 8px;">
+                Active Calls & Waveforms
+                <span class="sub">Currently executing on VOIZ infrastructure</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;" id="live-calls-list">
+                <!-- Live Call 1: Highlighted in teal for Warm Handoff -->
+                <div class="lx-livecall" style="background: rgba(30, 201, 183, 0.05); border-color: rgba(30, 201, 183, 0.3);">
+                  <div class="lc-header">
+                    <span class="lx-badge badge-teal">WARM HANDOFF IN PROGRESS</span>
+                    <strong class="lc-title" style="color: var(--lx-teal);">Raman Iyer</strong>
+                    <span class="lc-sub">VOIZ-02 ➡️ Human Agent Specialist</span>
+                  </div>
+                  <div class="lc-grid">
+                    <div class="lc-item">
+                      <span class="lc-item-label">Phone</span>
+                      <span class="lc-item-val">+91 99081 ***23</span>
+                    </div>
+                    <div class="lc-item">
+                      <span class="lc-item-label">Intent Score</span>
+                      <span class="lc-item-val" style="color: var(--lx-teal);">94 / 100</span>
+                    </div>
+                    <div class="lc-item" style="display:flex; align-items:center; justify-content:space-between; flex-direction:row;">
+                      <div>
+                        <span class="lc-item-label">Live Stream</span>
+                        <span class="lc-item-val" style="font-size: 11px;">02:18s</span>
+                      </div>
+                      <div class="call-wave">
+                        <span style="background: var(--lx-teal); height: 12px;"></span>
+                        <span style="background: var(--lx-teal); height: 16px;"></span>
+                        <span style="background: var(--lx-teal); height: 6px;"></span>
+                        <span style="background: var(--lx-teal); height: 14px;"></span>
+                        <span style="background: var(--lx-teal); height: 10px;"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Live Call 2 -->
+                <div class="lx-livecall">
+                  <div class="lc-header">
+                    <span class="lx-badge badge-green">ON CALL</span>
+                    <strong class="lc-title">Karan Malhotra</strong>
+                    <span class="lc-sub">VOIZ-01 (Kavita) dialing</span>
+                  </div>
+                  <div class="lc-grid">
+                    <div class="lc-item">
+                      <span class="lc-item-label">Phone</span>
+                      <span class="lc-item-val">+91 98224 ***77</span>
+                    </div>
+                    <div class="lc-item">
+                      <span class="lc-item-label">Intent Score</span>
+                      <span class="lc-item-val" style="color: var(--lx-green);">86 / 100</span>
+                    </div>
+                    <div class="lc-item" style="display:flex; align-items:center; justify-content:space-between; flex-direction:row;">
+                      <div>
+                        <span class="lc-item-label">Live Stream</span>
+                        <span class="lc-item-val" style="font-size: 11px;">00:45s</span>
+                      </div>
+                      <div class="call-wave">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Live Call 3 -->
+                <div class="lx-livecall">
+                  <div class="lc-header">
+                    <span class="lx-badge badge-green">ON CALL</span>
+                    <strong class="lc-title">Anjali Deshmukh</strong>
+                    <span class="lc-sub">VOIZ-01 (Kavita) dialing</span>
+                  </div>
+                  <div class="lc-grid">
+                    <div class="lc-item">
+                      <span class="lc-item-label">Phone</span>
+                      <span class="lc-item-val">+91 91764 ***89</span>
+                    </div>
+                    <div class="lc-item">
+                      <span class="lc-item-label">Intent Score</span>
+                      <span class="lc-item-val" style="color: var(--lx-green);">82 / 100</span>
+                    </div>
+                    <div class="lc-item" style="display:flex; align-items:center; justify-content:space-between; flex-direction:row;">
+                      <div>
+                        <span class="lc-item-label">Live Stream</span>
+                        <span class="lc-item-val" style="font-size: 11px;">01:05s</span>
+                      </div>
+                      <div class="call-wave">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Panel: Queue table -->
+            <div class="lx-card" style="align-self: flex-start;">
+              <div class="lx-section-title" style="margin-bottom: 8px;">
+                Ingestion Queue (Pending Dials)
+                <span class="sub">RT FIFO prioritization queue</span>
+              </div>
+              <div style="overflow-x: auto;">
+                <table class="lx-table" style="font-size: 11.5px;">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Wait Time</th>
+                      <th style="text-align: right;">Priority</th>
+                    </tr>
+                  </thead>
+                  <tbody id="monitor-queue-tbody">
+                    <tr>
+                      <td>Referral Ingestion</td>
+                      <td><span style="font-family: var(--lx-mono);">12 seconds</span></td>
+                      <td style="text-align: right;"><span class="lx-badge badge-red">P0 - IMMEDIATE</span></td>
+                    </tr>
+                    <tr>
+                      <td>Paid Ads (Gold Loan)</td>
+                      <td><span style="font-family: var(--lx-mono);">45 seconds</span></td>
+                      <td style="text-align: right;"><span class="lx-badge badge-amber">P1 - HIGH</span></td>
+                    </tr>
+                    <tr>
+                      <td>Re-engagement Trigger</td>
+                      <td><span style="font-family: var(--lx-mono);">2 minutes</span></td>
+                      <td style="text-align: right;"><span class="lx-badge badge-teal">P2 - NORMAL</span></td>
+                    </tr>
+                    <tr>
+                      <td>Organic search</td>
+                      <td><span style="font-family: var(--lx-mono);">4 minutes</span></td>
+                      <td style="text-align: right;"><span class="lx-badge badge-gray">P3 - STANDARD</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. CLIENT DASHBOARD PAGE -->
+        <section class="lx-page" id="page-client">
+          <!-- Client Header Bar -->
+          <div style="background: linear-gradient(135deg, #a4812f, #d2a43a); color: #000; padding: 18px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">MUTHOOT FINANCE CO-BRANDED PORTAL</div>
+              <h2 style="font-size: 20px; font-weight: 700; margin-top: 2px; letter-spacing: -0.3px;">LeadX Ingestion & Dialing Rolldown</h2>
+            </div>
+            <div style="display:flex; gap: 8px;">
+              <button class="lx-btn" style="background:#000; border-color:#000; color:#fff;" onclick="exportClientReport()">Export PDF Report</button>
+            </div>
+          </div>
+
+          <!-- Rollup Metrics -->
+          <div class="lx-row" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="lx-stat" style="background: var(--lx-card2);">
+              <div class="lx-stat-label">TOTAL LEADS RECEIVED</div>
+              <div class="lx-stat-val">10,000</div>
+              <div style="font-size: 10px; color: var(--lx-muted); margin-top:2px;">100% Ingestion Rate</div>
+            </div>
+            <div class="lx-stat" style="background: var(--lx-card2);">
+              <div class="lx-stat-label">QUALIFIED CONVERSIONS</div>
+              <div class="lx-stat-val">3,128</div>
+              <div style="font-size: 10px; color: var(--lx-green); margin-top:2px;">31.3% Conversion Ratio</div>
+            </div>
+            <div class="lx-stat" style="background: var(--lx-card2);">
+              <div class="lx-stat-label">CALL CONNECT RATE</div>
+              <div class="lx-stat-val" style="color: var(--lx-green);">68.4%</div>
+              <div style="font-size: 10px; color: var(--lx-muted); margin-top:2px;">4,240 calls connected</div>
+            </div>
+            <div class="lx-stat" style="background: var(--lx-card2);">
+              <div class="lx-stat-label">MEDIAN RESP TIME (SLA)</div>
+              <div class="lx-stat-val" style="color: var(--lx-teal);">18 seconds</div>
+              <div style="font-size: 10px; color: var(--lx-green); margin-top:2px;">Target SLA &lt; 60s met</div>
+            </div>
+          </div>
+
+          <!-- Chart & Health Row -->
+          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-top: 4px;">
+            <!-- Chart Panel -->
+            <div class="lx-card">
+              <div class="lx-section-title">
+                WoW Lead Ingestion Trend (Muthoot Gold Loan)
+                <span class="sub">Week-over-Week volume breakdown</span>
+              </div>
+              
+              <!-- Custom CSS-bar WoW trend chart -->
+              <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size: 11px; width: 60px; color: var(--lx-muted);">Week 1</span>
+                  <div style="flex:1; background: var(--lx-card2); height: 16px; border-radius: 4px; overflow:hidden;">
+                    <div style="width: 45%; height: 100%; background: linear-gradient(90deg, #d2a43a, #a4812f); display:flex; align-items:center; padding-left:8px; font-size:10px; font-weight:700; color:#fff;">4,500 leads</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size: 11px; width: 60px; color: var(--lx-muted);">Week 2</span>
+                  <div style="flex:1; background: var(--lx-card2); height: 16px; border-radius: 4px; overflow:hidden;">
+                    <div style="width: 60%; height: 100%; background: linear-gradient(90deg, #d2a43a, #a4812f); display:flex; align-items:center; padding-left:8px; font-size:10px; font-weight:700; color:#fff;">6,000 leads</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size: 11px; width: 60px; color: var(--lx-muted);">Week 3</span>
+                  <div style="flex:1; background: var(--lx-card2); height: 16px; border-radius: 4px; overflow:hidden;">
+                    <div style="width: 78%; height: 100%; background: linear-gradient(90deg, #d2a43a, #a4812f); display:flex; align-items:center; padding-left:8px; font-size:10px; font-weight:700; color:#fff;">7,800 leads</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size: 11px; width: 60px; color: var(--lx-muted);">Week 4 (Act)</span>
+                  <div style="flex:1; background: var(--lx-card2); height: 16px; border-radius: 4px; overflow:hidden;">
+                    <div style="width: 100%; height: 100%; background: linear-gradient(90deg, #2ecc8a, #1ec9b7); display:flex; align-items:center; padding-left:8px; font-size:10px; font-weight:700; color:#000;">10,000 leads</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Health & Connection State -->
+            <div class="lx-card" style="display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <div class="lx-section-title">
+                  Real-time Platform Health Metrics
+                  <span class="sub">Continuous integration SLAs</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top: 10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+                    <span style="color: var(--lx-text);">SLA Status</span>
+                    <span class="lx-badge badge-green">99.98% MET</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+                    <span style="color: var(--lx-text);">API Ingestion Response</span>
+                    <span class="lx-badge badge-teal">180ms MEDIAN</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+                    <span style="color: var(--lx-text);">Database Connector</span>
+                    <span class="lx-badge badge-green">ONLINE (Supabase DB)</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+                    <span style="color: var(--lx-text);">VOIZ Dialer WebSocket</span>
+                    <span class="lx-badge badge-green">ACTIVE (Connected)</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div style="font-size:10.5px; color: var(--lx-muted); padding-top:10px; border-top:1px solid var(--lx-border); margin-top:14px; text-align:center;">
+                Security Handshake Succeeded at 23:07:56 UTC
+              </div>
+            </div>
+          </div>
+        </section>
+        
+      </main>
+    </div>
   </div>
 
-  <header class="app-header">
-    <div class="logo-area">
-      <div class="logo-icon">L</div>
-      <div>
-        <h1 id="main-title">LEADX</h1>
-        <p class="subtitle">AI-Powered Lead Ingestion & Conversion Engine</p>
-      </div>
-    </div>
-    <div class="tenant-selector">
-      <label for="tenantIdInput">Active Tenant:</label>
-      <input type="text" id="tenantIdInput" value="default-tenant" placeholder="tenant-id">
-      <button id="loadTenantBtn" class="btn btn-secondary">Switch Tenant</button>
-    </div>
-  </header>
-
-  <main class="dashboard-grid">
-    <!-- Left Column: Lead Ingestion -->
-    <section class="grid-col ingestion-section">
-      <!-- Single Ingestion Card -->
-      <div class="glass-card card-ingestion">
-        <h2 class="card-title"><span class="icon">👤</span> Ingest Single Lead</h2>
-        <form id="singleIngestForm">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="leadName">Full Name</label>
-              <input type="text" id="leadName" placeholder="John Doe">
-            </div>
-            <div class="form-group">
-              <label for="leadPhone">Phone Number *</label>
-              <input type="tel" id="leadPhone" placeholder="+919876543210" required>
-            </div>
-            <div class="form-group">
-              <label for="leadEmail">Email Address</label>
-              <input type="email" id="leadEmail" placeholder="john@example.com">
-            </div>
-            <div class="form-group">
-              <label for="leadSource">Source *</label>
-              <select id="leadSource" required>
-                <option value="referral">Referral (High Fit)</option>
-                <option value="organic">Organic Search</option>
-                <option value="re-engagement">Re-engagement</option>
-                <option value="paid_ads" selected>Paid Ads (AdWords/Meta)</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <h3 class="form-sub-header">Demographics & Behaviors (raw_data)</h3>
-          <div class="form-grid form-grid-3">
-            <div class="form-group">
-              <label for="leadAge">Age</label>
-              <input type="number" id="leadAge" placeholder="25" min="1" max="100">
-            </div>
-            <div class="form-group">
-              <label for="leadCity">City</label>
-              <input type="text" id="leadCity" placeholder="Mumbai">
-            </div>
-            <div class="form-group">
-              <label for="leadIncome">Monthly Income (₹)</label>
-              <input type="number" id="leadIncome" placeholder="60000">
-            </div>
-          </div>
-
-          <div class="form-grid form-grid-3">
-            <div class="form-group">
-              <label for="leadPages">Pages Visited</label>
-              <input type="number" id="leadPages" placeholder="3" min="0" default="0">
-            </div>
-            <div class="form-group checkbox-group">
-              <label for="leadVideo">Watched Video</label>
-              <input type="checkbox" id="leadVideo">
-            </div>
-            <div class="form-group checkbox-group">
-              <label for="leadCourse">Viewed Course</label>
-              <input type="checkbox" id="leadCourse">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="leadPriorOutcome">Prior Outcome (Status)</label>
-            <select id="leadPriorOutcome">
-              <option value="pending" selected>None (First Attempt)</option>
-              <option value="callback_requested">Callback Requested</option>
-              <option value="no_answer">No Answer / Busy</option>
-              <option value="not_interested">Not Interested</option>
-            </select>
-          </div>
-
-          <button type="submit" id="submitSingleBtn" class="btn btn-primary btn-block">Ingest Lead</button>
-        </form>
-      </div>
-
-      <!-- Batch Ingestion Card -->
-      <div class="glass-card card-batch">
-        <h2 class="card-title"><span class="icon">📁</span> Batch Lead Ingestion</h2>
-        <p class="card-description">Upload multiple leads at once (JSON format, up to 500 leads).</p>
-        <div class="textarea-container">
-          <textarea id="batchJsonArea" rows="8" placeholder="Paste lead array JSON here..."></textarea>
-        </div>
-        <div class="batch-actions">
-          <button id="loadSampleBatchBtn" class="btn btn-secondary">Load Sample Template</button>
-          <button id="submitBatchBtn" class="btn btn-primary">Ingest Batch</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Right Column: Configurations and List -->
-    <section class="grid-col list-section">
-      <!-- Config Weights Card -->
-      <div class="glass-card card-config">
-        <div class="config-header">
-          <h2 class="card-title"><span class="icon">⚙️</span> Scoring Engine Weights</h2>
-          <div id="sumIndicator" class="sum-indicator valid">Sum: 1.000</div>
-        </div>
-        <p class="card-description">Adjust the weights dynamically. Changes apply instantly to new ingests, and you can rescore existing leads below.</p>
-        
-        <div class="weights-sliders">
-          <div class="slider-group">
-            <div class="slider-info">
-              <span>Demographic Fit</span>
-              <span id="val-demographic_fit" class="slider-val">0.25</span>
-            </div>
-            <input type="range" id="weight-demographic_fit" min="0" max="1" step="0.01" value="0.25" class="slider">
-          </div>
-
-          <div class="slider-group">
-            <div class="slider-info">
-              <span>Source Quality</span>
-              <span id="val-source_quality" class="slider-val">0.25</span>
-            </div>
-            <input type="range" id="weight-source_quality" min="0" max="1" step="0.01" value="0.25" class="slider">
-          </div>
-
-          <div class="slider-group">
-            <div class="slider-info">
-              <span>Recency</span>
-              <span id="val-recency" class="slider-val">0.20</span>
-            </div>
-            <input type="range" id="weight-recency" min="0" max="1" step="0.01" value="0.20" class="slider">
-          </div>
-
-          <div class="slider-group">
-            <div class="slider-info">
-              <span>Behavioural Signals</span>
-              <span id="val-behavioural_signals" class="slider-val">0.15</span>
-            </div>
-            <input type="range" id="weight-behavioural_signals" min="0" max="1" step="0.01" value="0.15" class="slider">
-          </div>
-
-          <div class="slider-group">
-            <div class="slider-info">
-              <span>Prior Interaction</span>
-              <span id="val-prior_interaction" class="slider-val">0.15</span>
-            </div>
-            <input type="range" id="weight-prior_interaction" min="0" max="1" step="0.01" value="0.15" class="slider">
-          </div>
-        </div>
-
-        <button id="saveConfigBtn" class="btn btn-primary btn-block">Save Configuration Weights</button>
-      </div>
-
-      <!-- Leads Live Feed Card -->
-      <div class="glass-card card-leads">
-        <div class="leads-header">
-          <h2 class="card-title"><span class="icon">⚡</span> Leads Feed (<span id="leadsCount">0</span>)</h2>
-          <button id="rescoreAllBtn" class="btn btn-secondary">Rescore All Leads</button>
-        </div>
-        
-        <div class="leads-list-container">
-          <div id="leadsList" class="leads-list">
-            <div class="empty-state">
-              <span class="empty-icon">⏳</span>
-              <p>No leads ingested yet. Ingest a lead to get started.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
+  <!-- Notification Toast Area -->
   <div id="notificationToast" class="toast">
     <div class="toast-content">
       <span id="toastIcon" class="toast-icon">ℹ️</span>
@@ -203,7 +1185,7 @@
         <p id="toastBody">Detail logs will appear here.</p>
       </div>
     </div>
-    <button class="toast-close">&times;</button>
+    <button class="toast-close" id="toastCloseBtn">&times;</button>
   </div>
 
   <script src="app.js"></script>
