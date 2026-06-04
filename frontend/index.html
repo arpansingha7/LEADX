@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEADX Ingestion & Scoring Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glow-container">
+    <div class="glow-ball glow-ball-1"></div>
+    <div class="glow-ball glow-ball-2"></div>
+  </div>
+
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="logo-icon">L</div>
+      <div>
+        <h1 id="main-title">LEADX</h1>
+        <p class="subtitle">AI-Powered Lead Ingestion & Conversion Engine</p>
+      </div>
+    </div>
+    <div class="tenant-selector">
+      <label for="tenantIdInput">Active Tenant:</label>
+      <input type="text" id="tenantIdInput" value="default-tenant" placeholder="tenant-id">
+      <button id="loadTenantBtn" class="btn btn-secondary">Switch Tenant</button>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- Left Column: Lead Ingestion -->
+    <section class="grid-col ingestion-section">
+      <!-- Single Ingestion Card -->
+      <div class="glass-card card-ingestion">
+        <h2 class="card-title"><span class="icon">👤</span> Ingest Single Lead</h2>
+        <form id="singleIngestForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="leadName">Full Name</label>
+              <input type="text" id="leadName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+              <label for="leadPhone">Phone Number *</label>
+              <input type="tel" id="leadPhone" placeholder="+919876543210" required>
+            </div>
+            <div class="form-group">
+              <label for="leadEmail">Email Address</label>
+              <input type="email" id="leadEmail" placeholder="john@example.com">
+            </div>
+            <div class="form-group">
+              <label for="leadSource">Source *</label>
+              <select id="leadSource" required>
+                <option value="referral">Referral (High Fit)</option>
+                <option value="organic">Organic Search</option>
+                <option value="re-engagement">Re-engagement</option>
+                <option value="paid_ads" selected>Paid Ads (AdWords/Meta)</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 class="form-sub-header">Demographics & Behaviors (raw_data)</h3>
+          <div class="form-grid form-grid-3">
+            <div class="form-group">
+              <label for="leadAge">Age</label>
+              <input type="number" id="leadAge" placeholder="25" min="1" max="100">
+            </div>
+            <div class="form-group">
+              <label for="leadCity">City</label>
+              <input type="text" id="leadCity" placeholder="Mumbai">
+            </div>
+            <div class="form-group">
+              <label for="leadIncome">Monthly Income (₹)</label>
+              <input type="number" id="leadIncome" placeholder="60000">
+            </div>
+          </div>
+
+          <div class="form-grid form-grid-3">
+            <div class="form-group">
+              <label for="leadPages">Pages Visited</label>
+              <input type="number" id="leadPages" placeholder="3" min="0" default="0">
+            </div>
+            <div class="form-group checkbox-group">
+              <label for="leadVideo">Watched Video</label>
+              <input type="checkbox" id="leadVideo">
+            </div>
+            <div class="form-group checkbox-group">
+              <label for="leadCourse">Viewed Course</label>
+              <input type="checkbox" id="leadCourse">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="leadPriorOutcome">Prior Outcome (Status)</label>
+            <select id="leadPriorOutcome">
+              <option value="pending" selected>None (First Attempt)</option>
+              <option value="callback_requested">Callback Requested</option>
+              <option value="no_answer">No Answer / Busy</option>
+              <option value="not_interested">Not Interested</option>
+            </select>
+          </div>
+
+          <button type="submit" id="submitSingleBtn" class="btn btn-primary btn-block">Ingest Lead</button>
+        </form>
+      </div>
+
+      <!-- Batch Ingestion Card -->
+      <div class="glass-card card-batch">
+        <h2 class="card-title"><span class="icon">📁</span> Batch Lead Ingestion</h2>
+        <p class="card-description">Upload multiple leads at once (JSON format, up to 500 leads).</p>
+        <div class="textarea-container">
+          <textarea id="batchJsonArea" rows="8" placeholder="Paste lead array JSON here..."></textarea>
+        </div>
+        <div class="batch-actions">
+          <button id="loadSampleBatchBtn" class="btn btn-secondary">Load Sample Template</button>
+          <button id="submitBatchBtn" class="btn btn-primary">Ingest Batch</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Configurations and List -->
+    <section class="grid-col list-section">
+      <!-- Config Weights Card -->
+      <div class="glass-card card-config">
+        <div class="config-header">
+          <h2 class="card-title"><span class="icon">⚙️</span> Scoring Engine Weights</h2>
+          <div id="sumIndicator" class="sum-indicator valid">Sum: 1.000</div>
+        </div>
+        <p class="card-description">Adjust the weights dynamically. Changes apply instantly to new ingests, and you can rescore existing leads below.</p>
+        
+        <div class="weights-sliders">
+          <div class="slider-group">
+            <div class="slider-info">
+              <span>Demographic Fit</span>
+              <span id="val-demographic_fit" class="slider-val">0.25</span>
+            </div>
+            <input type="range" id="weight-demographic_fit" min="0" max="1" step="0.01" value="0.25" class="slider">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-info">
+              <span>Source Quality</span>
+              <span id="val-source_quality" class="slider-val">0.25</span>
+            </div>
+            <input type="range" id="weight-source_quality" min="0" max="1" step="0.01" value="0.25" class="slider">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-info">
+              <span>Recency</span>
+              <span id="val-recency" class="slider-val">0.20</span>
+            </div>
+            <input type="range" id="weight-recency" min="0" max="1" step="0.01" value="0.20" class="slider">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-info">
+              <span>Behavioural Signals</span>
+              <span id="val-behavioural_signals" class="slider-val">0.15</span>
+            </div>
+            <input type="range" id="weight-behavioural_signals" min="0" max="1" step="0.01" value="0.15" class="slider">
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-info">
+              <span>Prior Interaction</span>
+              <span id="val-prior_interaction" class="slider-val">0.15</span>
+            </div>
+            <input type="range" id="weight-prior_interaction" min="0" max="1" step="0.01" value="0.15" class="slider">
+          </div>
+        </div>
+
+        <button id="saveConfigBtn" class="btn btn-primary btn-block">Save Configuration Weights</button>
+      </div>
+
+      <!-- Leads Live Feed Card -->
+      <div class="glass-card card-leads">
+        <div class="leads-header">
+          <h2 class="card-title"><span class="icon">⚡</span> Leads Feed (<span id="leadsCount">0</span>)</h2>
+          <button id="rescoreAllBtn" class="btn btn-secondary">Rescore All Leads</button>
+        </div>
+        
+        <div class="leads-list-container">
+          <div id="leadsList" class="leads-list">
+            <div class="empty-state">
+              <span class="empty-icon">⏳</span>
+              <p>No leads ingested yet. Ingest a lead to get started.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="notificationToast" class="toast">
+    <div class="toast-content">
+      <span id="toastIcon" class="toast-icon">ℹ️</span>
+      <div class="toast-message">
+        <h4 id="toastTitle">Notification</h4>
+        <p id="toastBody">Detail logs will appear here.</p>
+      </div>
+    </div>
+    <button class="toast-close">&times;</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
