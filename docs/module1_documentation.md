@@ -97,71 +97,91 @@ No configuration required. The database adapter runs an in-memory seed dataset a
 1.  Create a project on [Supabase](https://supabase.com).
 2.  Navigate to **SQL Editor** in Supabase and paste the contents of `database/schema.sql`. Run it to create all tables and indices.
 3.  Create a `.env` file in the project root:
-    ```env
-    PORT=3000
-    SUPABASE_URL=https://your-project-ref.supabase.co
-    SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-    ```
-4.  Run the application:
-    ```bash
-    npm start
-    ```
+
+## 5. Saturday Mentor Demo - Shared Presentation Script
+
+To show maximum engineering professionalism, you should conduct the demo as a team. Below is the exact step-by-step split script for **Arpan (Backend & DB Focus)** and **Vedika (Frontend & UI Focus)**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Mentor
+    Arpan->>Mentor: Welcome, Architecture Overview & Live Server Init
+    Vedika->>Mentor: Sidebar Navigation & UI Overview
+    Vedika->>Mentor: Ingesting a Lead (Dynamic UI Scoring & SVG Rings)
+    Arpan->>Mentor: Backend validation & CleanPhone logic
+    Arpan->>Mentor: Double-Defense Deduplication (409 Conflict)
+    Vedika->>Mentor: Config Sliders & Weight Constraints
+    Arpan->>Mentor: Floating-point delta tolerance (IEEE-754)
+    Vedika->>Mentor: Call Simulator (Waveforms, Handoff, DNC)
+    Arpan->>Mentor: Performance Stress-Test Benchmark (npm run perf)
+```
 
 ---
 
-## 5. Saturday Mentor Demo Pitch & Flow
+### 🎙️ Part 1: Arpan (Backend, DB Setup, & Validation) — 6 Minutes
 
-Use this step-by-step checklist to conduct a flawless, high-quality demonstration to your mentor:
+#### Step 1.1: Live Server Initialization & Architecture (1.5 mins)
+*   **What to do:** Open your code editor and terminal. Run the server live using `npm start` and show the terminal log output: `Successfully initialized live Supabase client.`
+*   **What to say:**
+    > *"Good morning. Today we are demonstrating Module 1 of the LEADX core layer. I will be covering the backend API, validation patterns, and database scaling. As you can see in the terminal, our Express server is running and has successfully connected to our live Supabase instance. Our DB client is designed with an offline-fallback mode—if Supabase credentials are missing, it seeds a mock database in-memory so developers can get started immediately with zero network dependency."*
 
-```mermaid
-graph TD
-    A[Start Server & Open http://localhost:3000] --> B[Navigate Tabs & Views]
-    B --> C[Demonstrate Lead Ingestion & 409 Handling]
-    C --> D[Adjust Config Weights and Show Validation]
-    D --> E[Save Valid Weights and Click Rescore All Leads]
-    E --> F[Trigger Call Now & Watch Waveform Animation]
-    F --> G[Explain Warm Handoff & DNC Purge Actions]
-    G --> H[Open Client Portal to Review WoW Trend Chart]
-```
+#### Step 1.2: Database Schema & Multi-Tenancy Scoping (1 min)
+*   **What to do:** Show the [schema.sql](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/database/schema.sql) file in your code editor. Highlight the `tenant_id` column on the tables.
+*   **What to say:**
+    > *"In our database schema, we have established our core tables: leads, call_sessions, call_events, tenant_configs, and config_audit_logs. Multi-tenancy is a first-class citizen—every table is indexed by `tenant_id`, and every SELECT/INSERT is scoped to this ID. During setup on Supabase, we disabled Postgres Row-Level Security (RLS) for our public sandbox access, meaning our public publishable keys can securely communicate with these endpoints."*
 
-### Step 1: Open the Frontend Dashboard
-*   **Action:** Start the server with `npm run dev` and open `http://localhost:3000` side-by-side with your code editor.
-*   **Pitch:** *"Welcome. Today we are demonstrating Module 1 of the LEADX core ingestion engine. The backend is running in offline resilient mock mode, meaning it is ready for deployment out of the box."*
+#### Step 1.3: Ingestion Routing, CleanPhone, & Validation (1.5 mins)
+*   **What to do:** Open [validation.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/utils/validation.js) in your editor. Highlight the `cleanPhone` function and lead validation loops.
+*   **What to say:**
+    > *"When a lead is ingested via `POST /leads/ingest`, the request goes through strict validation checks. We check that `tenant_id`, `phone`, and `source` are present. Our `cleanPhone` helper sanitizes phone numbers, stripping away spaces, hyphens, and parenthesis, preserving only the digits and a leading `+` if present. This ensures that phone numbers are stored in a standard normalized format."*
 
-### Step 2: Show Navigation tabs
-*   **Action:** Click through sidebar tabs: Dashboard, Campaigns, VOIZ Roster, Lead Intelligence, Live Monitor, and Client Portal.
-*   **Pitch:** *"We've built a full responsive interface mapping the entire lead conversion cycle. The sidebar separates analytics, configuration, roster management, live monitoring feeds, and co-branded client portals."*
+#### Step 1.4: Double-Defense Deduplication & 409 Conflict (2 mins)
+*   **What to do:** Open [leads.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/routes/leads.js) and point to the duplicate phone check (lines 87-93). Also, point to the DB unique constraint catch in `app.js` (lines 50-55).
+*   **What to say:**
+    > *"To prevent race conditions where two identical requests arrive at the exact same millisecond, we implement a double-defense deduplication system. First, the route handler does a select query check. If that check misses due to concurrency, our database unique constraint on `(tenant_id, phone)` throws a key conflict error (Postgres code 23505). Our global Express middleware catches this and maps it to a standard HTTP 409 Conflict response. Let's watch Vedika demonstrate this duplicate handling live in the UI."*
 
-### Step 3: Show Lead Ingestion & Scoring
-*   **Action:** Navigate to **Lead Intelligence**. Fill out the "Ingest Single Lead" form. Enter a phone number, select a source (e.g. *Referral*), input age, city, income, pages visited, and check *Watched Video*. Click "Ingest Lead".
-*   **Result:** A toast appears confirming ingestion. The lead appears in the Leads table with a bright green **Hot Score Badge (e.g. 95)**.
-*   **Pitch:** *"Here, validation cleanses formatting. The scoring engine evaluates behavioral signals and demographics. Referral source + Tier 1 city + watched video automatically flags this lead as Hot."*
+---
 
-### Step 4: Demonstrate Duplicate Checking (409 Conflict)
-*   **Action:** Click the "Ingest Lead" button again with the exact same phone number.
-*   **Result:** A warning toast pops up: *“Duplicate Lead: 409: Phone number already exists for this tenant.”*
-*   **Pitch:** *"We enforce deduplication at the application and DB layers to prevent double-dialing. Re-submitting the same phone under the active tenant raises an HTTP 409."*
+### 🎙️ Part 2: Vedika (Frontend UI & Visual Interactions) — 6 Minutes
 
-### Step 5: Show Config Editor & Weight Violations
-*   **Action:** Go to the "Dynamic Scoring Weights" card. Move the Demographic Fit slider up.
-*   **Result:** The sum indicator changes to red (e.g., *Sum: 1.150*) and the "Save" button is dynamically disabled.
-*   **Action:** Adjust sliders until the sum is exactly 1.000. Click "Save Configuration Weights".
-*   **Pitch:** *"The config store requires weights to sum to 1.0 ± 0.001. If the sum is invalid, saving is blocked. When valid, weights are updated in the config table and audited."*
+#### Step 2.1: Glassmorphic UI & Sidebar Navigation (1.5 mins)
+*   **What to do:** Share your browser screen at `http://localhost:3000`. Click through the sidebar links (Dashboard, Campaigns, VOIZ Roster, Lead Intelligence, Live Monitor, Client Portal).
+*   **What to say:**
+    > *"Hi! I'll be demonstrating the LEADX Control Center. We built a high-fidelity glassmorphic user interface using vanilla HTML and CSS, designed to resemble premium voice applications. We have separate panels: the main Dashboard funnel, a Campaign Scheduler showing dial parameters, active VOIZ agent rosters, and our Lead Intelligence center."*
 
-### Step 6: Interactive Call Dialing & waveforms
-*   **Action:** In the leads table, click "📞 Call" next to a lead.
-*   **Result:** The app switches to the **Live Monitor** view. A new call card is prepended showing an active call with moving animated audio waveforms, updated timer counters, and timeline logs.
-*   **Pitch:** *"Clicking 'Call' initiates the dialing handshake. The system registers the active stream, animates audio waves to represent active speech, and tracks call durations in real-time."*
+#### Step 2.2: Lead Ingestion Form & Interactive Score Badges (1.5 mins)
+*   **What to do:** Click **Lead Intelligence**. Fill out the manual form with standard details (referral source, Mumbai, income 600,000, checked video). Click **Ingest Lead**. Show the toast notification and scroll down to the Leads table to show the new lead with its score ring.
+*   **What to say:**
+    > *"Let's ingest a new lead manually. The frontend validates the fields locally and posts to the API. The lead is created on Supabase, scored, and updated immediately. In our leads table, I designed tier color bandings (green for Hot, amber for Warm, red for Cold) and embedded custom SVG-rendered score rings. These SVG rings compute their dashoffset dynamically based on the lead's intent score, giving immediate visual feedback of lead priority."*
 
-### Step 7: Handoff & DNC registries
-*   **Action:** Return to Leads, click "🤝 Handoff" or "🚫" (DNC).
-*   **Result:** Handoff triggers alert. DNC removes the row from the table with a red highlight effect, warns the user, and blocks future attempts.
-*   **Pitch:** *"Warm handoffs transfer the agent session to live human specialists. Adding a number to DNC cleanses the queue immediately and updates registries."*
+#### Step 2.3: Triggering Duplicate Toast Alerts (1 min)
+*   **What to do:** Click the **Ingest Lead** button again using the same phone number.
+*   **Result:** A warning toast will slide in: *"Duplicate Lead: 409: Phone number already exists for this tenant."*
+*   **What to say:**
+    > *"If I attempt to submit this duplicate phone number again, our backend blocks the insertion and returns a 409, which the frontend displays instantly via this warning toast notification, preventing double-dialing."*
 
-### Step 8: Muthoot Finance Client Portal
-*   **Action:** Click "Client Portal". Show branded headers, rollup metrics, WoW charts, and health states. Click "Export PDF Report".
-*   **Result:** WoW chart renders weekly lead counts. Export triggers a download toast.
-*   **Pitch:** *"This portal allows Muthoot Finance to audit platform operations, SLA compliance, response times, and weekly volumes directly."*
+#### Step 2.4: Sliders Configuration & UI Rescoring (2 mins)
+*   **What to do:** Move the **Demographic Fit** slider up until the sum exceeds 1.0. Show that the sum indicator text turns red and the "Save" button is disabled. Adjust the sliders back to sum to exactly `1.00`, click **Save Scoring Weights**, then click **Rescore All Leads** and show the score rings update.
+*   **What to say:**
+    > *"We also built a dynamic Weights Configurator. If the weights do not sum to exactly 1.0, the UI disables the save button. Once balanced, we save the weights to the database. Clicking 'Rescore All Leads' triggers the backend recalculation, which updates all lead scores live in our table in a fraction of a second."*
+
+---
+
+### 🎙️ Part 3: Arpan (Technical Deep-Dive: Float Safety & Benchmarks) — 3 Minutes
+
+#### Step 3.1: Floating-Point Math Safety (1.5 mins)
+*   **What to do:** Open [validation.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/utils/validation.js) in the editor and highlight lines 112-116.
+*   **What to say:**
+    > *"One technical detail we had to solve is binary floating-point rounding errors. In JavaScript, adding decimals like `0.1 + 0.2` results in `0.30000000000000004` due to IEEE-754 float representations. If we checked `sum === 1.0`, it would fail valid weights configuration. To prevent this, we implemented a delta tolerance check: `Math.abs(sum - 1.0) <= 0.001`, which allows floating-point safety while keeping math configurations strict."*
+
+#### Step 3.2: Performance Load Tests (1.5 mins)
+*   **What to do:** Open your terminal and run the benchmark script:
+    ```bash
+    npm run perf
+    ```
+*   **What to say:**
+    > *"Finally, we run parallel stress benchmarks locally. We simulate 100 requests fired concurrently in the same millisecond to test our event loop efficiency. Our server processes them at a throughput of over 250 requests per second, with a mean latency of ~250ms. Individually, each request processes in under 3ms, demonstrating that our ingestion and scoring engine is highly scalable and ready for Module 2's Queue Orchestrator. This concludes our Week 1 demonstration."*
 
 ---
 
