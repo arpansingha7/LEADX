@@ -706,76 +706,82 @@
             <span class="sub">Ingest, score, configure weights, and view lead intelligence</span>
           </div>
 
-          <!-- Configuration and Ingest Row -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <!-- Left: Weights Config Panel -->
-            <div class="lx-card">
-              <div class="config-header">
-                <div class="lx-section-title" style="margin-bottom: 0;">
-                  ⚙️ Dynamic Scoring Weights
+          <!-- TOP STRIP: Scoring Weights (full width, horizontal layout) -->
+          <div class="lx-card li-weights-card">
+            <div class="li-weights-header">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:14px;">⚙️</span>
+                <div>
+                  <div style="font-size:13px; font-weight:700; color:var(--lx-text);">Dynamic Scoring Weights</div>
+                  <div style="font-size:10px; color:var(--lx-muted); margin-top:1px;">Changes update the scoring math live. Sum must equal 1.00.</div>
                 </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
                 <div id="sumIndicator" class="sum-indicator valid">Sum: 1.000</div>
+                <button id="resetWeightsBtn" class="lx-btn" style="padding: 5px 14px; font-size:11.5px;" title="Reset to default weights">↺ Reset</button>
+                <button id="saveConfigBtn" class="lx-btn primary" style="padding: 5px 16px; font-size:11.5px;">Save Weights</button>
               </div>
-              <p style="font-size: 11px; color: var(--lx-muted); margin-bottom: 10px;">
-                Changes update the math immediately on the server. Make sure sum matches 1.00.
-              </p>
-              
-              <div class="weights-sliders" style="gap: 8px;">
-                <div class="slider-group">
-                  <div class="slider-info">
-                    <span>Demographic Fit</span>
-                    <span id="val-demographic_fit" class="slider-val">0.25</span>
-                  </div>
-                  <input type="range" id="weight-demographic_fit" min="0" max="1" step="0.01" value="0.25" class="slider">
+            </div>
+            <!-- 5 sliders in a row -->
+            <div class="li-sliders-row">
+              <div class="li-slider-item">
+                <div class="li-slider-top">
+                  <span>Demographic Fit</span>
+                  <span id="val-demographic_fit" class="slider-val">0.25</span>
                 </div>
-
-                <div class="slider-group">
-                  <div class="slider-info">
-                    <span>Source Quality</span>
-                    <span id="val-source_quality" class="slider-val">0.25</span>
-                  </div>
-                  <input type="range" id="weight-source_quality" min="0" max="1" step="0.01" value="0.25" class="slider">
-                </div>
-
-                <div class="slider-group">
-                  <div class="slider-info">
-                    <span>Recency (minutes elapsed)</span>
-                    <span id="val-recency" class="slider-val">0.20</span>
-                  </div>
-                  <input type="range" id="weight-recency" min="0" max="1" step="0.01" value="0.20" class="slider">
-                </div>
-
-                <div class="slider-group">
-                  <div class="slider-info">
-                    <span>Behavioural Signals</span>
-                    <span id="val-behavioural_signals" class="slider-val">0.15</span>
-                  </div>
-                  <input type="range" id="weight-behavioural_signals" min="0" max="1" step="0.01" value="0.15" class="slider">
-                </div>
-
-                <div class="slider-group">
-                  <div class="slider-info">
-                    <span>Prior Interaction</span>
-                    <span id="val-prior_interaction" class="slider-val">0.15</span>
-                  </div>
-                  <input type="range" id="weight-prior_interaction" min="0" max="1" step="0.01" value="0.15" class="slider">
-                </div>
+                <input type="range" id="weight-demographic_fit" min="0" max="1" step="0.01" value="0.25" class="slider">
               </div>
+              <div class="li-slider-sep"></div>
+              <div class="li-slider-item">
+                <div class="li-slider-top">
+                  <span>Source Quality</span>
+                  <span id="val-source_quality" class="slider-val">0.25</span>
+                </div>
+                <input type="range" id="weight-source_quality" min="0" max="1" step="0.01" value="0.25" class="slider">
+              </div>
+              <div class="li-slider-sep"></div>
+              <div class="li-slider-item">
+                <div class="li-slider-top">
+                  <span>Recency</span>
+                  <span id="val-recency" class="slider-val">0.20</span>
+                </div>
+                <input type="range" id="weight-recency" min="0" max="1" step="0.01" value="0.20" class="slider">
+              </div>
+              <div class="li-slider-sep"></div>
+              <div class="li-slider-item">
+                <div class="li-slider-top">
+                  <span>Behavioural Signals</span>
+                  <span id="val-behavioural_signals" class="slider-val">0.15</span>
+                </div>
+                <input type="range" id="weight-behavioural_signals" min="0" max="1" step="0.01" value="0.15" class="slider">
+              </div>
+              <div class="li-slider-sep"></div>
+              <div class="li-slider-item">
+                <div class="li-slider-top">
+                  <span>Prior Interaction</span>
+                  <span id="val-prior_interaction" class="slider-val">0.15</span>
+                </div>
+                <input type="range" id="weight-prior_interaction" min="0" max="1" step="0.01" value="0.15" class="slider">
+              </div>
+            </div>
+          </div>
 
-              <button id="saveConfigBtn" class="lx-btn primary btn-block" style="margin-top: 8px;">Save Scoring Weights</button>
+          <!-- MIDDLE: Ingest form — full width, 2-column internal layout -->
+          <div class="lx-card li-ingest-card">
+            <div class="li-ingest-header">
+              <div class="lx-pill-tabs" id="ingest-mode-tabs">
+                <button class="lx-pill-tab active" data-tab="single">⚡ Ingest Single Lead</button>
+                <button class="lx-pill-tab" data-tab="batch">📂 Batch JSON Upload</button>
+              </div>
             </div>
 
-            <!-- Right: Tabs for Ingestion -->
-            <div class="lx-card" style="display: flex; flex-direction: column;">
-              <div class="lx-pill-tabs" id="ingest-mode-tabs" style="margin-bottom: 8px;">
-                <button class="lx-pill-tab active" data-tab="single">Ingest Single Lead</button>
-                <button class="lx-pill-tab" data-tab="batch">Batch JSON Upload</button>
-              </div>
-
-              <!-- Single Form -->
-              <div class="tab-content show" id="ingest-form-single" style="flex:1;">
-                <form id="singleIngestForm" style="display: flex; flex-direction: column; gap: 8px;">
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <!-- Single Lead Form — 2-column: left=identity, right=signals -->
+            <div class="tab-content show" id="ingest-form-single">
+              <form id="singleIngestForm" class="li-single-form">
+                <!-- LEFT COL: Identity -->
+                <div class="li-form-col">
+                  <div class="form-section-label">Identity & Source</div>
+                  <div class="li-form-grid-2">
                     <div class="form-group">
                       <label for="leadName">Full Name</label>
                       <input type="text" id="leadName" placeholder="John Doe" class="lx-input">
@@ -800,7 +806,8 @@
                     </div>
                   </div>
 
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px;">
+                  <div class="form-section-label" style="margin-top:10px;">Demographics</div>
+                  <div class="li-form-grid-3">
                     <div class="form-group">
                       <label for="leadAge">Age</label>
                       <input type="number" id="leadAge" placeholder="25" min="1" max="100" class="lx-input">
@@ -814,23 +821,28 @@
                       <input type="number" id="leadIncome" placeholder="60000" class="lx-input">
                     </div>
                   </div>
+                </div>
 
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 2px;">
+                <!-- RIGHT COL: Signals + Submit -->
+                <div class="li-form-col">
+                  <div class="form-section-label">Behavioural Signals</div>
+                  <div class="li-form-grid-3">
                     <div class="form-group">
                       <label for="leadPages">Pages Visited</label>
                       <input type="number" id="leadPages" placeholder="3" min="0" value="0" class="lx-input">
                     </div>
-                    <div class="form-group" style="flex-direction:row; align-items:center; justify-content:center; padding-top:14px;">
-                      <input type="checkbox" id="leadVideo" style="margin-right: 6px; cursor: pointer;">
-                      <label for="leadVideo" style="cursor: pointer; margin-bottom: 0;">Watched Video</label>
+                    <div class="li-checkbox-group">
+                      <input type="checkbox" id="leadVideo">
+                      <label for="leadVideo">Watched Video</label>
                     </div>
-                    <div class="form-group" style="flex-direction:row; align-items:center; justify-content:center; padding-top:14px;">
-                      <input type="checkbox" id="leadCourse" style="margin-right: 6px; cursor: pointer;">
-                      <label for="leadCourse" style="cursor: pointer; margin-bottom: 0;">Viewed Course</label>
+                    <div class="li-checkbox-group">
+                      <input type="checkbox" id="leadCourse">
+                      <label for="leadCourse">Viewed Course</label>
                     </div>
                   </div>
 
-                  <div class="form-group" style="margin-top: 2px;">
+                  <div class="form-section-label" style="margin-top:10px;">Prior Interaction</div>
+                  <div class="form-group">
                     <label for="leadPriorOutcome">Prior Outcome (Status)</label>
                     <select id="leadPriorOutcome" class="lx-input">
                       <option value="pending" selected>None (First Attempt)</option>
@@ -840,26 +852,33 @@
                     </select>
                   </div>
 
-                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block" style="margin-top: 8px;">Ingest Lead</button>
-                </form>
-              </div>
-
-              <!-- Batch JSON Form -->
-              <div class="tab-content" id="ingest-form-batch" style="flex:1; display:flex; flex-direction:column; gap:8px;">
-                <p style="font-size: 11px; color: var(--lx-muted);">
-                  Upload multiple leads at once (JSON format, up to 500 leads).
-                </p>
-                <div style="flex:1;">
-                  <textarea id="batchJsonArea" rows="6" class="lx-input" style="font-family: var(--lx-mono); font-size:11px; height:130px; resize: none;" placeholder="Paste JSON array here..."></textarea>
+                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block li-submit-btn">
+                    ⚡ Ingest Lead
+                  </button>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;">Load Template</button>
-                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;">Ingest Batch</button>
+              </form>
+            </div>
+
+            <!-- Batch JSON Form -->
+            <div class="tab-content" id="ingest-form-batch">
+              <div class="li-batch-form">
+                <div class="li-batch-hint">
+                  <span style="font-size:20px;">📂</span>
+                  <div>
+                    <div style="font-weight:600; color:var(--lx-text); font-size:12.5px;">Bulk Lead Upload</div>
+                    <div style="font-size:11px; color:var(--lx-muted); margin-top:2px;">Paste a JSON array of up to 500 leads. Click Load Template to see the expected format.</div>
+                  </div>
+                </div>
+                <textarea id="batchJsonArea" class="lx-input li-batch-textarea" placeholder="Paste JSON array here..."></textarea>
+                <div class="li-batch-actions">
+                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;">📋 Load Template</button>
+                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;">📂 Ingest Batch</button>
                 </div>
               </div>
             </div>
           </div>
 
+          <!-- BOTTOM: Leads Intelligence Table -->
           <!-- Leads Intelligence Table -->
           <div class="lx-card">
             <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px;">
@@ -869,10 +888,10 @@
               <div style="display:flex; gap:8px; align-items:center;">
                 <!-- Filter badge tags -->
                 <div style="display:flex; gap:4px;" id="leads-filter-badges">
-                  <span class="lx-badge badge-accent" style="cursor:pointer;" data-filter="all">All</span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="hot">Hot</span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm">Warm</span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold">Cold</span>
+                  <span class="lx-badge badge-accent" style="cursor:pointer;" data-filter="all">All <span class="filter-count" id="fc-all">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="hot">🔥 Hot <span class="filter-count" id="fc-hot">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm">🌡 Warm <span class="filter-count" id="fc-warm">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold">❄️ Cold <span class="filter-count" id="fc-cold">0</span></span>
                 </div>
                 <button id="rescoreAllBtn" class="lx-btn lx-btn-small">Rescore All Leads</button>
               </div>

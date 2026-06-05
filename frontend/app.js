@@ -11,6 +11,15 @@ let tenantWeights = {
 let allLeads = [];
 let currentFilter = 'all';
 
+// Default weights — used for reset and "already at defaults" check
+const DEFAULT_WEIGHTS = {
+  demographic_fit: 0.25,
+  source_quality: 0.25,
+  recency: 0.20,
+  behavioural_signals: 0.15,
+  prior_interaction: 0.15
+};
+
 // DOM Elements
 const tenantIdInput = document.getElementById('tenantIdInput');
 const loadTenantBtn = document.getElementById('loadTenantBtn');
@@ -25,6 +34,7 @@ const submitBatchBtn = document.getElementById('submitBatchBtn');
 
 // Config Sliders
 const saveConfigBtn = document.getElementById('saveConfigBtn');
+const resetWeightsBtn = document.getElementById('resetWeightsBtn');
 const sumIndicator = document.getElementById('sumIndicator');
 const rescoreAllBtn = document.getElementById('rescoreAllBtn');
 const leadsList = document.getElementById('leadsList');
@@ -175,14 +185,47 @@ function setupEventListeners() {
   // Rescore All Leads
   rescoreAllBtn.addEventListener('click', handleRescoreAll);
 
-  // Leads Filter Badges
+  // Reset Scoring Weights to defaults — with "already at defaults" guard
+  if (resetWeightsBtn) {
+    resetWeightsBtn.addEventListener('click', () => {
+      // Check if sliders are already at default values
+      const isAlreadyDefault = Object.keys(DEFAULT_WEIGHTS).every(key =>
+        sliders[key] && Math.abs(parseFloat(sliders[key].value) - DEFAULT_WEIGHTS[key]) < 0.001
+      );
+
+      if (isAlreadyDefault) {
+        // Already at defaults — tell the user, briefly animate the button
+        resetWeightsBtn.textContent = '✓ Already Default';
+        resetWeightsBtn.style.color = 'var(--lx-green)';
+        resetWeightsBtn.style.borderColor = 'rgba(46,204,138,0.4)';
+        setTimeout(() => {
+          resetWeightsBtn.textContent = '↺ Reset';
+          resetWeightsBtn.style.color = '';
+          resetWeightsBtn.style.borderColor = '';
+        }, 2000);
+        return;
+      }
+
+      // Apply defaults
+      Object.keys(DEFAULT_WEIGHTS).forEach(key => {
+        if (sliders[key]) sliders[key].value = DEFAULT_WEIGHTS[key];
+        if (sliderVals[key]) sliderVals[key].textContent = DEFAULT_WEIGHTS[key].toFixed(2);
+      });
+      updateWeightsSum();
+      showToast('Weights Reset', 'Restored to defaults: 0.25 / 0.25 / 0.20 / 0.15 / 0.15', '↺');
+    });
+  }
+
+  // Leads Filter Badges — active class toggling (counts updated by renderLeads)
   const filterBadges = document.querySelectorAll('#leads-filter-badges span');
   filterBadges.forEach(badge => {
     badge.addEventListener('click', () => {
       filterBadges.forEach(b => {
-        b.className = 'lx-badge badge-gray';
+        b.classList.remove('badge-accent');
+        b.classList.add('badge-gray');
       });
-      badge.className = 'lx-badge badge-accent';
+      badge.classList.remove('badge-gray');
+      badge.classList.add('badge-accent');
       currentFilter = badge.getAttribute('data-filter');
       renderLeads(allLeads);
     });
@@ -265,89 +308,107 @@ async function fetchLeadsList() {
   }
 }
 
+// 4b. Update filter badge live counts
+function updateFilterCounts(leads) {
+  const hot  = leads.filter(l => l.score >= 80).length;
+  const warm = leads.filter(l => l.score >= 50 && l.score < 80).length;
+  const cold = leads.filter(l => l.score < 50).length;
+
+  const fcAll  = document.getElementById('fc-all');
+  const fcHot  = document.getElementById('fc-hot');
+  const fcWarm = document.getElementById('fc-warm');
+  const fcCold = document.getElementById('fc-cold');
+
+  if (fcAll)  fcAll.textContent  = leads.length;
+  if (fcHot)  fcHot.textContent  = hot;
+  if (fcWarm) fcWarm.textContent = warm;
+  if (fcCold) fcCold.textContent = cold;
+}
+
 // 5. Render Lead Feed & Dynamic UI Elements
 function renderLeads(leads) {
-  // Update badges count
   leadsCount.textContent = leads.length;
   sidebarLeadsCount.textContent = leads.length;
+  updateFilterCounts(leads);
 
   let filtered = leads;
-  if (currentFilter === 'hot') {
-    filtered = leads.filter(l => l.score >= 80);
-  } else if (currentFilter === 'warm') {
-    filtered = leads.filter(l => l.score >= 50 && l.score < 80);
-  } else if (currentFilter === 'cold') {
-    filtered = leads.filter(l => l.score < 50);
-  }
+  if (currentFilter === 'hot') filtered = leads.filter(l => l.score >= 80);
+  else if (currentFilter === 'warm') filtered = leads.filter(l => l.score >= 50 && l.score < 80);
+  else if (currentFilter === 'cold') filtered = leads.filter(l => l.score < 50);
 
   if (filtered.length === 0) {
     leadsList.innerHTML = `
       <tr class="lx-empty-row">
         <td colspan="7" style="text-align: center; padding: 24px;">
-          <div class="lx-empty">
-            <span>⏳</span>
-            <div>No leads match the filter criteria. Ingest leads or switch filter.</div>
-          </div>
+          <div class="lx-empty"><span>⏳</span><div>No leads match this filter. Ingest leads or switch filter.</div></div>
         </td>
-      </tr>
-    `;
+      </tr>`;
     return;
   }
 
   leadsList.innerHTML = filtered.map(lead => {
     const score = lead.score || 0;
-    
-    // Bandings
-    let badgeClass = 'badge-red';
-    let dispText = 'No Intent';
+
+    let tierClass, dispText, dispClass, scoreColor;
     if (score >= 80) {
-      badgeClass = 'badge-green';
-      dispText = 'Hot Lead';
+      tierClass = 'tier-hot'; dispText = 'HOT LEAD'; dispClass = 'disp-hot'; scoreColor = 'var(--lx-green)';
     } else if (score >= 65) {
-      badgeClass = 'badge-accent';
-      dispText = 'Qualified';
+      tierClass = 'tier-qualified'; dispText = 'QUALIFIED'; dispClass = 'disp-qualified'; scoreColor = 'var(--lx-accent)';
     } else if (score >= 50) {
-      badgeClass = 'badge-amber';
-      dispText = 'Warm Lead';
+      tierClass = 'tier-warm'; dispText = 'WARM LEAD'; dispClass = 'disp-warm'; scoreColor = 'var(--lx-amber)';
+    } else {
+      tierClass = 'tier-cold'; dispText = 'NO INTENT'; dispClass = 'disp-cold'; scoreColor = 'var(--lx-red)';
     }
 
-    // Mask phone number for security
+    // Mini SVG score ring
+    const r = 16, c = (2 * Math.PI * r).toFixed(1);
+    const offset = (c - (c * score) / 100).toFixed(1);
+    const scoreSvg = `<div class="lx-score-mini">
+      <svg width="40" height="40" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+        <circle cx="20" cy="20" r="${r}" fill="none" stroke="${scoreColor}" stroke-width="3"
+          stroke-dasharray="${c}" stroke-dashoffset="${offset}"
+          transform="rotate(-90 20 20)" stroke-linecap="round"/>
+      </svg>
+      <div class="lx-score-mini-num" style="color:${scoreColor}">${score}</div>
+    </div>`;
+
     const rawPhone = lead.phone || '';
-    let maskedPhone = rawPhone;
-    if (rawPhone.length > 6) {
-      maskedPhone = rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2);
-    }
+    const maskedPhone = rawPhone.length > 6
+      ? rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2)
+      : rawPhone;
 
     const city = lead.raw_data?.city || 'Unknown';
     const age = lead.raw_data?.age || 'N/A';
-    const source = lead.source || 'Ads';
-    const timeStr = lead.created_at ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just Now';
+    const srcKey = (lead.source || 'other').toLowerCase().replace(/-/g, '_');
+    const srcLabel = (lead.source || 'OTHER').toUpperCase().replace(/-/g, '_');
+    const timeStr = lead.created_at
+      ? new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Just Now';
 
     return `
-      <tr id="lead-tr-${lead.id}">
+      <tr id="lead-tr-${lead.id}" class="${tierClass}">
         <td>
-          <div style="font-weight: 700;">${lead.name || 'Anonymous User'}</div>
-          <div style="font-size: 10.5px; color: var(--lx-muted);">📍 ${city} (Age: ${age})</div>
+          <div class="lead-name-strong">${lead.name || 'Anonymous'}</div>
+          <div class="lead-meta-sub">📍 ${city} (Age: ${age})</div>
         </td>
-        <td><span style="font-family: var(--lx-mono);">${maskedPhone}</span></td>
-        <td><span class="lx-badge badge-gray">${source}</span></td>
-        <td style="text-align: center;">
-          <strong style="font-family: var(--lx-mono); font-size:13px; color: ${score >= 80 ? 'var(--lx-green)' : (score >= 50 ? 'var(--lx-amber)' : 'var(--lx-red)')}">${score}</strong>
-        </td>
-        <td><span class="lx-badge ${badgeClass}">${dispText}</span></td>
-        <td><span style="font-size: 11px; color: var(--lx-muted);">${timeStr}</span></td>
-        <td style="text-align: right;">
-          <div style="display: flex; gap: 4px; justify-content: flex-end;">
-            <button class="lx-btn lx-btn-small" onclick="triggerMockCall('${lead.id}', '${lead.name}', '${lead.phone}', ${score})" title="Call Now via VOIZ">📞 Call</button>
-            <button class="lx-btn lx-btn-small" style="border-color: rgba(30, 201, 183, 0.3); color: var(--lx-teal);" onclick="triggerMockHandoff('${lead.id}', '${lead.name}')" title="Initiate Warm Handoff">🤝 Handoff</button>
-            <button class="lx-btn-icon" onclick="triggerMockDnc('${lead.id}', '${lead.phone}')" title="Flag DNC/NDNC" style="color: var(--lx-red);">🚫</button>
-            <button class="lx-btn-icon" onclick="rescoreSingleLead('${lead.id}')" title="Rescore lead">🔄</button>
+        <td><span style="font-family:var(--lx-mono);font-size:12px;">${maskedPhone}</span></td>
+        <td><span class="lx-source-badge src-${srcKey}">${srcLabel}</span></td>
+        <td style="text-align:center;"><div class="lx-score-cell">${scoreSvg}</div></td>
+        <td><span class="lx-badge ${dispClass}">${dispText}</span></td>
+        <td><span style="font-size:11px;color:var(--lx-muted);font-family:var(--lx-mono);">${timeStr}</span></td>
+        <td>
+          <div class="lx-action-row">
+            <button class="btn-call" onclick="triggerMockCall('${lead.id}','${lead.name}','${lead.phone}',${score})">📞 Call</button>
+            <button class="btn-handoff" onclick="triggerMockHandoff('${lead.id}','${lead.name}')">🤝 Handoff</button>
+            <button class="btn-icon-sm danger" onclick="triggerMockDnc('${lead.id}','${lead.phone}')" title="Flag DNC">🚫</button>
+            <button class="btn-icon-sm" onclick="rescoreSingleLead('${lead.id}')" title="Rescore">🔄</button>
           </div>
         </td>
-      </tr>
-    `;
+      </tr>`;
   }).join('');
 }
+
 
 // 6. Update KPIs based on leads
 function updateDashboardKPIs(leads) {

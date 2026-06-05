@@ -12,7 +12,7 @@ async function runBenchmark() {
     });
   });
 
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://127.0.0.1:${port}`;
   console.log(`Starting performance benchmark on ${baseUrl}...`);
 
   const numRequests = 100;
