@@ -68,3 +68,11 @@ CREATE TABLE IF NOT EXISTS config_audit_log (
     new_value JSONB,
     changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Disable Row Level Security (RLS) for demo/local sandbox access via Publishable API Key
+ALTER TABLE leads DISABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_configs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE call_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE call_events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE config_audit_log DISABLE ROW LEVEL SECURITY;
+
