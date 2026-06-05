@@ -27,17 +27,20 @@ We have designed and developed the complete foundation of the LEADX Core Layer:
 *   **Database Resilience (Technical):** Separating the DB layer and building a seeded mock DB lets developers and mentors start testing locally with `npm run dev` in 5 seconds flat without waiting to provision cloud databases.
 *   **Testing Isolation (Technical):** By decoupling the Express `app` setup from the TCP network binding (`server.js`), we run isolated, parallel unit tests on random ports without port collisions.
 
----
+## 2. Technology Stack & Design Decisions
 
-## 2. Technology Stack Overview
+We chose a highly performant and lightweight technology stack tailored for live voice operations:
 
-| Layer | Technology | Rationale |
-| :--- | :--- | :--- |
-| **API / Backend** | Node.js + Express (ESM) | Lightweight, single-threaded async event loop, standard in modern web backends. |
-| **Database** | Supabase (PostgreSQL) | Structured storage with schema indexes, native JSONB support for lead custom attributes. |
-| **Testing** | Node.js Native Test Runner (`node:test`) | Zero-dependency, lightweight, execution time of less than 1 second. |
-| **Frontend UI** | HTML5 / CSS3 (Vanilla) | Modern dark theme, DM Sans/Mono typography, CSS audio waves, custom toggle sliders. |
-| **Normalizer** | UUID v4 | Generates globally unique identifiers for database rows to prevent identifier conflicts. |
+*   **API / Backend: Node.js + Express (ESM)**
+    *   *Why this choice:* Express is extremely fast and lightweight, running on Node's async non-blocking event loop. In telephony orchestration, VOIZ events stream in real-time as HTTP webhooks. Express processes these asynchronous payloads with minimal memory footprint. We used modern ES Modules (`import/export`) to ensure alignment with standard modern JavaScript patterns.
+*   **Database: Supabase (PostgreSQL)**
+    *   *Why this choice:* PostgreSQL was chosen over NoSQL databases because lead status tracking requires ACID-compliant state transitions. Supabase provides PostgreSQL hosting out-of-the-box. We leverage Postgres indexing on query fields (`tenant_id`) and unique indexes (`tenant_id`, `phone`) to prevent race conditions. Additionally, native `JSONB` support allows us to store raw, schema-less demographic and behavioral lead data securely without losing indexing power.
+*   **Testing: Node.js Native Test Runner (`node:test`)**
+    *   *Why this choice:* We selected Node's native test runner (available in Node 18+) instead of third-party libraries like Jest or Mocha. It requires zero external dependencies, features native ES Modules compatibility without Babel transpilers, and runs our integration suite in less than 1.5 seconds.
+*   **Frontend UI: Vanilla HTML5, CSS3, & JS (No Tailwind/React)**
+    *   *Why this choice:* For the Week 1 dashboard, we chose vanilla HTML/CSS to build a custom, high-fidelity glassmorphic interface. This avoids bloating the client bundle with unnecessary framework overhead. It gives us granular, low-level control over micro-animations (such as CSS keyframe audio waveforms and SVG-calculated intent score rings) which are crucial to showcase premium design aesthetics to the mentor.
+*   **Normalizer: UUID v4**
+    *   *Why this choice:* We generate random UUIDs on the backend rather than using auto-incrementing integer IDs. This prevents ID enumeration attacks (where a malicious tenant guesses another tenant's lead IDs by guessing `id+1`) and eliminates synchronization clashes when merging offline or batch-ingested records.
 
 ---
 
