@@ -75,15 +75,17 @@ npm install
 4. Copy its contents, paste it into the editor, and click **Run**.
 
 ### 3. Environment Configuration
-Create a `.env` file in the project root:
+Configure Environment Variables: Create a `.env` file in the root directory and copy the contents from [`.env.example`](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/.env.example). You can use these values for mock integration:
 ```env
 PORT=3000
 NODE_ENV=development
-
-# Comment out to run in offline Mock Database mode
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-api-key
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/mock/webhook/url
+HUBSPOT_API_KEY=mock-hubspot-api-key
+LEADSQUARED_API_KEY=mock-leadsquared-api-key
 ```
+
+> [!NOTE]
+> If you do not specify a `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, the server automatically initializes in offline mock database mode using in-memory arrays. This allows you to test the API immediately.
 
 ### 4. Run Development Server
 ```bash

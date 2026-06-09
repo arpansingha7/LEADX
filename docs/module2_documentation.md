@@ -69,8 +69,8 @@ We extended our lightweight, high-performance stack with specific utility librar
 ## 4. How to Run & Verify
 
 ### 4.1 Local Setup
-1.  **Configure environment values:**
-    Open `.env` and configure optional variables:
+1.  **Configure Environment Variables:**
+    Create a `.env` file in the root directory and copy the contents from [`.env.example`](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/.env.example). You can use these values for mock integration:
     ```env
     PORT=3000
     NODE_ENV=development
@@ -78,8 +78,13 @@ We extended our lightweight, high-performance stack with specific utility librar
     HUBSPOT_API_KEY=mock-hubspot-api-key
     LEADSQUARED_API_KEY=mock-leadsquared-api-key
     ```
-2.  **Run migrations:**
-    Execute the updated `database/schema.sql` script on your Supabase Postgres instance or run the app in offline mock mode (which creates tables in-memory).
+    
+    > [!NOTE]
+    > If you do not specify a `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, the server automatically initializes in offline mock database mode using in-memory arrays. This allows you to test the API immediately.
+
+2.  **Run migrations (If using Supabase Cloud):**
+    If running in cloud database mode, execute the SQL script in **[database/schema.sql](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/database/schema.sql)** on your Supabase dashboard editor.
+
 3.  **Start the server:**
     ```bash
     npm run dev
