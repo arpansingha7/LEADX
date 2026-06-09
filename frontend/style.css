@@ -1734,3 +1734,110 @@ select option {
   background-color: var(--lx-card);
   color: var(--lx-text);
 }
+
+/* ============================================================
+   ONBOARDING WIZARD STEPS
+   ============================================================ */
+.wizard-header-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 15px 0 25px 0;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--lx-border);
+  border-radius: 10px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lx-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.wizard-step.active {
+  color: var(--lx-accent);
+}
+
+.wizard-step.completed {
+  color: var(--lx-green);
+}
+
+.wizard-step .step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--lx-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lx-mono);
+  font-size: 10px;
+}
+
+.wizard-step.active .step-num {
+  border-color: var(--lx-accent);
+  background: rgba(108, 114, 248, 0.1);
+  color: var(--lx-accent);
+}
+
+.wizard-step.completed .step-num {
+  border-color: var(--lx-green);
+  background: rgba(46, 204, 138, 0.1);
+  color: var(--lx-green);
+}
+
+.wizard-step-line {
+  flex: 1;
+  height: 1px;
+  background: var(--lx-border);
+  margin: 0 10px;
+}
+
+.wizard-step-content {
+  display: none;
+}
+
+.wizard-step-content.show {
+  display: block;
+}
+
+.wizard-body-card {
+  min-height: 320px;
+}
+
+.mapping-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--lx-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.mapping-field-row span {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.mapping-field-row select {
+  width: 140px;
+}
+
+.wizard-actions {
+  border-top: 1px solid var(--lx-border);
+  padding-top: 15px;
+}
+
+.lx-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  vertical-align: middle;
+  stroke-width: 2px;
+}

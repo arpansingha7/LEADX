@@ -220,3 +220,45 @@ Be prepared to answer these questions during your mentor interview.
 > [!IMPORTANT]
 > **Q: How do we prevent tenants from seeing or tampering with each other's data?**
 > *   **Answer:** *"We implement multi-tenant scoping. Every table is indexed by a `tenant_id`. Every API query (and database lookup) requires an explicit `tenant_id` filter. No wildcard queries are exposed. In production, row-level security (RLS) is enabled on Supabase so tenant accounts are completely sandboxed at the database level."*
+
+---
+
+## 7. Intern Study Guide: Core Concepts & Examples
+
+This study guide explains the core software engineering concepts used in Module 1 with easy-to-understand examples. Read this to build a solid foundation before your mentor evaluation.
+
+### 💡 Concept 1: Separating Express Setup (`app.js`) from Server Startup (`server.js`)
+*   **The Problem:** Normally, Node.js applications combine route setup and server listening in one file. If you run tests that start the server while your main app is already running, you get a crash: `EADDRINUSE: address already in use :::3000`.
+*   **The Solution:** We separate the **routing logic** from the **listening engine**.
+    *   `app.js` defines the middleware, routes, and JSON parsers, but it **never** calls `app.listen()`. It is just a configuration template.
+    *   `server.js` imports `app.js` and calls `app.listen(3000)` to bind to a physical port.
+*   **Related Example:** When you run `npm run dev` in your terminal, it executes `server.js` and locks port 3000. But when our automated integration test suite (`api.test.js`) runs, it imports `app.js` directly and spins it up on a random, dynamically allocated port (port `0`). This allows tests to run smoothly without colliding with your active development server.
+
+### 💡 Concept 2: Resilient Dual-Mode Database Adapter (`db.js`)
+*   **The Problem:** If you force the server to always connect to a live cloud database, developers cannot test their code offline, or when internet connectivity is spotty.
+*   **The Solution:** We build a database adapter that detects if Supabase credentials are set in your `.env` file. If they are, it initializes the live Supabase client. If they are missing or commented out, it falls back to an offline mock database (`mockDb`) created using standard JavaScript arrays.
+*   **Related Example:** During local development, if you comment out `SUPABASE_URL`, the server starts in **Mock Database Mode**. When you send a request to `POST /leads/ingest`, the lead is appended to a local array in the server's memory (`mockDb.leads.push(newLead)`). When you paste your credentials back in, it restarts and writes to the cloud tables automatically.
+
+### 💡 Concept 3: "Double-Defense" Concurrency Protection
+*   **The Problem (Race Conditions):** Imagine two identical lead submissions with the phone number `+919876543210` hit the server at the exact same millisecond. If we only check for duplicates by running a SQL `SELECT` statement in our Express code, both requests will run the `SELECT` query at the same time, find no duplicates, and both will run `INSERT`. This is a classic **race condition** resulting in a duplicate database record.
+*   **The Solution:** We implement two defense walls:
+    1.  *Application Wall (Defense 1):* The route handler runs a `SELECT` check first. This handles 99% of normal duplicate cases.
+    2.  *Database Wall (Defense 2):* In `schema.sql`, we create a unique constraint index: `CREATE UNIQUE INDEX leads_tenant_phone_idx ON leads(tenant_id, phone);`.
+*   **Related Example:** If the millisecond race condition occurs and both requests bypass the first wall, the PostgreSQL database catches the second insertion at the storage engine level and rejects it, throwing error code `23505` (Unique Violation). Our Express middleware intercepts this database error code and returns a clear `HTTP 409 Conflict` to the user instead of letting the application crash or duplicate the data.
+
+### 💡 Concept 4: Floating-Point Rounding & Delta Tolerance Validation
+*   **The Problem:** Computers represent numbers in binary (base-2). Decimals like `0.1` and `0.2` cannot be represented exactly in binary, resulting in tiny rounding errors. In JavaScript:
+    ```javascript
+    0.1 + 0.2 === 0.3 // returns FALSE (it actually equals 0.30000000000000004)
+    ```
+    If a client configures their scoring weights to be `0.10`, `0.20`, `0.20`, `0.25`, and `0.25`, checking if the weights sum exactly to `1.0` (`sum === 1.0`) will fail due to rounding precision, blocking valid configurations from being saved.
+*   **The Solution:** Instead of strict equality, we use a **Delta Tolerance check**. We assert that the absolute difference between the sum and `1.0` is smaller than a tiny threshold (the epsilon delta, in our case `0.001`):
+    ```javascript
+    Math.abs(sum - 1.0) <= 0.001
+    ```
+*   **Related Example:** If a tenant configures weights that add up to `1.00000004` due to float calculations, `Math.abs(1.00000004 - 1.0)` is `0.00000004`, which is less than `0.001`. The configuration is correctly accepted and validated.
+
+### 💡 Concept 5: Row-Level Security (RLS) on Supabase
+*   **The Problem:** Supabase is designed as a secure backend-as-a-service. When you create tables in the Supabase dashboard, it automatically enables Row-Level Security (RLS). This blocks any anonymous API request (using the publishable key) from inserting or reading data, throwing error code `42501` (new row violates row-level security policy).
+*   **The Solution:** We must tell PostgreSQL how to handle public access. For local developer sandboxes or staging environments, we run `ALTER TABLE ... DISABLE ROW LEVEL SECURITY;` for all tables.
+*   **Related Example:** Once you run the SQL migration script containing the `ALTER TABLE leads DISABLE ROW LEVEL SECURITY` command, the live Supabase database cache refreshes, and your frontend dashboard's publishable keys are instantly allowed to fetch and ingest lead rows without getting blocked by RLS policies.

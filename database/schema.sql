@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS leads (
     raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     score INT NOT NULL DEFAULT 0,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    dataset_id VARCHAR(100),
+    campaign_name VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -54,6 +56,7 @@ CREATE TABLE IF NOT EXISTS tenant_configs (
         "behavioural_signals": 0.15,
         "prior_interaction": 0.15
     }'::jsonb,
+    onboarding_config JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -69,10 +72,21 @@ CREATE TABLE IF NOT EXISTS config_audit_log (
     changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Table: audit_trail (centralized logbook for system events)
+CREATE TABLE IF NOT EXISTS audit_trail (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(100) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    details JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Disable Row Level Security (RLS) for demo/local sandbox access via Publishable API Key
 ALTER TABLE leads DISABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_configs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE call_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE call_events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE config_audit_log DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_trail DISABLE ROW LEVEL SECURITY;
+
 

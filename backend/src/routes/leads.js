@@ -2,6 +2,9 @@ import { Router } from 'express';
 import db from '../config/db.js';
 import { validateLead, validateScoringWeights, cleanPhone } from '../utils/validation.js';
 import { computeLeadScore } from '../services/scoringEngine.js';
+import { initSession, normaliseEvent } from '../services/voizAdapter.js';
+import { sendSlackNotification } from '../services/slackService.js';
+import { syncToCRM } from '../services/crmService.js';
 
 const router = Router();
 
@@ -39,6 +42,10 @@ router.post('/config', async (req, res, next) => {
     }
 
     await db.upsertWeights(tenant_id, weights, changed_by || 'system');
+    
+    // Slack notice
+    await sendSlackNotification(`[Configuration Alert] Scoring weights modified for tenant "${tenant_id}" by user "${changed_by || 'system'}".`);
+    
     res.json({ success: true, tenant_id, weights });
   } catch (error) {
     next(error);
@@ -98,7 +105,9 @@ router.post('/ingest', async (req, res, next) => {
     // Clean data and build structured lead
     const processedLead = {
       ...leadData,
-      phone: cleaned
+      phone: cleaned,
+      dataset_id: leadData.dataset_id || 'manual-entry',
+      campaign_name: leadData.campaign_name || 'Manual Campaigns'
     };
 
     // Calculate score
@@ -107,6 +116,20 @@ router.post('/ingest', async (req, res, next) => {
 
     // Save lead
     const savedLead = await db.insertLead(processedLead);
+
+    // Insert System Audit Log
+    await db.insertAuditLog(tenant_id, 'lead_ingested', {
+      lead_id: savedLead.id,
+      phone: cleaned,
+      score,
+      dataset_id: processedLead.dataset_id,
+      campaign_name: processedLead.campaign_name
+    });
+
+    // Slack Notification for Hot Lead Ingestion
+    if (score >= 80) {
+      await sendSlackNotification(`[Ingestion Alert] HOT Lead Ingested: ${savedLead.name || 'Unknown'} (${cleaned}) scored ${score}/100.`);
+    }
 
     res.status(201).json({
       success: true,
@@ -123,7 +146,7 @@ router.post('/ingest', async (req, res, next) => {
  */
 router.post('/batch', async (req, res, next) => {
   try {
-    const { tenant_id, leads } = req.body;
+    const { tenant_id, leads, dataset_id, campaign_name } = req.body;
 
     if (!tenant_id) {
       return res.status(400).json({ error: 'Validation Error', message: 'tenant_id is required' });
@@ -193,6 +216,9 @@ router.post('/batch', async (req, res, next) => {
 
         // Calculate score
         leadPayload.phone = cleaned;
+        leadPayload.dataset_id = dataset_id || 'batch-upload';
+        leadPayload.campaign_name = campaign_name || 'Batch Campaigns';
+        
         const score = computeLeadScore(leadPayload, weights);
         leadPayload.score = score;
 
@@ -217,6 +243,19 @@ router.post('/batch', async (req, res, next) => {
         });
       }
     }
+
+    // Insert System Audit Log
+    await db.insertAuditLog(tenant_id, 'batch_leads_ingested', {
+      dataset_id: dataset_id || 'batch-upload',
+      campaign_name: campaign_name || 'Batch Campaigns',
+      accepted,
+      duplicates,
+      rejected,
+      total_attempted: leads.length
+    });
+
+    // Slack webhook trigger for bulk ingestions
+    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${duplicates} duplicates filtered, ${rejected} rejected for campaign "${campaign_name || 'Batch Campaigns'}".`);
 
     res.json({
       success: true,
@@ -260,6 +299,227 @@ router.post('/:id/rescore', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+/**
+ * POST /leads/onboard
+ * Saves client discovery questionnaire configurations.
+ */
+router.post('/onboard', async (req, res, next) => {
+  try {
+    const { tenant_id, onboarding_config } = req.body;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id is required' });
+    }
+    if (!onboarding_config) {
+      return res.status(400).json({ error: 'Validation Error', message: 'onboarding_config is required' });
+    }
+
+    await db.upsertOnboardingConfig(tenant_id, onboarding_config);
+
+    // Audit log
+    await db.insertAuditLog(tenant_id, 'onboarding_config_updated', onboarding_config);
+
+    // Slack alerts
+    await sendSlackNotification(`[Onboarding Alert] Client setup completed for tenant "${tenant_id}". Industry segment: ${onboarding_config.industry || 'General'}.`);
+
+    res.json({ success: true, tenant_id, onboarding_config });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/onboard
+ * Retrieves onboarding configurations for a tenant.
+ */
+router.get('/onboard', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    const onboarding_config = await db.getOnboardingConfig(tenant_id);
+    res.json({ success: true, tenant_id, onboarding_config });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/audit-trail
+ * Retrieves centralized audit log events.
+ */
+router.get('/audit-trail', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    const logs = await db.getAuditTrail(tenant_id);
+    res.json({ success: true, logs });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/events
+ * Retrieves call session event logs.
+ */
+router.get('/events', async (req, res, next) => {
+  try {
+    const { tenant_id, event_type } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    const events = await db.getCallEvents(tenant_id, event_type || null);
+    res.json({ success: true, events });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/trigger-call
+ * Triggers a simulated VOIZ outbound dialing session.
+ */
+router.post('/trigger-call', async (req, res, next) => {
+  try {
+    const { tenant_id, lead_id } = req.body;
+    if (!tenant_id || !lead_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id and lead_id are required' });
+    }
+
+    const lead = await db.findLeadById(lead_id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${lead_id} does not exist.` });
+    }
+
+    const onboarding = await db.getOnboardingConfig(tenant_id);
+
+    // Platform-maintained DNC check (default to true unless explicit client override)
+    const usePlatformDnc = onboarding.dnc_validation_ownership !== 'client';
+    if (usePlatformDnc && (lead.phone.includes('403') || lead.phone.includes('0000'))) {
+      await db.updateLeadStatus(lead_id, 'dnc');
+      
+      await db.insertAuditLog(tenant_id, 'dnc_block', {
+        lead_id: lead.id,
+        phone: lead.phone
+      });
+      await sendSlackNotification(`[DNC Block] outbound dial blocked to DNC number: ${lead.phone}`);
+      return res.status(400).json({ error: 'DNC Block', message: 'The number is registered on the national DNC database.' });
+    }
+
+    // Dynamic URL mapping
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const webhookUrl = `${protocol}://${host}/leads/voiz-webhook`;
+
+    // Initialize session via adapter
+    const result = await initSession(lead, onboarding, webhookUrl);
+
+    // Save initial call session
+    const session = await db.insertCallSession({
+      tenant_id,
+      lead_id,
+      voiz_session_id: result.voiz_session_id,
+      disposition: 'calling'
+    });
+
+    await db.insertAuditLog(tenant_id, 'call_initiated', {
+      lead_id,
+      voiz_session_id: result.voiz_session_id,
+      phone: lead.phone
+    });
+
+    res.json({ success: true, message: 'Call session initiated', voiz_session_id: result.voiz_session_id, session_id: session.id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/voiz-webhook
+ * Webhook handler receiving stream callback events from mock/live VOIZ dialer.
+ */
+router.post('/voiz-webhook', async (req, res, next) => {
+  try {
+    const rawEvent = req.body;
+    const { tenant_id, lead_id, event_type, phone, name } = rawEvent;
+    const voizSessionId = rawEvent.payload?.voiz_session_id;
+
+    if (!tenant_id || !event_type || !voizSessionId) {
+      return res.status(400).json({ error: 'Validation Error', message: 'Required fields missing from event' });
+    }
+
+    // Find session or insert dynamic fallback
+    let session = await db.findCallSessionByVoizId(voizSessionId);
+    if (!session) {
+      session = await db.insertCallSession({
+        tenant_id,
+        lead_id: lead_id || '00000000-0000-0000-0000-000000000000',
+        voiz_session_id: voizSessionId,
+        disposition: 'calling'
+      });
+    }
+
+    // Normalize
+    const normalized = normaliseEvent({
+      tenant_id,
+      session_id: session.id,
+      event_type,
+      payload: rawEvent.payload,
+      timestamp: rawEvent.timestamp
+    });
+
+    // Save event
+    await db.insertCallEvent(normalized);
+
+    // Stream handlers
+    if (event_type === 'escalation_triggered') {
+      await db.updateLeadStatus(lead_id, 'hot_escalated');
+
+      await db.insertAuditLog(tenant_id, 'escalation_triggered', {
+        lead_id,
+        phone,
+        reason: rawEvent.payload.reason
+      });
+
+      // Slack dispatch
+      await sendSlackNotification(`[Escalation Alert] Active session "${voizSessionId}" escalated. Reason: ${rawEvent.payload.reason}.`);
+
+      // CRM sync
+      const lead = await db.findLeadById(lead_id);
+      if (lead) {
+        try {
+          await syncToCRM(tenant_id, { ...lead, status: 'hot_escalated' }, 'hubspot');
+        } catch (crmErr) {
+          console.error('CRM escalation push skipped or failed:', crmErr.message);
+        }
+      }
+    } else if (event_type === 'call_ended') {
+      await db.updateCallSession(session.id, {
+        disposition: rawEvent.payload.disposition,
+        summary: rawEvent.payload.summary
+      });
+
+      await db.updateLeadStatus(lead_id, 'called');
+
+      await db.insertAuditLog(tenant_id, 'call_completed', {
+        lead_id,
+        disposition: rawEvent.payload.disposition,
+        duration: rawEvent.payload.call_duration_seconds
+      });
+
+      await sendSlackNotification(`[Call Completed] Outbound session completed for ${name || 'Unknown'} (${phone}). Status: ${rawEvent.payload.disposition}.`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Webhook payload error:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 });
 

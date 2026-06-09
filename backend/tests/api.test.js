@@ -248,3 +248,108 @@ test('POST /leads/:id/rescore - Dynamic lead rescore', async () => {
   // Score should have changed
   assert.strictEqual(rescoreData.old_score, initialScore);
 });
+
+test('POST /leads/onboard - Save onboarding questionnaire config', async () => {
+  const payload = {
+    tenant_id: 'test-tenant',
+    onboarding_config: {
+      industry: 'BFSI',
+      objective: 'Verify credit card fit',
+      agent_focus: 'Salary validation and background fit',
+      dnc_validation_ownership: 'platform',
+      target_crm: 'hubspot'
+    }
+  };
+
+  const response = await fetch(`${baseUrl}/leads/onboard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  assert.strictEqual(response.status, 200);
+  const data = await response.json();
+  assert.strictEqual(data.success, true);
+  assert.strictEqual(data.onboarding_config.industry, 'BFSI');
+});
+
+test('GET /leads/onboard - Retrieve onboarding config', async () => {
+  const response = await fetch(`${baseUrl}/leads/onboard?tenant_id=test-tenant`);
+  assert.strictEqual(response.status, 200);
+  const data = await response.json();
+  assert.strictEqual(data.success, true);
+  assert.strictEqual(data.onboarding_config.industry, 'BFSI');
+});
+
+test('GET /leads/audit-trail - Retrieve system audit trail logs', async () => {
+  const response = await fetch(`${baseUrl}/leads/audit-trail?tenant_id=test-tenant`);
+  assert.strictEqual(response.status, 200);
+  const data = await response.json();
+  assert.strictEqual(data.success, true);
+  assert.ok(Array.isArray(data.logs));
+  assert.ok(data.logs.length > 0);
+});
+
+test('POST /leads/trigger-call & /leads/voiz-webhook - Trigger call session and receive events', async () => {
+  // First ingest a lead
+  const ingestPayload = {
+    tenant_id: 'test-tenant',
+    name: 'Call Trigger Test',
+    phone: '+919988776655',
+    source: 'referral'
+  };
+
+  const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ingestPayload)
+  });
+  const ingestData = await ingestRes.json();
+  const leadId = ingestData.lead.id;
+
+  // Trigger call
+  const triggerRes = await fetch(`${baseUrl}/leads/trigger-call`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      lead_id: leadId
+    })
+  });
+
+  assert.strictEqual(triggerRes.status, 200);
+  const triggerData = await triggerRes.json();
+  assert.strictEqual(triggerData.success, true);
+  assert.ok(triggerData.voiz_session_id);
+
+  // Send a webhook event
+  const webhookPayload = {
+    tenant_id: 'test-tenant',
+    lead_id: leadId,
+    event_type: 'call_started',
+    phone: '+919988776655',
+    payload: {
+      voiz_session_id: triggerData.voiz_session_id,
+      agent_id: 'VOIZ-01',
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  const webhookRes = await fetch(`${baseUrl}/leads/voiz-webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(webhookPayload)
+  });
+
+  assert.strictEqual(webhookRes.status, 200);
+  const webhookData = await webhookRes.json();
+  assert.strictEqual(webhookData.success, true);
+
+  // Retrieve events stream
+  const eventsRes = await fetch(`${baseUrl}/leads/events?tenant_id=test-tenant`);
+  assert.strictEqual(eventsRes.status, 200);
+  const eventsData = await eventsRes.json();
+  assert.strictEqual(eventsData.success, true);
+  assert.ok(eventsData.events.length > 0);
+  assert.strictEqual(eventsData.events[0].event_type, 'call_started');
+});

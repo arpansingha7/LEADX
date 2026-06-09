@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <div class="lx-wrap">
@@ -17,7 +19,7 @@
         <div class="lx-logo-mark">LX</div>
         <div>
           <strong>LeadX</strong>
-          <span style="font-size: 10px; color: var(--lx-muted); display: block; margin-top: -2px;">Orchestrator v1.0</span>
+          <span style="font-size: 10px; color: var(--lx-muted); display: block; margin-top: -2px;">Orchestrator v1.2</span>
         </div>
       </div>
       
@@ -44,26 +46,29 @@
       <aside class="lx-sidebar">
         <div class="lx-sidebar-section">Main Operations</div>
         <div class="lx-sidebar-item active" data-page="home">
-          <span>🏠</span> Dashboard
+          <i data-lucide="layout-dashboard" class="lx-icon"></i> Dashboard
+        </div>
+        <div class="lx-sidebar-item" data-page="onboarding">
+          <i data-lucide="clipboard-list" class="lx-icon"></i> Onboarding
         </div>
         <div class="lx-sidebar-item" data-page="campaigns">
-          <span>🎯</span> Campaigns
+          <i data-lucide="target" class="lx-icon"></i> Campaigns
         </div>
         <div class="lx-sidebar-item" data-page="agents">
-          <span>🤖</span> VOIZ Roster
+          <i data-lucide="users" class="lx-icon"></i> VOIZ Roster
         </div>
         <div class="lx-sidebar-item" data-page="leads">
-          <span>⚡</span> Lead Intelligence
+          <i data-lucide="zap" class="lx-icon"></i> Lead Intelligence
           <span class="count" id="sidebarLeadsCount">0</span>
         </div>
         <div class="lx-sidebar-section">Real-Time</div>
         <div class="lx-sidebar-item" data-page="monitor">
-          <span>📡</span> Live Monitor
+          <i data-lucide="radio" class="lx-icon"></i> Live Monitor
           <span class="count badge-green" style="background: rgba(46, 204, 138, 0.2); animation: pulse 2s infinite;" id="liveCallCount">0</span>
         </div>
         <div class="lx-sidebar-section">Reports & Shares</div>
         <div class="lx-sidebar-item" data-page="client">
-          <span>💼</span> Client Portal
+          <i data-lucide="briefcase" class="lx-icon"></i> Client Portal
         </div>
       </aside>
 
@@ -82,22 +87,22 @@
             <div class="lx-stat">
               <div class="lx-stat-label">TOTAL CALLS TODAY</div>
               <div class="lx-stat-val" id="kpi-total-calls">14,892</div>
-              <div class="lx-stat-delta badge-green">↑ 12.4% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-delta badge-green">12.4% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">CONNECT RATE</div>
               <div class="lx-stat-val" id="kpi-connect-rate">68.4%</div>
-              <div class="lx-stat-delta badge-green">↑ 3.1% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-delta badge-green">3.1% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">QUALIFIED LEADS</div>
               <div class="lx-stat-val" id="kpi-qualified-leads">3,128</div>
-              <div class="lx-stat-delta badge-green">↑ 8.7% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-delta badge-green">8.7% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">HOT LEADS (SCORE ≥ 80)</div>
               <div class="lx-stat-val" id="kpi-hot-leads">942</div>
-              <div class="lx-stat-delta badge-green">↑ 14.2% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-delta badge-green">14.2% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">ACTIVE VOIZ AGENTS</div>
@@ -172,11 +177,11 @@
               <!-- Conversion Metrics Grid -->
               <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 16px;">
                 <div style="text-align: center;">
-                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">INGEST ➡️ CONNECT</div>
+                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">INGEST TO CONNECT</div>
                   <strong style="font-size: 16px; color: var(--lx-text); font-family: var(--lx-mono);">42.4%</strong>
                 </div>
                 <div style="text-align: center;">
-                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">CONNECT ➡️ QUALIFIED</div>
+                  <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">CONNECT TO QUALIFIED</div>
                   <strong style="font-size: 16px; color: var(--lx-teal); font-family: var(--lx-mono);">73.8%</strong>
                 </div>
                 <div style="text-align: center;">
@@ -199,7 +204,7 @@
                   <div class="hotlead-row">
                     <div class="hlr-name">
                       <strong>Arjun Mehta</strong>
-                      <div class="hlr-meta">📞 +91 98124 ***55 | Mumbai</div>
+                      <div class="hlr-meta">Phone: +91 98124 ***55 | Mumbai</div>
                     </div>
                     <div class="score-ring">
                       <svg width="52" height="52" viewBox="0 0 52 52">
@@ -212,7 +217,7 @@
                   <div class="hotlead-row">
                     <div class="hlr-name">
                       <strong>Priya Sharma</strong>
-                      <div class="hlr-meta">📞 +91 77382 ***12 | Delhi</div>
+                      <div class="hlr-meta">Phone: +91 77382 ***12 | Delhi</div>
                     </div>
                     <div class="score-ring">
                       <svg width="52" height="52" viewBox="0 0 52 52">
@@ -225,7 +230,7 @@
                   <div class="hotlead-row">
                     <div class="hlr-name">
                       <strong>Rohit Nair</strong>
-                      <div class="hlr-meta">📞 +91 99870 ***67 | Bangalore</div>
+                      <div class="hlr-meta">Phone: +91 99870 ***67 | Bangalore</div>
                     </div>
                     <div class="score-ring">
                       <svg width="52" height="52" viewBox="0 0 52 52">
@@ -271,7 +276,170 @@
           </div>
         </section>
 
-        <!-- 2. CAMPAIGNS PAGE -->
+        <!-- 2. ONBOARDING WIZARD PAGE -->
+        <section class="lx-page" id="page-onboarding">
+          <div class="lx-section-title">
+            Campaign Setup & Data Onboarding
+            <span class="sub">Map custom spreadsheets, configure DNC rules, and hand off leads to agents</span>
+          </div>
+
+          <!-- Wizard Progress Steps Bar -->
+          <div class="wizard-header-steps">
+            <div class="wizard-step active" id="wstep-1">
+              <span class="step-num">1</span>
+              <span class="step-label">Questionnaire</span>
+            </div>
+            <div class="wizard-step-line"></div>
+            <div class="wizard-step" id="wstep-2">
+              <span class="step-num">2</span>
+              <span class="step-label">Upload</span>
+            </div>
+            <div class="wizard-step-line"></div>
+            <div class="wizard-step" id="wstep-3">
+              <span class="step-num">3</span>
+              <span class="step-label">Mapping</span>
+            </div>
+            <div class="wizard-step-line"></div>
+            <div class="wizard-step" id="wstep-4">
+              <span class="step-num">4</span>
+              <span class="step-label">Handshake</span>
+            </div>
+          </div>
+
+          <div class="lx-card wizard-body-card">
+            <!-- Step 1 Layout: Questionnaire -->
+            <div class="wizard-step-content show" id="wcontent-1">
+              <div class="form-section-title" style="margin-top:0;">Discovery Questionnaire</div>
+              <div class="li-single-form" style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="li-form-col">
+                  <div class="form-group">
+                    <label for="wizardIndustry">Target Industry Segment *</label>
+                    <select id="wizardIndustry" class="lx-input">
+                      <option value="Real Estate">Real Estate Outbound Qualification</option>
+                      <option value="Education">Educational Program Enrollment</option>
+                      <option value="BFSI">BFSI Credit & Financial Products</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="wizardObjective">Campaign Objectives *</label>
+                    <input type="text" id="wizardObjective" class="lx-input" placeholder="e.g. Qualify users expressing interest in Gold Loans">
+                  </div>
+                </div>
+                <div class="li-form-col">
+                  <div class="form-group">
+                    <label for="wizardFocus">AI Agent Conversational Focus *</label>
+                    <textarea id="wizardFocus" class="lx-input" style="height: 80px;" placeholder="e.g. Focus on validating KYC documents and salary fit."></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label for="wizardHandoff">Call Windows and Retry Configuration</label>
+                    <input type="text" id="wizardHandoff" class="lx-input" value="9:00 AM - 6:00 PM | Max 3 Retries">
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-actions" style="margin-top:20px; text-align:right;">
+                <button class="lx-btn primary" onclick="goToStep(2)">Proceed to Data Upload</button>
+              </div>
+            </div>
+
+            <!-- Step 2 Layout: Data Upload -->
+            <div class="wizard-step-content" id="wcontent-2">
+              <div class="form-section-title" style="margin-top:0;">Upload Customer Leads</div>
+              <div style="margin-top:12px;">
+                <p style="font-size:12px; color:var(--lx-muted); margin-bottom:12px;">
+                  Paste a raw CSV or JSON list of lead data here. The system parses the headers automatically.
+                </p>
+                <div class="form-group">
+                  <label for="wizardUploadArea">Raw CSV Data</label>
+                  <textarea id="wizardUploadArea" class="lx-input li-batch-textarea" style="height:150px; font-family:var(--lx-mono); font-size:11.5px;" placeholder="Name,Mobile,MailAddress,Age,Income
+Rahul Roy,+919999911111,rahul@mail.com,29,50000
+Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('realestate')">Load Real Estate CSV Sample</button>
+                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('bfsi')">Load BFSI CSV Sample</button>
+                </div>
+              </div>
+              <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
+                <button class="lx-btn" onclick="goToStep(1)">Back</button>
+                <button class="lx-btn primary" onclick="parseAndPrepareMapping()">Parse & Configure Mappings</button>
+              </div>
+            </div>
+
+            <!-- Step 3 Layout: Column Mapping & Verification -->
+            <div class="wizard-step-content" id="wcontent-3">
+              <div class="form-section-title" style="margin-top:0;">Column Mapping Engine</div>
+              <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1.5fr; gap:20px;">
+                <div>
+                  <p style="font-size:12px; color:var(--lx-muted); margin-bottom:10px;">
+                    Associate the detected columns from your file with the target system fields.
+                  </p>
+                  <div id="mappingFieldsContainer" style="display:flex; flex-direction:column; gap:12px;">
+                    <!-- Javascript will dynamically inject selectors for system columns -->
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">User Mapping Verification Preview</div>
+                  <div style="overflow-x:auto; max-height: 220px; border:1px solid var(--lx-border); border-radius:6px;">
+                    <table class="lx-table" style="font-size:11px; margin:0;">
+                      <thead id="mappingPreviewHead"></thead>
+                      <tbody id="mappingPreviewBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
+                <button class="lx-btn" onclick="goToStep(2)">Back</button>
+                <button class="lx-btn primary" onclick="goToStep(4)">Verify & Set Handoff</button>
+              </div>
+            </div>
+
+            <!-- Step 4 Layout: Handoff & Synchronization Settings -->
+            <div class="wizard-step-content" id="wcontent-4">
+              <div class="form-section-title" style="margin-top:0;">System Integration & Handoff Settings</div>
+              <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                <div>
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">DNC Validation Checks</div>
+                  <div class="config-row" style="padding: 6px 0;">
+                    <div>
+                      <div class="config-label">Platform-maintained DNC checks</div>
+                      <div class="config-sub">Verify lead lists against National NDNC registry</div>
+                    </div>
+                    <label class="lx-toggle">
+                      <input type="checkbox" checked id="wizardDncCheck">
+                      <span class="lx-toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-top:16px; margin-bottom:8px;">Target CRM Synchronization</div>
+                  <div class="form-group">
+                    <label for="wizardCrmSelector">Sync qualified lead entries to</label>
+                    <select id="wizardCrmSelector" class="lx-input">
+                      <option value="hubspot">HubSpot CRM Cloud</option>
+                      <option value="leadsquared">LeadSquared API Portal</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">Traceability Data Labels</div>
+                  <div class="form-group">
+                    <label for="wizardCampaignName">Campaign Label Name</label>
+                    <input type="text" id="wizardCampaignName" class="lx-input" value="Muthoot Ingestion Campaign Q3">
+                  </div>
+                  <div class="form-group">
+                    <label for="wizardDatasetId">Dataset Reference Identifier</label>
+                    <input type="text" id="wizardDatasetId" class="lx-input" value="ds-realestate-m2-01">
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
+                <button class="lx-btn" onclick="goToStep(3)">Back</button>
+                <button class="lx-btn primary" id="wizardFinishBtn" onclick="commitWizardData()">Finalize and Trigger Handoff</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. CAMPAIGNS PAGE -->
         <section class="lx-page" id="page-campaigns">
           <div class="lx-section-title">
             Campaign Manager
@@ -562,7 +730,7 @@
           </div>
         </section>
 
-        <!-- 3. AGENTS PAGE -->
+        <!-- 4. AGENTS PAGE -->
         <section class="lx-page" id="page-agents">
           <div class="lx-section-title">
             VOIZ Roster Manager
@@ -578,7 +746,7 @@
                 <span class="status-dot sd-green"></span>
               </div>
               <div class="agent-name">VOIZ-01 (Kavita)</div>
-              <div class="agent-meta">🔊 Hindi / English | Female-1</div>
+              <div class="agent-meta">Hindi / English | Female-1</div>
               <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
                 <span>Calls today: <strong>148</strong></span>
                 <span>Qual rate: <strong style="color:var(--lx-green)">42%</strong></span>
@@ -594,7 +762,7 @@
                 <span class="status-dot sd-green"></span>
               </div>
               <div class="agent-name">VOIZ-02 (Rohan)</div>
-              <div class="agent-meta">🔊 English / Tamil | Male-1</div>
+              <div class="agent-meta">English / Tamil | Male-1</div>
               <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
                 <span>Calls today: <strong>112</strong></span>
                 <span>Qual rate: <strong style="color:var(--lx-accent)">35%</strong></span>
@@ -610,7 +778,7 @@
                 <span class="status-dot sd-amber"></span>
               </div>
               <div class="agent-name">VOIZ-03 (Meera)</div>
-              <div class="agent-meta">🔊 Telugu / English | Female-2</div>
+              <div class="agent-meta">Telugu / English | Female-2</div>
               <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
                 <span>Calls today: <strong>98</strong></span>
                 <span>Qual rate: <strong style="color:var(--lx-amber)">28%</strong></span>
@@ -626,7 +794,7 @@
                 <span class="status-dot sd-gray"></span>
               </div>
               <div class="agent-name">VOIZ-04 (Vikram)</div>
-              <div class="agent-meta">🔊 Kannada / English | Male-2</div>
+              <div class="agent-meta">Kannada / English | Male-2</div>
               <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
                 <span>Calls today: <strong>0</strong></span>
                 <span>Qual rate: <strong>0%</strong></span>
@@ -699,7 +867,7 @@
           </div>
         </section>
 
-        <!-- 4. LEADS (LEAD INTELLIGENCE) PAGE -->
+        <!-- 5. LEADS (LEAD INTELLIGENCE) PAGE -->
         <section class="lx-page" id="page-leads">
           <div class="lx-section-title">
             Lead Intelligence Center
@@ -710,7 +878,7 @@
           <div class="lx-card li-weights-card">
             <div class="li-weights-header">
               <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:14px;">⚙️</span>
+                <i data-lucide="settings" style="width:16px; height:16px;"></i>
                 <div>
                   <div style="font-size:13px; font-weight:700; color:var(--lx-text);">Dynamic Scoring Weights</div>
                   <div style="font-size:10px; color:var(--lx-muted); margin-top:1px;">Changes update the scoring math live. Sum must equal 1.00.</div>
@@ -718,7 +886,7 @@
               </div>
               <div style="display:flex; align-items:center; gap:10px;">
                 <div id="sumIndicator" class="sum-indicator valid">Sum: 1.000</div>
-                <button id="resetWeightsBtn" class="lx-btn" style="padding: 5px 14px; font-size:11.5px;" title="Reset to default weights">↺ Reset</button>
+                <button id="resetWeightsBtn" class="lx-btn" style="padding: 5px 14px; font-size:11.5px;" title="Reset to default weights"><i data-lucide="rotate-ccw" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Reset</button>
                 <button id="saveConfigBtn" class="lx-btn primary" style="padding: 5px 16px; font-size:11.5px;">Save Weights</button>
               </div>
             </div>
@@ -770,18 +938,18 @@
           <div class="lx-card li-ingest-card">
             <div class="li-ingest-header">
               <div class="lx-pill-tabs" id="ingest-mode-tabs">
-                <button class="lx-pill-tab active" data-tab="single">⚡ Ingest Single Lead</button>
-                <button class="lx-pill-tab" data-tab="batch">📂 Batch JSON Upload</button>
+                <button class="lx-pill-tab active" data-tab="single"><i data-lucide="zap" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Ingest Single Lead</button>
+                <button class="lx-pill-tab" data-tab="batch"><i data-lucide="folder-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Batch JSON Upload</button>
               </div>
             </div>
 
             <!-- Single Lead Form — 2-column: left=identity, right=signals -->
             <div class="tab-content show" id="ingest-form-single">
-              <form id="singleIngestForm" class="li-single-form">
+              <form id="singleIngestForm" class="li-single-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <!-- LEFT COL: Identity -->
                 <div class="li-form-col">
                   <div class="form-section-label">Identity & Source</div>
-                  <div class="li-form-grid-2">
+                  <div class="li-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="form-group">
                       <label for="leadName">Full Name</label>
                       <input type="text" id="leadName" placeholder="John Doe" class="lx-input">
@@ -807,7 +975,7 @@
                   </div>
 
                   <div class="form-section-label" style="margin-top:10px;">Demographics</div>
-                  <div class="li-form-grid-3">
+                  <div class="li-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                     <div class="form-group">
                       <label for="leadAge">Age</label>
                       <input type="number" id="leadAge" placeholder="25" min="1" max="100" class="lx-input">
@@ -826,16 +994,16 @@
                 <!-- RIGHT COL: Signals + Submit -->
                 <div class="li-form-col">
                   <div class="form-section-label">Behavioural Signals</div>
-                  <div class="li-form-grid-3">
+                  <div class="li-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items:center;">
                     <div class="form-group">
                       <label for="leadPages">Pages Visited</label>
                       <input type="number" id="leadPages" placeholder="3" min="0" value="0" class="lx-input">
                     </div>
-                    <div class="li-checkbox-group">
+                    <div class="li-checkbox-group" style="margin-top: 20px;">
                       <input type="checkbox" id="leadVideo">
                       <label for="leadVideo">Watched Video</label>
                     </div>
-                    <div class="li-checkbox-group">
+                    <div class="li-checkbox-group" style="margin-top: 20px;">
                       <input type="checkbox" id="leadCourse">
                       <label for="leadCourse">Viewed Course</label>
                     </div>
@@ -852,8 +1020,8 @@
                     </select>
                   </div>
 
-                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block li-submit-btn">
-                    ⚡ Ingest Lead
+                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block li-submit-btn" style="margin-top:15px;">
+                    Ingest Lead
                   </button>
                 </div>
               </form>
@@ -862,36 +1030,35 @@
             <!-- Batch JSON Form -->
             <div class="tab-content" id="ingest-form-batch">
               <div class="li-batch-form">
-                <div class="li-batch-hint">
-                  <span style="font-size:20px;">📂</span>
+                <div class="li-batch-hint" style="display:flex; gap:10px; align-items:center;">
+                  <i data-lucide="folder" style="width:20px; height:20px;"></i>
                   <div>
                     <div style="font-weight:600; color:var(--lx-text); font-size:12.5px;">Bulk Lead Upload</div>
                     <div style="font-size:11px; color:var(--lx-muted); margin-top:2px;">Paste a JSON array of up to 500 leads. Click Load Template to see the expected format.</div>
                   </div>
                 </div>
                 <textarea id="batchJsonArea" class="lx-input li-batch-textarea" placeholder="Paste JSON array here..."></textarea>
-                <div class="li-batch-actions">
-                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;">📋 Load Template</button>
-                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;">📂 Ingest Batch</button>
+                <div class="li-batch-actions" style="display:flex; gap:10px; margin-top:8px;">
+                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;"><i data-lucide="clipboard" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Load Template</button>
+                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;"><i data-lucide="upload" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Ingest Batch</button>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- BOTTOM: Leads Intelligence Table -->
-          <!-- Leads Intelligence Table -->
           <div class="lx-card">
-            <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px;">
+            <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
               <div class="lx-section-title" style="margin-bottom:0;">
-                ⚡ Leads Intelligence Feed (<span id="leadsCount">0</span>)
+                Leads Intelligence Feed (<span id="leadsCount">0</span>)
               </div>
               <div style="display:flex; gap:8px; align-items:center;">
                 <!-- Filter badge tags -->
                 <div style="display:flex; gap:4px;" id="leads-filter-badges">
-                  <span class="lx-badge badge-accent" style="cursor:pointer;" data-filter="all">All <span class="filter-count" id="fc-all">0</span></span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="hot">🔥 Hot <span class="filter-count" id="fc-hot">0</span></span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm">🌡 Warm <span class="filter-count" id="fc-warm">0</span></span>
-                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold">❄️ Cold <span class="filter-count" id="fc-cold">0</span></span>
+                  <span class="lx-badge badge-accent" style="cursor:pointer;" data-filter="all"><i data-lucide="layers" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>All <span class="filter-count" id="fc-all">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="hot"><i data-lucide="flame" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Hot <span class="filter-count" id="fc-hot">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm"><i data-lucide="thermometer" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Warm <span class="filter-count" id="fc-warm">0</span></span>
+                  <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold"><i data-lucide="snowflake" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Cold <span class="filter-count" id="fc-cold">0</span></span>
                 </div>
                 <button id="rescoreAllBtn" class="lx-btn lx-btn-small">Rescore All Leads</button>
               </div>
@@ -906,17 +1073,16 @@
                     <th>Source</th>
                     <th style="width: 80px; text-align: center;">Intent Score</th>
                     <th>Disposition</th>
-                    <th>Last Active</th>
+                    <th>Campaign / Dataset</th>
                     <th style="text-align: right;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="leadsList">
-                  <!-- JS will dynamically populate rows here -->
                   <tr class="lx-empty-row">
                     <td colspan="7" style="text-align: center; padding: 24px;">
-                      <div class="lx-empty">
-                        <span>⏳</span>
-                        <div>No leads found in database. Ingest single or batch leads above.</div>
+                      <div class="lx-empty" style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                        <i data-lucide="clock" style="width:24px; height:24px; color:var(--lx-muted);"></i>
+                        <div>No leads found in database. Ingest single or batch leads above or use the Onboarding wizard.</div>
                       </div>
                     </td>
                   </tr>
@@ -926,7 +1092,7 @@
           </div>
         </section>
 
-        <!-- 5. LIVE MONITOR PAGE -->
+        <!-- 6. LIVE MONITOR PAGE -->
         <section class="lx-page" id="page-monitor">
           <div class="lx-section-title">
             Live Call Monitor
@@ -946,7 +1112,7 @@
                   <div class="lc-header">
                     <span class="lx-badge badge-teal">WARM HANDOFF IN PROGRESS</span>
                     <strong class="lc-title" style="color: var(--lx-teal);">Raman Iyer</strong>
-                    <span class="lc-sub">VOIZ-02 ➡️ Human Agent Specialist</span>
+                    <span class="lc-sub">VOIZ-02 to Human Agent Specialist</span>
                   </div>
                   <div class="lc-grid">
                     <div class="lc-item">
@@ -1004,38 +1170,6 @@
                     </div>
                   </div>
                 </div>
-
-                <!-- Live Call 3 -->
-                <div class="lx-livecall">
-                  <div class="lc-header">
-                    <span class="lx-badge badge-green">ON CALL</span>
-                    <strong class="lc-title">Anjali Deshmukh</strong>
-                    <span class="lc-sub">VOIZ-01 (Kavita) dialing</span>
-                  </div>
-                  <div class="lc-grid">
-                    <div class="lc-item">
-                      <span class="lc-item-label">Phone</span>
-                      <span class="lc-item-val">+91 91764 ***89</span>
-                    </div>
-                    <div class="lc-item">
-                      <span class="lc-item-label">Intent Score</span>
-                      <span class="lc-item-val" style="color: var(--lx-green);">82 / 100</span>
-                    </div>
-                    <div class="lc-item" style="display:flex; align-items:center; justify-content:space-between; flex-direction:row;">
-                      <div>
-                        <span class="lc-item-label">Live Stream</span>
-                        <span class="lc-item-val" style="font-size: 11px;">01:05s</span>
-                      </div>
-                      <div class="call-wave">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -1070,19 +1204,54 @@
                       <td><span style="font-family: var(--lx-mono);">2 minutes</span></td>
                       <td style="text-align: right;"><span class="lx-badge badge-teal">P2 - NORMAL</span></td>
                     </tr>
-                    <tr>
-                      <td>Organic search</td>
-                      <td><span style="font-family: var(--lx-mono);">4 minutes</span></td>
-                      <td style="text-align: right;"><span class="lx-badge badge-gray">P3 - STANDARD</span></td>
-                    </tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
+
+          <!-- Real-Time VOIZ Call Event Stream Table -->
+          <div class="lx-card" style="margin-top: 12px;">
+            <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+              <div class="lx-section-title" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="activity" style="width:16px; height:16px;"></i> VOIZ Call Event Stream
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <label for="eventFilterSelect" style="font-size:11.5px; color:var(--lx-muted);">Filter Event Type:</label>
+                <select id="eventFilterSelect" class="lx-tenant-input" style="padding: 2px 8px; font-size:11.5px; border-radius:4px;">
+                  <option value="">All Events</option>
+                  <option value="call_started">call_started</option>
+                  <option value="qualification_intent">qualification_intent</option>
+                  <option value="objection_raised">objection_raised</option>
+                  <option value="escalation_triggered">escalation_triggered</option>
+                  <option value="call_ended">call_ended</option>
+                </select>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="lx-table" style="font-size:11.5px;">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Session ID</th>
+                    <th>Lead Details</th>
+                    <th>Event Type</th>
+                    <th>Raw Transcript / Payload</th>
+                  </tr>
+                </thead>
+                <tbody id="voizEventsStreamList">
+                  <tr class="lx-empty-row">
+                    <td colspan="5" style="text-align: center; padding: 20px;">
+                      No events streamed yet. Trigger a simulated call from Lead Intelligence list or via onboarding handshake.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
-        <!-- 6. CLIENT DASHBOARD PAGE -->
+        <!-- 7. CLIENT DASHBOARD PAGE -->
         <section class="lx-page" id="page-client">
           <!-- Client Header Bar -->
           <div style="background: linear-gradient(135deg, #a4812f, #d2a43a); color: #000; padding: 18px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1198,7 +1367,7 @@
   <!-- Notification Toast Area -->
   <div id="notificationToast" class="toast">
     <div class="toast-content">
-      <span id="toastIcon" class="toast-icon">ℹ️</span>
+      <span class="toast-icon"><i data-lucide="info" id="toastIcon"></i></span>
       <div class="toast-message">
         <h4 id="toastTitle">Notification</h4>
         <p id="toastBody">Detail logs will appear here.</p>
@@ -1208,5 +1377,9 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    // Initialize Lucide icons on page load
+    lucide.createIcons();
+  </script>
 </body>
 </html>
