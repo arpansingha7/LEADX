@@ -817,6 +817,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .tl-item {
@@ -1840,4 +1843,205 @@ select option {
   display: inline-block;
   vertical-align: middle;
   stroke-width: 2px;
+}
+
+/* ============================================================
+   CRM Sync Control Center & Connector Pipeline Styles
+   ============================================================ */
+.crm-pipeline-container {
+  background: var(--lx-card);
+  border: 1px solid var(--lx-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.crm-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+  width: 120px;
+}
+
+.crm-node-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--lx-card2);
+  border: 2px solid var(--lx-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--lx-muted);
+  transition: var(--transition);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.crm-node.active .crm-node-icon {
+  border-color: var(--lx-accent);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(108, 114, 248, 0.35);
+}
+
+.crm-node.connected .crm-node-icon {
+  border-color: var(--lx-green);
+  color: var(--lx-green);
+  box-shadow: 0 0 20px rgba(46, 204, 138, 0.35);
+}
+
+.crm-node-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--lx-muted);
+  text-align: center;
+  transition: var(--transition);
+}
+
+.crm-node.active .crm-node-label {
+  color: var(--lx-text);
+}
+
+.crm-node.connected .crm-node-label {
+  color: var(--lx-green);
+}
+
+.crm-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--lx-border);
+  position: relative;
+  margin: 0 -15px;
+  z-index: 1;
+  max-width: 120px;
+  transition: var(--transition);
+}
+
+.crm-connector.active {
+  background: linear-gradient(90deg, var(--lx-accent), var(--lx-green));
+  box-shadow: 0 0 8px rgba(46, 204, 138, 0.4);
+}
+
+.crm-connector-pulse {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lx-green);
+  box-shadow: 0 0 10px var(--lx-green), 0 0 20px var(--lx-green);
+  top: -3px;
+  left: 0;
+  animation: flowPulse 2s linear infinite;
+  opacity: 0;
+}
+
+.crm-connector.active .crm-connector-pulse {
+  opacity: 1;
+}
+
+@keyframes flowPulse {
+  0% { left: 0%; }
+  100% { left: 100%; }
+}
+
+.crm-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: var(--transition);
+}
+
+.logo-hubspot {
+  background: linear-gradient(135deg, #ff7a59, #ff5c35);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.logo-leadsquared {
+  background: linear-gradient(135deg, #ff6a00, #ee3d00);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.crm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lx-border);
+}
+
+.crm-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crm-card-title h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lx-text);
+}
+
+.crm-card-title p {
+  font-size: 11px;
+  color: var(--lx-muted);
+  margin-top: 1px;
+}
+
+.crm-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--lx-border);
+}
+
+.crm-config-fields {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--lx-border);
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.li-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--lx-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.li-checkbox-group input[type="checkbox"] {
+  accent-color: var(--lx-accent);
+  cursor: pointer;
+}
+
+.li-checkbox-group label {
+  cursor: pointer;
+}
+
+.li-checkbox-group:hover {
+  color: var(--lx-text);
 }

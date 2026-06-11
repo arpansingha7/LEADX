@@ -523,4 +523,62 @@ router.post('/voiz-webhook', async (req, res, next) => {
   }
 });
 
+/**
+ * POST /leads/batch-sync-crm
+ * Bulk syncs multiple leads by their IDs to a CRM provider.
+ */
+router.post('/batch-sync-crm', async (req, res, next) => {
+  try {
+    const { ids, provider } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Validation Error', message: 'ids array is required and must not be empty' });
+    }
+    if (!provider) {
+      return res.status(400).json({ error: 'Validation Error', message: 'provider is required' });
+    }
+
+    const results = [];
+    for (const id of ids) {
+      const lead = await db.findLeadById(id);
+      if (!lead) {
+        results.push({ id, success: false, message: `Lead with ID ${id} does not exist.` });
+        continue;
+      }
+      try {
+        const syncRes = await syncToCRM(lead.tenant_id, lead, provider);
+        results.push({ id, success: true, result: syncRes.result });
+      } catch (err) {
+        results.push({ id, success: false, error: err.message });
+      }
+    }
+
+    res.json({ success: true, message: `Batch sync completed for ${provider}`, results });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/:id/sync-crm
+ * Manually syncs a specific lead to a CRM provider (hubspot or leadsquared).
+ */
+router.post('/:id/sync-crm', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { provider } = req.body;
+    if (!provider) {
+      return res.status(400).json({ error: 'Validation Error', message: 'provider query parameter is required' });
+    }
+    const lead = await db.findLeadById(id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${id} does not exist.` });
+    }
+
+    const result = await syncToCRM(lead.tenant_id, lead, provider);
+    res.json({ success: true, message: `Lead successfully synced to ${provider}`, result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

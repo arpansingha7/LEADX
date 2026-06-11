@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import leadsRouter from './routes/leads.js';
+import oauthRouter from './routes/oauth.js';
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use(express.static(frontendPath));
 
 // API Routes
 app.use('/leads', leadsRouter);
+app.use('/oauth', oauthRouter);
 
 // Basic health check route
 app.get('/health', (req, res) => {
@@ -37,7 +39,7 @@ app.get('/health', (req, res) => {
 
 // Fallback to index.html for single page app routing (if needed)
 app.get('*', (req, res, next) => {
-  if (req.url.startsWith('/leads') || req.url.startsWith('/health')) {
+  if (req.url.startsWith('/leads') || req.url.startsWith('/health') || req.url.startsWith('/oauth')) {
     return next();
   }
   res.sendFile(path.join(frontendPath, 'index.html'));

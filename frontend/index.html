@@ -54,6 +54,9 @@
         <div class="lx-sidebar-item" data-page="campaigns">
           <i data-lucide="target" class="lx-icon"></i> Campaigns
         </div>
+        <div class="lx-sidebar-item" data-page="crm">
+          <i data-lucide="link-2" class="lx-icon"></i> CRM Sync
+        </div>
         <div class="lx-sidebar-item" data-page="agents">
           <i data-lucide="users" class="lx-icon"></i> VOIZ Roster
         </div>
@@ -343,8 +346,16 @@
 
             <!-- Step 2 Layout: Data Upload -->
             <div class="wizard-step-content" id="wcontent-2">
-              <div class="form-section-title" style="margin-top:0;">Upload Customer Leads</div>
-              <div style="margin-top:12px;">
+              <div class="form-section-title" style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                <span>Ingest Customer Leads</span>
+                <div class="lx-pill-tabs" id="wizard-upload-tabs">
+                  <button class="lx-pill-tab active" id="wtab-csv" onclick="toggleWizardUploadMode('csv')">CSV/JSON File</button>
+                  <button class="lx-pill-tab" id="wtab-crm" onclick="toggleWizardUploadMode('crm')">Import from CRM</button>
+                </div>
+              </div>
+
+              <!-- Mode 1: CSV/JSON Upload -->
+              <div id="wizard-upload-csv-container" style="margin-top:12px;">
                 <p style="font-size:12px; color:var(--lx-muted); margin-bottom:12px;">
                   Paste a raw CSV or JSON list of lead data here. The system parses the headers automatically.
                 </p>
@@ -358,10 +369,46 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('realestate')">Load Real Estate CSV Sample</button>
                   <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('bfsi')">Load BFSI CSV Sample</button>
                 </div>
+                <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
+                  <button class="lx-btn" onclick="goToStep(1)">Back</button>
+                  <button class="lx-btn primary" onclick="parseAndPrepareMapping()">Parse & Configure Mappings</button>
+                </div>
               </div>
-              <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
-                <button class="lx-btn" onclick="goToStep(1)">Back</button>
-                <button class="lx-btn primary" onclick="parseAndPrepareMapping()">Parse & Configure Mappings</button>
+
+              <!-- Mode 2: CRM Ingest -->
+              <div id="wizard-upload-crm-container" style="margin-top:12px; display:none;">
+                <p style="font-size:12px; color:var(--lx-muted); margin-bottom:12px;">
+                  Select a connected CRM to query lists and pull contact records directly.
+                </p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; background: rgba(0,0,0,0.15); border:1px solid var(--lx-border); padding:16px; border-radius:10px;">
+                  <div class="form-group">
+                    <label for="wizardCrmSourceSelect">CRM Provider *</label>
+                    <select id="wizardCrmSourceSelect" class="lx-input" onchange="onWizardCrmProviderChange()">
+                      <option value="hubspot">HubSpot CRM</option>
+                      <option value="leadsquared">LeadSquared</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="wizardCrmListSelect">Target Lead List / Segment *</label>
+                    <select id="wizardCrmListSelect" class="lx-input">
+                      <!-- Dynamic lists -->
+                    </select>
+                  </div>
+                  <div class="form-group" style="grid-column: span 2;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:6px; border:1px solid var(--lx-border);">
+                      <div>
+                        <span style="font-size:11px; color:var(--lx-muted); text-transform:uppercase; font-weight:700;">Integration Status</span>
+                        <div style="font-size:13px; font-weight:700; margin-top:2px;" id="wizard-crm-status-text">DISCONNECTED</div>
+                      </div>
+                      <span class="lx-badge badge-gray" id="wizard-crm-status-badge">NOT CONFIGURED</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
+                  <button class="lx-btn" onclick="goToStep(1)">Back</button>
+                  <button class="lx-btn primary" id="wizard-crm-fetch-btn" onclick="fetchCrmContactsForWizard()">Fetch CRM Contacts</button>
+                </div>
               </div>
             </div>
 
@@ -940,6 +987,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               <div class="lx-pill-tabs" id="ingest-mode-tabs">
                 <button class="lx-pill-tab active" data-tab="single"><i data-lucide="zap" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Ingest Single Lead</button>
                 <button class="lx-pill-tab" data-tab="batch"><i data-lucide="folder-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Batch JSON Upload</button>
+                <button class="lx-pill-tab" data-tab="crm-ingest"><i data-lucide="refresh-cw" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Import from CRM</button>
               </div>
             </div>
 
@@ -1044,6 +1092,44 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 </div>
               </div>
             </div>
+
+            <!-- Direct CRM Sync Form -->
+            <div class="tab-content" id="ingest-form-crm-ingest">
+              <div class="li-batch-form">
+                <div class="li-batch-hint" style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+                  <i data-lucide="refresh-cw" style="width:20px; height:20px;"></i>
+                  <div>
+                    <div style="font-weight:600; color:var(--lx-text); font-size:12.5px;">Direct CRM Inbound Sync</div>
+                    <div style="font-size:11px; color:var(--lx-muted); margin-top:2px;">Pull contact lists from your connected CRM portals directly into your active LeadX pipeline database.</div>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:12px; align-items:flex-end;">
+                  <div class="form-group">
+                    <label for="directCrmSourceSelect">CRM Provider *</label>
+                    <select id="directCrmSourceSelect" class="lx-input" onchange="onDirectCrmProviderChange()">
+                      <option value="hubspot">HubSpot CRM</option>
+                      <option value="leadsquared">LeadSquared</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="directCrmListSelect">Target Sync List / Segment *</label>
+                    <select id="directCrmListSelect" class="lx-input">
+                      <!-- Dynamic list options -->
+                    </select>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button id="directCrmFetchBtn" class="lx-btn" style="flex:1;" onclick="fetchCrmLeadsDirectPreview()">Verify Connection</button>
+                    <button id="directCrmSyncBtn" class="lx-btn primary" style="flex:1.5;" onclick="syncCrmLeadsDirect()"><i data-lucide="download" style="width:12px; height:12px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>Sync CRM Contacts</button>
+                  </div>
+                </div>
+
+                <div id="direct-crm-sync-status-row" style="margin-top: 10px; background: rgba(0, 0, 0, 0.15); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--lx-border); font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>CRM Integration Connection Status:</span>
+                  <span class="lx-badge badge-gray" id="direct-crm-status-badge">NOT CONFIGURED</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- BOTTOM: Leads Intelligence Table -->
@@ -1062,6 +1148,50 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 </div>
                 <button id="rescoreAllBtn" class="lx-btn lx-btn-small">Rescore All Leads</button>
               </div>
+            </div>
+
+            <!-- Leads Intelligence Quick Analytics Summary -->
+            <div id="leads-intelligence-analytics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px;">
+              
+              <!-- Metric Card 1: Total Leads -->
+              <div class="lx-analytics-card" style="background: var(--lx-card2); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; min-height: 70px;">
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--lx-muted); letter-spacing: 0.5px; font-weight: 600;">Total Ingested Leads</div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                  <span id="stat-total-leads" style="font-size: 20px; font-weight: 700; color: var(--lx-text); font-family: var(--lx-mono);">0</span>
+                  <span class="lx-status-badge success" style="font-size: 9px; padding: 1px 4px;">Active</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--lx-muted); margin-top: 4px;">Volume across all active campaigns</div>
+              </div>
+
+              <!-- Metric Card 2: Average Intent Score -->
+              <div class="lx-analytics-card" style="background: var(--lx-card2); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; min-height: 70px;">
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--lx-muted); letter-spacing: 0.5px; font-weight: 600;">Average Intent Score</div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                  <span id="stat-avg-score" style="font-size: 20px; font-weight: 700; color: var(--lx-teal); font-family: var(--lx-mono);">0 / 100</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--lx-muted); margin-top: 4px;">Qualitative lead fit average</div>
+              </div>
+
+              <!-- Metric Card 3: Hot Leads -->
+              <div class="lx-analytics-card" style="background: var(--lx-card2); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; min-height: 70px;">
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--lx-muted); letter-spacing: 0.5px; font-weight: 600;">Hot Leads (Score &ge; 80)</div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                  <span id="stat-hot-leads" style="font-size: 20px; font-weight: 700; color: var(--lx-orange); font-family: var(--lx-mono);">0</span>
+                  <span id="stat-hot-percent" style="font-size: 10px; color: var(--lx-orange); font-weight: 600;">0%</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--lx-muted); margin-top: 4px;">Immediate callback & CRM sync targets</div>
+              </div>
+
+              <!-- Metric Card 4: Qualification / Sync Rate -->
+              <div class="lx-analytics-card" style="background: var(--lx-card2); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; min-height: 70px;">
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--lx-muted); letter-spacing: 0.5px; font-weight: 600;">Qualified Contacts</div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                  <span id="stat-qualified-leads" style="font-size: 20px; font-weight: 700; color: var(--lx-green); font-family: var(--lx-mono);">0</span>
+                  <span id="stat-qualified-percent" style="font-size: 10px; color: var(--lx-green); font-weight: 600;">0%</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--lx-muted); margin-top: 4px;">Leads synced or marked qualified</div>
+              </div>
+
             </div>
 
             <div style="overflow-x: auto;">
@@ -1359,7 +1489,210 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             </div>
           </div>
         </section>
-        
+
+        <!-- 8. CRM INTEGRATION PAGE -->
+        <section class="lx-page" id="page-crm">
+          <div class="lx-section-title">
+            CRM Sync Control Center
+            <span class="sub">Manage integrations and real-time syncing pipelines</span>
+          </div>
+
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px;">
+            <!-- Left Card: HubSpot Integration Panel -->
+            <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div class="crm-card-header">
+                  <div class="crm-card-title">
+                    <div class="crm-brand-logo logo-hubspot">HS</div>
+                    <div>
+                      <h3>HubSpot Integration</h3>
+                      <p>Sync contacts, lifecycle stages, and custom scores</p>
+                    </div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" id="hs-toggle-btn">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="crm-status-row" style="margin-bottom: 15px;">
+                  <span style="font-size:11px; color: var(--lx-muted);">STATUS</span>
+                  <span class="lx-badge badge-gray" id="hs-status-badge">DISCONNECTED</span>
+                </div>
+
+                <div class="crm-config-fields" style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="form-group" style="margin-bottom: 4px;">
+                    <label>OAuth 2.0 Integration (Recommended)</label>
+                    <button class="lx-btn primary" id="hs-oauth-connect-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;" onclick="connectHubSpotOAuth()">
+                      <i data-lucide="key" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Connect HubSpot CRM
+                    </button>
+                    <div id="hs-oauth-status-text" style="font-size:10.5px; color: var(--lx-green); margin-top: 4px; display: none; text-align: center; font-weight: bold;">
+                      ✓ Connected via OAuth 2.0
+                    </div>
+                  </div>
+                  <div style="text-align: center; margin: 2px 0; font-size: 10px; color: var(--lx-muted);">— OR —</div>
+                  <div class="form-group">
+                    <label for="hs-api-key">Private App Access Token *</label>
+                    <input type="password" id="hs-api-key" class="lx-input" placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="mock-hubspot-api-key">
+                  </div>
+                  <div class="form-group">
+                    <label for="hs-portal-id">Portal ID (Hub ID) *</label>
+                    <input type="text" id="hs-portal-id" class="lx-input" placeholder="e.g. 14293848" value="8849301">
+                  </div>
+                  <div class="form-group" style="margin-top: 4px;">
+                    <label style="margin-bottom: 6px;">Sync Rules</label>
+                    <div class="li-checkbox-group" style="margin-bottom: 6px;">
+                      <input type="checkbox" id="hs-rule-hot" checked>
+                      <label for="hs-rule-hot">Auto-sync Hot Escalated Leads (Score &ge; 80)</label>
+                    </div>
+                    <div class="li-checkbox-group" style="margin-bottom: 6px;">
+                      <input type="checkbox" id="hs-rule-qual">
+                      <label for="hs-rule-qual">Auto-sync All Qualified Leads (Score &ge; 65)</label>
+                    </div>
+                    <div class="li-checkbox-group">
+                      <input type="checkbox" id="hs-rule-recordings" checked>
+                      <label for="hs-rule-recordings">Attach VOIZ Call Logs & Transcripts</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 20px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+                <button class="lx-btn" style="flex: 1;" id="hs-test-btn">Test Connection</button>
+                <button class="lx-btn primary" style="flex: 1;" id="hs-save-btn">Save Settings</button>
+              </div>
+            </div>
+
+            <!-- Right Card: LeadSquared Integration Panel -->
+            <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div class="crm-card-header">
+                  <div class="crm-card-title">
+                    <div class="crm-brand-logo logo-leadsquared">LS</div>
+                    <div>
+                      <h3>LeadSquared Integration</h3>
+                      <p>Push lead details, custom fields, and engagement activity</p>
+                    </div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" id="ls-toggle-btn">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="crm-status-row" style="margin-bottom: 15px;">
+                  <span style="font-size:11px; color: var(--lx-muted);">STATUS</span>
+                  <span class="lx-badge badge-gray" id="ls-status-badge">DISCONNECTED</span>
+                </div>
+
+                <div class="crm-config-fields" style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="form-group">
+                    <label for="ls-access-key">Access Key *</label>
+                    <input type="password" id="ls-access-key" class="lx-input" placeholder="e.g. uqk839284293849" value="mock-leadsquared-api-key">
+                  </div>
+                  <div class="form-group">
+                    <label for="ls-secret-key">Secret Key *</label>
+                    <input type="password" id="ls-secret-key" class="lx-input" placeholder="e.g. 8f828a1c9b32c..." value="mock-leadsquared-secret-key">
+                  </div>
+                  <div class="form-group">
+                    <label for="ls-api-host">API Host Region *</label>
+                    <select id="ls-api-host" class="lx-input">
+                      <option value="api.leadsquared.com" selected>Default (api.leadsquared.com)</option>
+                      <option value="api-in21.leadsquared.com">India IN21 (api-in21.leadsquared.com)</option>
+                      <option value="api-us10.leadsquared.com">US East US10 (api-us10.leadsquared.com)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-top: 4px;">
+                    <label style="margin-bottom: 6px;">Sync Rules</label>
+                    <div class="li-checkbox-group" style="margin-bottom: 6px;">
+                      <input type="checkbox" id="ls-rule-hot" checked>
+                      <label for="ls-rule-hot">Auto-sync Hot Escalated Leads (Score &ge; 80)</label>
+                    </div>
+                    <div class="li-checkbox-group">
+                      <input type="checkbox" id="ls-rule-custom" checked>
+                      <label for="ls-rule-custom">Map custom LeadX attributes (Score, Tenant, Status)</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 20px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+                <button class="lx-btn" style="flex: 1;" id="ls-test-btn">Test Connection</button>
+                <button class="lx-btn primary" style="flex: 1;" id="ls-save-btn">Save Settings</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Sync Logs & Manual Actions -->
+          <div class="lx-card" style="margin-top: 12px;">
+            <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+              <div class="lx-section-title" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
+                <i data-lucide="history" style="width:16px; height:16px;"></i> CRM Lead Sync Console & Audit Logs
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button id="show-manual-sync-btn" class="lx-btn lx-btn-small"><i data-lucide="send" style="width:12px; height:12px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>Trigger Manual Sync</button>
+              </div>
+            </div>
+
+            <!-- Manual Sync Drawer / Sub-panel (hidden by default) -->
+            <div id="manual-sync-drawer" style="display:none; background: rgba(0,0,0,0.2); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size:12px; font-weight:700;">Manual Push Queue (Unsynced Hot/Qualified Leads)</h4>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <!-- Bulk Action Bar -->
+                  <div id="bulk-sync-bar" style="display: none; align-items: center; gap: 6px; font-size: 11px; background: rgba(108, 92, 231, 0.15); border: 1px solid rgba(108, 92, 231, 0.3); border-radius: 4px; padding: 2px 8px;">
+                    <span id="bulk-selected-count" style="font-weight: bold; color: var(--lx-teal);">0</span> selected
+                    <select id="bulk-sync-provider" class="lx-tenant-input" style="width: 100px; padding: 1px 4px; font-size: 11px; background: var(--lx-card2); border: 1px solid var(--lx-border);">
+                      <option value="hubspot">HubSpot</option>
+                      <option value="leadsquared">LeadSquared</option>
+                    </select>
+                    <button class="lx-btn lx-btn-small primary" id="bulk-sync-btn" onclick="triggerBulkSync()">Bulk Sync</button>
+                  </div>
+                  <button class="lx-btn lx-btn-small" id="close-manual-drawer" style="border:none; background:none; padding:2px 6px;">&times;</button>
+                </div>
+              </div>
+              <div style="max-height: 180px; overflow-y: auto;">
+                <table class="lx-table" style="font-size: 11.5px;">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px; text-align: left;"><input type="checkbox" id="select-all-sync" onclick="toggleSelectAllSync(this)"></th>
+                      <th>Lead Info</th>
+                      <th>Source</th>
+                      <th>Intent Score</th>
+                      <th>Platform Target</th>
+                      <th style="text-align: right;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="manual-sync-leads-list">
+                    <!-- Dynamic rendering -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="lx-table" style="font-size:11.5px;">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Lead Info</th>
+                    <th>CRM Platform</th>
+                    <th>Event Type</th>
+                    <th>Sync Details / ID</th>
+                  </tr>
+                </thead>
+                <tbody id="crmSyncLogsList">
+                  <tr class="lx-empty-row">
+                    <td colspan="5" style="text-align: center; padding: 20px;">
+                      No CRM synchronization logs recorded. Switch active tenant context or trigger a manual sync.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   </div>

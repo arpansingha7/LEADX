@@ -353,3 +353,107 @@ test('POST /leads/trigger-call & /leads/voiz-webhook - Trigger call session and 
   assert.ok(eventsData.events.length > 0);
   assert.strictEqual(eventsData.events[0].event_type, 'call_started');
 });
+
+test('POST /leads/:id/sync-crm - Sync individual lead to CRM', async () => {
+  // Ingest a lead first
+  const ingestPayload = {
+    tenant_id: 'test-tenant',
+    name: 'Sync Single Test',
+    phone: '+919876543210',
+    source: 'referral'
+  };
+
+  const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ingestPayload)
+  });
+  const ingestData = await ingestRes.json();
+  const leadId = ingestData.lead.id;
+
+  // Sync to HubSpot
+  const syncRes = await fetch(`${baseUrl}/leads/${leadId}/sync-crm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'hubspot' })
+  });
+
+  assert.strictEqual(syncRes.status, 200);
+  const syncData = await syncRes.json();
+  assert.strictEqual(syncData.success, true);
+  assert.ok(syncData.result.result.id.startsWith('mock-hs-id-'));
+});
+
+test('POST /leads/batch-sync-crm - Batch sync multiple leads to CRM', async () => {
+  // Ingest two leads
+  const lead1Res = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Batch Sync 1',
+      phone: '+919876543211',
+      source: 'organic'
+    })
+  });
+  const lead1Data = await lead1Res.json();
+  const id1 = lead1Data.lead.id;
+
+  const lead2Res = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Batch Sync 2',
+      phone: '+919876543212',
+      source: 'referral'
+    })
+  });
+  const lead2Data = await lead2Res.json();
+  const id2 = lead2Data.lead.id;
+
+  // Batch sync
+  const batchSyncRes = await fetch(`${baseUrl}/leads/batch-sync-crm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ids: [id1, id2],
+      provider: 'hubspot'
+    })
+  });
+
+  assert.strictEqual(batchSyncRes.status, 200);
+  const batchSyncData = await batchSyncRes.json();
+  assert.strictEqual(batchSyncData.success, true);
+  assert.strictEqual(batchSyncData.results.length, 2);
+  
+  assert.strictEqual(batchSyncData.results[0].id, id1);
+  assert.strictEqual(batchSyncData.results[0].success, true);
+  assert.ok(batchSyncData.results[0].result.id.startsWith('mock-hs-id-'));
+
+  assert.strictEqual(batchSyncData.results[1].id, id2);
+  assert.strictEqual(batchSyncData.results[1].success, true);
+  assert.ok(batchSyncData.results[1].result.id.startsWith('mock-hs-id-'));
+});
+
+test('GET /oauth/hubspot/authorize - Retrieve mock OAuth consent screen', async () => {
+  const response = await fetch(`${baseUrl}/oauth/hubspot/authorize?tenant_id=test-tenant`);
+  assert.strictEqual(response.status, 200);
+  const body = await response.text();
+  assert.ok(body.includes('LeadX Integration App'));
+  assert.ok(body.includes('mock-oauth-code-'));
+});
+
+test('GET /oauth/hubspot/callback - Exchange mock code for tokens', async () => {
+  const response = await fetch(`${baseUrl}/oauth/hubspot/callback?code=mock-oauth-code-12345State&state=test-tenant`);
+  assert.strictEqual(response.status, 200);
+  const body = await response.text();
+  assert.ok(body.includes('✓ Connection Successful'));
+  assert.ok(body.includes('window.opener.postMessage'));
+
+  // Verify database record has been updated
+  const config = await db.getOnboardingConfig('test-tenant');
+  assert.ok(config.hubspot_oauth);
+  assert.ok(config.hubspot_oauth.access_token.startsWith('mock-oauth-access-token-'));
+  assert.ok(config.hubspot_oauth.refresh_token.startsWith('mock-oauth-refresh-token-'));
+});

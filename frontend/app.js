@@ -14,6 +14,28 @@ let currentFilter = 'all';
 let parsedCsvHeaders = [];
 let parsedCsvRows = [];
 
+// CRM Integration Configuration States
+let crmConfig = {
+  hubspot: {
+    enabled: false,
+    connected: false,
+    apiKey: 'mock-hubspot-api-key',
+    portalId: '8849301',
+    ruleHot: true,
+    ruleQual: false,
+    ruleRecordings: true
+  },
+  leadsquared: {
+    enabled: false,
+    connected: false,
+    accessKey: 'mock-leadsquared-api-key',
+    secretKey: 'mock-leadsquared-secret-key',
+    apiHost: 'api.leadsquared.com',
+    ruleHot: true,
+    ruleCustom: true
+  }
+};
+
 // Default weights — used for reset and "already at defaults" check
 const DEFAULT_WEIGHTS = {
   demographic_fit: 0.25,
@@ -104,6 +126,9 @@ function setupNavigation() {
       if (activePage) {
         activePage.classList.add('show');
       }
+      if (pageId === 'crm') {
+        loadCrmPageData();
+      }
     });
   });
 
@@ -156,6 +181,10 @@ function setupEventListeners() {
       const tabId = tab.getAttribute('data-tab');
       document.getElementById('ingest-form-single').className = 'tab-content' + (tabId === 'single' ? ' show' : '');
       document.getElementById('ingest-form-batch').className = 'tab-content' + (tabId === 'batch' ? ' show' : '');
+      document.getElementById('ingest-form-crm-ingest').className = 'tab-content' + (tabId === 'crm-ingest' ? ' show' : '');
+      if (tabId === 'crm-ingest') {
+        loadDirectCrmIngestData();
+      }
     });
   });
 
@@ -257,6 +286,65 @@ function setupEventListeners() {
       concurrencyVal.textContent = e.target.value;
     });
   }
+
+  // CRM Event Listeners
+  const hsToggle = document.getElementById('hs-toggle-btn');
+  const lsToggle = document.getElementById('ls-toggle-btn');
+  const hsTest = document.getElementById('hs-test-btn');
+  const lsTest = document.getElementById('ls-test-btn');
+  const hsSave = document.getElementById('hs-save-btn');
+  const lsSave = document.getElementById('ls-save-btn');
+  const showManualSyncBtn = document.getElementById('show-manual-sync-btn');
+  const closeManualDrawer = document.getElementById('close-manual-drawer');
+
+  if (hsToggle) {
+    hsToggle.addEventListener('change', (e) => {
+      crmConfig.hubspot.enabled = e.target.checked;
+      updateCrmPipelineUI();
+    });
+  }
+
+  if (lsToggle) {
+    lsToggle.addEventListener('change', (e) => {
+      crmConfig.leadsquared.enabled = e.target.checked;
+      updateCrmPipelineUI();
+    });
+  }
+
+  if (hsTest) {
+    hsTest.addEventListener('click', () => testCrmConnection('hubspot'));
+  }
+
+  if (lsTest) {
+    lsTest.addEventListener('click', () => testCrmConnection('leadsquared'));
+  }
+
+  if (hsSave) {
+    hsSave.addEventListener('click', () => saveCrmConfig('hubspot'));
+  }
+
+  if (lsSave) {
+    lsSave.addEventListener('click', () => saveCrmConfig('leadsquared'));
+  }
+
+  if (showManualSyncBtn) {
+    showManualSyncBtn.addEventListener('click', () => {
+      const drawer = document.getElementById('manual-sync-drawer');
+      if (drawer) {
+        drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
+        if (drawer.style.display === 'block') {
+          renderManualSyncList();
+        }
+      }
+    });
+  }
+
+  if (closeManualDrawer) {
+    closeManualDrawer.addEventListener('click', () => {
+      const drawer = document.getElementById('manual-sync-drawer');
+      if (drawer) drawer.style.display = 'none';
+    });
+  }
 }
 
 // 3. Dynamic Weight Calculation & Delta Checking
@@ -336,11 +424,54 @@ function updateFilterCounts(leads) {
   if (fcCold) fcCold.textContent = cold;
 }
 
+// Update Lead Intelligence Analytics Summary Cards
+function updateLeadIntelligenceAnalytics(leads) {
+  const statTotalLeads = document.getElementById('stat-total-leads');
+  const statAvgScore = document.getElementById('stat-avg-score');
+  const statHotLeads = document.getElementById('stat-hot-leads');
+  const statHotPercent = document.getElementById('stat-hot-percent');
+  const statQualifiedLeads = document.getElementById('stat-qualified-leads');
+  const statQualifiedPercent = document.getElementById('stat-qualified-percent');
+
+  if (!statTotalLeads) return;
+
+  const total = leads.length;
+  statTotalLeads.textContent = total.toLocaleString();
+
+  let avgScore = 0;
+  if (total > 0) {
+    const sum = leads.reduce((acc, l) => acc + (l.score || 0), 0);
+    avgScore = sum / total;
+  }
+  if (statAvgScore) {
+    statAvgScore.textContent = `${Math.round(avgScore)} / 100`;
+  }
+
+  const hotCount = leads.filter(l => l.score >= 80).length;
+  if (statHotLeads) {
+    statHotLeads.textContent = hotCount.toLocaleString();
+  }
+  if (statHotPercent) {
+    const hotPct = total > 0 ? (hotCount / total) * 100 : 0;
+    statHotPercent.textContent = `${hotPct.toFixed(1)}%`;
+  }
+
+  const qualifiedCount = leads.filter(l => (l.score >= 65 && l.status !== 'dnc') || l.status === 'hot_escalated').length;
+  if (statQualifiedLeads) {
+    statQualifiedLeads.textContent = qualifiedCount.toLocaleString();
+  }
+  if (statQualifiedPercent) {
+    const qualPct = total > 0 ? (qualifiedCount / total) * 100 : 0;
+    statQualifiedPercent.textContent = `${qualPct.toFixed(1)}%`;
+  }
+}
+
 // 5. Render Lead Feed & Dynamic UI Elements
 function renderLeads(leads) {
   leadsCount.textContent = leads.length;
   sidebarLeadsCount.textContent = leads.length;
   updateFilterCounts(leads);
+  updateLeadIntelligenceAnalytics(leads);
 
   let filtered = leads;
   if (currentFilter === 'hot') filtered = leads.filter(l => l.score >= 80);
@@ -898,29 +1029,44 @@ async function fetchAuditTrail() {
         // Refresh Timeline UI on home screen
         const timeline = document.getElementById('system-activity-timeline');
         if (timeline) {
-          timeline.innerHTML = data.logs.slice(0, 6).map(log => {
+          timeline.innerHTML = data.logs.slice(0, 8).map(log => {
             const time = new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             let details = JSON.stringify(log.details);
+            let dotClass = 'sd-green';
+
             if (log.event_type === 'lead_ingested') {
               details = `Lead ingested successfully (Phone: ${log.details?.phone || 'Unknown'} | Score: ${log.details?.score || 0}).`;
             } else if (log.event_type === 'batch_leads_ingested') {
               details = `Batch processed: ${log.details?.accepted || 0} accepted for campaign: "${log.details?.campaign_name}".`;
             } else if (log.event_type === 'onboarding_config_updated') {
-              details = `Client onboarding configuration updated for segment: ${log.details?.industry || 'BFSI'}.`;
+              details = log.details?.message || `Client onboarding configuration updated for segment: ${log.details?.industry || 'BFSI'}.`;
+              dotClass = 'sd-amber';
             } else if (log.event_type === 'call_initiated') {
               details = `Call dial session initiated (Voiz ID: ${log.details?.voiz_session_id || 'Session'}).`;
+              dotClass = 'sd-amber';
             } else if (log.event_type === 'call_completed') {
               details = `Call finished. Outcome status set to: ${log.details?.disposition || 'complete'}.`;
+              dotClass = 'sd-gray';
             } else if (log.event_type === 'escalation_triggered') {
               details = `Lead escalated to supervisor. Syncing to HubSpot CRM (Reason: ${log.details?.reason}).`;
+              dotClass = 'sd-amber';
             } else if (log.event_type === 'dnc_block') {
               details = `Blocked dial to phone number matching DNC registry: ${log.details?.phone}.`;
+              dotClass = 'sd-red';
+            } else if (log.event_type === 'crm_sync_success') {
+              const providerName = log.details?.provider === 'hubspot' ? 'HubSpot' : 'LeadSquared';
+              details = `CRM Sync: Successfully synced contact with ${providerName} (External ID: ${log.details?.result?.id || 'N/A'}).`;
+              dotClass = 'sd-green';
+            } else if (log.event_type === 'crm_sync_failure') {
+              const providerName = log.details?.provider === 'hubspot' ? 'HubSpot' : 'LeadSquared';
+              details = `CRM Sync Error: Failed to sync contact to ${providerName} (Error: ${log.details?.error || 'Unknown error'}).`;
+              dotClass = 'sd-red';
             }
             
             return `
               <div class="tl-item">
-                <span class="tl-dot sd-green"></span>
-                <span class="tl-time">${time}</span>
+                <span class="tl-dot ${dotClass}"></span>
+                <span class="tl-time" style="font-size: 10px;">${time}</span>
                 <span class="tl-text">${details}</span>
               </div>
             `;
@@ -1022,16 +1168,107 @@ Rahul Sen,+919999988888,rahul.sen@example.com,30,Mumbai,8500000
 Priya Nair,+919999977777,priya.nair@example.com,27,Bangalore,12000000`;
     document.getElementById('wizardCampaignName').value = 'Real Estate Brokerage Q3';
     document.getElementById('wizardDatasetId').value = 'ds-realestate-03';
+    const indSelect = document.getElementById('wizardIndustry');
+    if (indSelect) indSelect.value = 'Real Estate';
   } else if (templateType === 'bfsi') {
     csv = `Customer Name,Contact Phone,Email Address,Age,Monthly Income,Credit Score
 Karan Shah,+919999966666,karan.shah@example.com,35,75000,740
 Neha Malhotra,+919999955555,neha.malhotra@example.com,29,52000,680`;
     document.getElementById('wizardCampaignName').value = 'BFSI Loan Ingest June';
     document.getElementById('wizardDatasetId').value = 'ds-bfsi-june-02';
+    const indSelect = document.getElementById('wizardIndustry');
+    if (indSelect) indSelect.value = 'BFSI';
   }
   document.getElementById('wizardUploadArea').value = csv;
   showToast('Sample Loaded', 'Loaded sample CSV data template.', 'clipboard');
 };
+
+const targetFieldsMap = {
+  bfsi: [
+    { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
+    { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
+    { key: 'monthly_income', label: 'Monthly Income', importance: 'important', desc: 'Used for credit & loan scoring' },
+    { key: 'credit_score', label: 'Credit Score', importance: 'important', desc: 'Used for risk assessment scoring' },
+    { key: 'loan_amount', label: 'Desired Loan Amt', importance: 'important', desc: 'Used for product fit scoring' },
+    { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
+  ],
+  realestate: [
+    { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
+    { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
+    { key: 'budget', label: 'Max Budget (INR)', importance: 'important', desc: 'Used for property affordability score' },
+    { key: 'property_type', label: 'Property BHK/Type', importance: 'important', desc: 'Used for preference matching' },
+    { key: 'location_preference', label: 'Location Preference', importance: 'important', desc: 'Used for project matching' },
+    { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
+  ],
+  education: [
+    { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
+    { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
+    { key: 'course_interest', label: 'Course Interest', importance: 'important', desc: 'Used for enrollment match score' },
+    { key: 'qualification', label: 'Highest Education', importance: 'important', desc: 'Used for eligibility score' },
+    { key: 'year_of_graduation', label: 'Graduation Year', importance: 'important', desc: 'Used for cohort placement' },
+    { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
+  ],
+  default: [
+    { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
+    { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
+    { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' },
+    { key: 'age', label: 'Age', importance: 'optional', desc: 'Demographic parameter' },
+    { key: 'income', label: 'Annual Income', importance: 'optional', desc: 'Financial demographic parameter' },
+    { key: 'city', label: 'City', importance: 'optional', desc: 'Location parameter' }
+  ]
+};
+
+function getActiveTargetFields() {
+  const indValue = document.getElementById('wizardIndustry').value || 'default';
+  const indKey = indValue.toLowerCase().replace(/[^a-z]/g, '');
+  return targetFieldsMap[indKey] || targetFieldsMap['default'];
+}
+
+function findBestHeaderMatch(targetKey, targetLabel, headers) {
+  const synonyms = {
+    phone: ['phone', 'mobile', 'contact', 'ph', 'cell', 'tel', 'telephone', 'mobile number', 'contact number'],
+    name: ['name', 'full name', 'fname', 'first name', 'customer', 'prospect', 'customer name', 'lead name'],
+    email: ['email', 'mail', 'email address', 'email_address', 'mail address'],
+    monthly_income: ['monthly_income', 'income', 'salary', 'earnings', 'monthly salary', 'pay'],
+    credit_score: ['credit_score', 'credit', 'cibil', 'score', 'cibil score'],
+    loan_amount: ['loan_amount', 'loan', 'loan amount', 'req loan', 'loan_amt'],
+    budget: ['budget', 'price', 'max budget', 'investment', 'cost', 'value'],
+    property_type: ['property_type', 'property', 'bhk', 'type', 'flat', 'unit'],
+    location_preference: ['location', 'city', 'location preference', 'pref location', 'area'],
+    course_interest: ['course', 'course_interest', 'stream', 'subject', 'program', 'major'],
+    qualification: ['qualification', 'education', 'degree', 'qualification level'],
+    year_of_graduation: ['graduation', 'year', 'grad year', 'year_of_graduation']
+  };
+
+  const candidates = synonyms[targetKey] || [targetKey, targetLabel.toLowerCase()];
+  
+  let bestMatch = '';
+  let highestScore = 0;
+
+  headers.forEach(h => {
+    const cleanH = h.toLowerCase().trim();
+    candidates.forEach(c => {
+      if (cleanH === c) {
+        bestMatch = h;
+        highestScore = 10;
+      }
+    });
+
+    if (highestScore >= 10) return;
+
+    candidates.forEach(c => {
+      if (cleanH.includes(c) || c.includes(cleanH)) {
+        const score = cleanH.includes(c) ? c.length : cleanH.length;
+        if (score > highestScore) {
+          bestMatch = h;
+          highestScore = score;
+        }
+      }
+    });
+  });
+
+  return bestMatch;
+}
 
 window.parseAndPrepareMapping = function() {
   const uploadVal = document.getElementById('wizardUploadArea').value.trim();
@@ -1059,25 +1296,10 @@ window.parseAndPrepareMapping = function() {
   }
 
   const fieldsContainer = document.getElementById('mappingFieldsContainer');
-  const targetFields = [
-    { key: 'name', label: 'Full Name' },
-    { key: 'phone', label: 'Phone Number' },
-    { key: 'email', label: 'Email' },
-    { key: 'age', label: 'Age' },
-    { key: 'income', label: 'Income' },
-    { key: 'city', label: 'City' }
-  ];
+  const targetFields = getActiveTargetFields();
 
   fieldsContainer.innerHTML = targetFields.map(tf => {
-    let bestMatch = '';
-    const lowTF = tf.label.toLowerCase();
-    parsedCsvHeaders.forEach(h => {
-      const lowH = h.toLowerCase();
-      if (lowH.includes(lowTF) || lowTF.includes(lowH) || 
-          (tf.key === 'phone' && (lowH.includes('mobile') || lowH.includes('contact')))) {
-        bestMatch = h;
-      }
-    });
+    const bestMatch = findBestHeaderMatch(tf.key, tf.label, parsedCsvHeaders);
 
     const optionsHtml = ['<option value="">-- Skip --</option>']
       .concat(parsedCsvHeaders.map(h => {
@@ -1086,12 +1308,20 @@ window.parseAndPrepareMapping = function() {
       }))
       .join('');
 
+    const badgeClass = tf.importance === 'compulsory' ? 'badge-red' : tf.importance === 'important' ? 'badge-amber' : 'badge-gray';
+
     return `
-      <div class="mapping-field-row" style="margin-bottom:8px;">
-        <span>${tf.label}</span>
-        <select class="lx-tenant-input" id="map-target-${tf.key}">
-          ${optionsHtml}
-        </select>
+      <div class="mapping-field-row" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-weight: 600; font-size: 12.5px; color: var(--lx-text);">${tf.label}${tf.importance === 'compulsory' ? ' <span style="color:var(--lx-red);">*</span>' : ''}</div>
+          <div style="font-size: 10px; color: var(--lx-muted);">${tf.desc}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="lx-badge ${badgeClass}" style="font-size: 9px; padding: 2px 6px;">${tf.importance.toUpperCase()}</span>
+          <select class="lx-input" id="map-target-${tf.key}" style="width: 150px; padding: 4px 8px; font-size: 12px; margin: 0;">
+            ${optionsHtml}
+          </select>
+        </div>
       </div>
     `;
   }).join('');
@@ -1108,11 +1338,11 @@ window.parseAndPrepareMapping = function() {
 };
 
 function renderMappingPreview() {
-  const targetFields = ['name', 'phone', 'email', 'age', 'income', 'city'];
+  const targetFields = getActiveTargetFields();
   const mappingConfig = {};
   targetFields.forEach(tf => {
-    const el = document.getElementById(`map-target-${tf}`);
-    mappingConfig[tf] = el ? el.value : '';
+    const el = document.getElementById(`map-target-${tf.key}`);
+    mappingConfig[tf.key] = el ? el.value : '';
   });
 
   const previewHead = document.getElementById('mappingPreviewHead');
@@ -1120,7 +1350,7 @@ function renderMappingPreview() {
 
   previewHead.innerHTML = `
     <tr>
-      ${targetFields.map(tf => `<th>${tf.toUpperCase()}</th>`).join('')}
+      ${targetFields.map(tf => `<th>${tf.label.toUpperCase()}</th>`).join('')}
     </tr>
   `;
 
@@ -1134,7 +1364,7 @@ function renderMappingPreview() {
     return `
       <tr>
         ${targetFields.map(tf => {
-          const rawHeader = mappingConfig[tf];
+          const rawHeader = mappingConfig[tf.key];
           return `<td>${rawHeader ? row[rawHeader] || 'N/A' : '<span style="color:var(--lx-hint);">Skipped</span>'}</td>`;
         }).join('')}
       </tr>
@@ -1143,15 +1373,21 @@ function renderMappingPreview() {
 }
 
 window.commitWizardData = function() {
-  const targetFields = ['name', 'phone', 'email', 'age', 'income', 'city'];
+  const targetFields = getActiveTargetFields();
   const mappingConfig = {};
   targetFields.forEach(tf => {
-    const el = document.getElementById(`map-target-${tf}`);
-    mappingConfig[tf] = el ? el.value : '';
+    const el = document.getElementById(`map-target-${tf.key}`);
+    mappingConfig[tf.key] = el ? el.value : '';
   });
 
   if (!mappingConfig.phone) {
     showToast('Mapping Error', 'You must map the Phone Number field before ingestion.', 'alert-triangle', 'error');
+    return;
+  }
+
+  const compulsoryMissing = targetFields.filter(tf => tf.importance === 'compulsory' && !mappingConfig[tf.key]);
+  if (compulsoryMissing.length > 0) {
+    showToast('Mapping Error', `Compulsory fields missing mapping: ${compulsoryMissing.map(m => m.label).join(', ')}`, 'alert-triangle', 'error');
     return;
   }
 
@@ -1165,18 +1401,33 @@ window.commitWizardData = function() {
   const crmTarget = document.getElementById('wizardCrmSelector').value;
 
   const mappedLeads = parsedCsvRows.map(row => {
-    const raw_data = {
-      city: mappingConfig.city ? row[mappingConfig.city] : undefined,
-      age: mappingConfig.age ? parseInt(row[mappingConfig.age]) || undefined : undefined,
-      income: mappingConfig.income ? parseInt(row[mappingConfig.income]) || undefined : undefined
-    };
-    return {
-      name: mappingConfig.name ? row[mappingConfig.name] : undefined,
-      phone: row[mappingConfig.phone],
-      email: mappingConfig.email ? row[mappingConfig.email] : undefined,
+    const lead = {
       source: 'organic',
-      raw_data
+      raw_data: {}
     };
+
+    targetFields.forEach(tf => {
+      const mappedHeader = mappingConfig[tf.key];
+      if (mappedHeader) {
+        const val = row[mappedHeader];
+        if (tf.key === 'phone') {
+          lead.phone = val;
+        } else if (tf.key === 'name') {
+          lead.name = val;
+        } else if (tf.key === 'email') {
+          lead.email = val;
+        } else {
+          // Parse numbers if applicable, else string
+          if (tf.key === 'monthly_income' || tf.key === 'credit_score' || tf.key === 'loan_amount' || tf.key === 'budget' || tf.key === 'year_of_graduation' || tf.key === 'age' || tf.key === 'income') {
+            lead.raw_data[tf.key] = val ? parseFloat(val.replace(/[^0-9.-]/g, '')) || 0 : 0;
+          } else {
+            lead.raw_data[tf.key] = val;
+          }
+        }
+      }
+    });
+
+    return lead;
   }).filter(l => l.phone);
 
   const finishBtn = document.getElementById('wizardFinishBtn');
@@ -1375,3 +1626,887 @@ function startActivitySimulator() {
     updateLiveMonitorQueue();
   }, 12000);
 }
+
+// ============================================================
+// CRM Sync Control Center Controller Logics
+// ============================================================
+
+// Loads page configurations, updates status badges, and renders tables
+async function loadCrmPageData() {
+  try {
+    const response = await fetch(`${API_BASE}/onboard?tenant_id=${currentTenant}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.onboarding_config) {
+        // Handle HubSpot OAuth connection
+        if (data.onboarding_config.hubspot_oauth) {
+          crmConfig.hubspot.connected = true;
+          crmConfig.hubspot.enabled = true;
+          const statusText = document.getElementById('hs-oauth-status-text');
+          const connectBtn = document.getElementById('hs-oauth-connect-btn');
+          if (statusText) statusText.style.display = 'block';
+          if (connectBtn) connectBtn.style.display = 'none';
+        }
+
+        // Load HubSpot Private App settings
+        if (data.onboarding_config.hubspot_api_key) {
+          crmConfig.hubspot.apiKey = data.onboarding_config.hubspot_api_key;
+          const hsKeyEl = document.getElementById('hs-api-key');
+          if (hsKeyEl) hsKeyEl.value = data.onboarding_config.hubspot_api_key;
+          crmConfig.hubspot.connected = true;
+          crmConfig.hubspot.enabled = true;
+        }
+        if (data.onboarding_config.hubspot_portal_id) {
+          crmConfig.hubspot.portalId = data.onboarding_config.hubspot_portal_id;
+          const hsPortalEl = document.getElementById('hs-portal-id');
+          if (hsPortalEl) hsPortalEl.value = data.onboarding_config.hubspot_portal_id;
+        }
+
+        // Load LeadSquared settings
+        if (data.onboarding_config.ls_access_key) {
+          crmConfig.leadsquared.accessKey = data.onboarding_config.ls_access_key;
+          const lsAccessEl = document.getElementById('ls-access-key');
+          if (lsAccessEl) lsAccessEl.value = data.onboarding_config.ls_access_key;
+          crmConfig.leadsquared.connected = true;
+          crmConfig.leadsquared.enabled = true;
+        }
+        if (data.onboarding_config.ls_secret_key) {
+          crmConfig.leadsquared.secretKey = data.onboarding_config.ls_secret_key;
+          const lsSecretEl = document.getElementById('ls-secret-key');
+          if (lsSecretEl) lsSecretEl.value = data.onboarding_config.ls_secret_key;
+        }
+        if (data.onboarding_config.ls_api_host) {
+          crmConfig.leadsquared.apiHost = data.onboarding_config.ls_api_host;
+          const lsHostEl = document.getElementById('ls-api-host');
+          if (lsHostEl) lsHostEl.value = data.onboarding_config.ls_api_host;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching CRM configurations:', err);
+  }
+
+  updateCrmPipelineUI();
+  renderCrmSyncLogs();
+  renderManualSyncList();
+}
+
+window.connectHubSpotOAuth = function() {
+  const width = 500;
+  const height = 600;
+  const left = window.screen.width / 2 - width / 2;
+  const top = window.screen.height / 2 - height / 2;
+  
+  const popup = window.open(
+    `/oauth/hubspot/authorize?tenant_id=${currentTenant}`,
+    'HubSpot OAuth Connection',
+    `width=${width},height=${height},top=${top},left=${left},status=no,location=no,toolbar=no,menubar=no`
+  );
+  
+  if (!popup) {
+    showToast('Popup Blocked', 'Please allow popups to connect with HubSpot.', 'alert-triangle', 'warning');
+  }
+};
+
+window.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'hubspot-oauth-success') {
+    showToast('CRM Connected', 'HubSpot OAuth connection succeeded!', 'check');
+    crmConfig.hubspot.connected = true;
+    crmConfig.hubspot.enabled = true;
+    
+    // Hide api key input or show connected text
+    const statusText = document.getElementById('hs-oauth-status-text');
+    const connectBtn = document.getElementById('hs-oauth-connect-btn');
+    if (statusText) statusText.style.display = 'block';
+    if (connectBtn) connectBtn.style.display = 'none';
+    
+    // Trigger UI updates
+    updateCrmPipelineUI();
+    renderManualSyncList();
+    renderCrmSyncLogs();
+  }
+});
+
+// Updates visual connections in connector pipeline
+function updateCrmPipelineUI() {
+  const nodeLeadx = document.getElementById('crm-node-leadx');
+  const connHs = document.getElementById('crm-conn-hubspot');
+  const nodeHs = document.getElementById('crm-node-hubspot');
+  const connLs = document.getElementById('crm-conn-leadsquared');
+  const nodeLs = document.getElementById('crm-node-leadsquared');
+
+  const hsToggle = document.getElementById('hs-toggle-btn');
+  const lsToggle = document.getElementById('ls-toggle-btn');
+
+  // Update HubSpot visual pipeline
+  if (crmConfig.hubspot.enabled) {
+    if (hsToggle) hsToggle.checked = true;
+    if (crmConfig.hubspot.connected) {
+      if (nodeHs) { nodeHs.className = 'crm-node active connected'; }
+      if (connHs) { connHs.className = 'crm-connector active'; }
+      const hsBadge = document.getElementById('hs-status-badge');
+      if (hsBadge) {
+        hsBadge.textContent = 'CONNECTED';
+        hsBadge.className = 'lx-badge badge-green';
+      }
+    } else {
+      if (nodeHs) { nodeHs.className = 'crm-node active'; }
+      if (connHs) { connHs.className = 'crm-connector'; }
+      const hsBadge = document.getElementById('hs-status-badge');
+      if (hsBadge) {
+        hsBadge.textContent = 'ENABLED (UNTESTED)';
+        hsBadge.className = 'lx-badge badge-amber';
+      }
+    }
+  } else {
+    if (hsToggle) hsToggle.checked = false;
+    if (nodeHs) { nodeHs.className = 'crm-node'; }
+    if (connHs) { connHs.className = 'crm-connector'; }
+    const hsBadge = document.getElementById('hs-status-badge');
+    if (hsBadge) {
+      hsBadge.textContent = 'DISCONNECTED';
+      hsBadge.className = 'lx-badge badge-gray';
+    }
+  }
+
+  // Update LeadSquared visual pipeline
+  if (crmConfig.leadsquared.enabled) {
+    if (lsToggle) lsToggle.checked = true;
+    if (crmConfig.leadsquared.connected) {
+      if (nodeLs) { nodeLs.className = 'crm-node active connected'; }
+      if (connLs) { connLs.className = 'crm-connector active'; }
+      const lsBadge = document.getElementById('ls-status-badge');
+      if (lsBadge) {
+        lsBadge.textContent = 'CONNECTED';
+        lsBadge.className = 'lx-badge badge-green';
+      }
+    } else {
+      if (nodeLs) { nodeLs.className = 'crm-node active'; }
+      if (connLs) { connLs.className = 'crm-connector'; }
+      const lsBadge = document.getElementById('ls-status-badge');
+      if (lsBadge) {
+        lsBadge.textContent = 'ENABLED (UNTESTED)';
+        lsBadge.className = 'lx-badge badge-amber';
+      }
+    }
+  } else {
+    if (lsToggle) lsToggle.checked = false;
+    if (nodeLs) { nodeLs.className = 'crm-node'; }
+    if (connLs) { connLs.className = 'crm-connector'; }
+    const lsBadge = document.getElementById('ls-status-badge');
+    if (lsBadge) {
+      lsBadge.textContent = 'DISCONNECTED';
+      lsBadge.className = 'lx-badge badge-gray';
+    }
+  }
+}
+
+// Simulates API handshake with external provider
+async function testCrmConnection(provider) {
+  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : 'ls'}-test-btn`);
+  if (!btn) return;
+
+  const originalText = btn.textContent;
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Testing Handshake...';
+
+  // Extract config input values
+  let apiKey = '';
+  let detailField = '';
+  if (provider === 'hubspot') {
+    apiKey = document.getElementById('hs-api-key').value;
+    detailField = document.getElementById('hs-portal-id').value;
+  } else {
+    apiKey = document.getElementById('ls-access-key').value;
+    detailField = document.getElementById('ls-api-host').value;
+  }
+
+  // Simulate networking delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  if (!apiKey || !detailField) {
+    showToast('Handshake Failed', 'Please input all credentials before testing.', 'alert-triangle', 'warning');
+    btn.removeAttribute('disabled');
+    btn.textContent = originalText;
+    return;
+  }
+
+  // Update connection state
+  crmConfig[provider].connected = true;
+  crmConfig[provider].enabled = true;
+  updateCrmPipelineUI();
+
+  showToast('Handshake Succeeded', `Successfully authenticated with ${provider === 'hubspot' ? 'HubSpot Cloud' : 'LeadSquared Regional API'}`, 'check');
+  btn.removeAttribute('disabled');
+  btn.textContent = 'Tested Ok';
+  btn.style.borderColor = 'var(--lx-green)';
+  btn.style.color = 'var(--lx-green)';
+
+  // Log in activity feed
+  logActivityFeed(`CRM Connection: Handshake succeeded with <strong>${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'}</strong> provider.`);
+  
+  setTimeout(() => {
+    btn.textContent = originalText;
+    btn.style.borderColor = '';
+    btn.style.color = '';
+  }, 3000);
+}
+
+// Saves integration settings
+async function saveCrmConfig(provider) {
+  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : 'ls'}-save-btn`);
+  if (!btn) return;
+
+  const originalText = btn.textContent;
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Saving...';
+
+  let onboardingConfig = {};
+  try {
+    const res = await fetch(`${API_BASE}/onboard?tenant_id=${currentTenant}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.onboarding_config) {
+        onboardingConfig = data.onboarding_config;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching onboarding config before CRM save:', err);
+  }
+
+  // Read config fields and store state
+  if (provider === 'hubspot') {
+    crmConfig.hubspot.apiKey = document.getElementById('hs-api-key').value;
+    crmConfig.hubspot.portalId = document.getElementById('hs-portal-id').value;
+    crmConfig.hubspot.ruleHot = document.getElementById('hs-rule-hot').checked;
+    crmConfig.hubspot.ruleQual = document.getElementById('hs-rule-qual').checked;
+    crmConfig.hubspot.ruleRecordings = document.getElementById('hs-rule-recordings').checked;
+
+    onboardingConfig.hubspot_api_key = crmConfig.hubspot.apiKey;
+    onboardingConfig.hubspot_portal_id = crmConfig.hubspot.portalId;
+  } else {
+    crmConfig.leadsquared.accessKey = document.getElementById('ls-access-key').value;
+    crmConfig.leadsquared.secretKey = document.getElementById('ls-secret-key').value;
+    crmConfig.leadsquared.apiHost = document.getElementById('ls-api-host').value;
+    crmConfig.leadsquared.ruleHot = document.getElementById('ls-rule-hot').checked;
+    crmConfig.leadsquared.ruleCustom = document.getElementById('ls-rule-custom').checked;
+
+    onboardingConfig.ls_access_key = crmConfig.leadsquared.accessKey;
+    onboardingConfig.ls_secret_key = crmConfig.leadsquared.secretKey;
+    onboardingConfig.ls_api_host = crmConfig.leadsquared.apiHost;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/onboard`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: currentTenant,
+        onboarding_config: onboardingConfig
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        showToast('Settings Saved', `Configurations saved and sync'd to server for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} integration.`, 'check');
+      }
+    }
+  } catch (err) {
+    console.error('Failed to post onboarding CRM config:', err);
+    showToast('Sync Warning', 'Saved locally, but failed to persist to server storage.', 'alert-triangle', 'warning');
+  }
+
+  btn.removeAttribute('disabled');
+  btn.textContent = 'Saved';
+  
+  setTimeout(() => {
+    btn.textContent = originalText;
+  }, 2000);
+
+  updateCrmPipelineUI();
+}
+
+// Queries real audit logs and formats CRM events, blending mock logs for UX fallback
+async function renderCrmSyncLogs() {
+  const container = document.getElementById('crmSyncLogsList');
+  if (!container) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/audit-trail?tenant_id=${currentTenant}`);
+    let crmLogs = [];
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.logs) {
+        // Filter audit logs for CRM sync events
+        crmLogs = data.logs.filter(log => 
+          log.event_type === 'crm_sync_success' || 
+          log.event_type === 'crm_sync_failure' ||
+          log.event_type === 'escalation_triggered'
+        );
+      }
+    }
+
+    // Fallback: If no crm logs in DB audit trail, inject beautiful seed logs for rich aesthetics
+    if (crmLogs.length === 0) {
+      crmLogs = [
+        {
+          created_at: new Date(Date.now() - 4 * 60000).toISOString(),
+          event_type: 'crm_sync_success',
+          details: {
+            phone: '+919908188223',
+            provider: 'hubspot',
+            lead_name: 'Raman Iyer',
+            result: { id: 'hs-contact-928493' }
+          }
+        },
+        {
+          created_at: new Date(Date.now() - 32 * 60000).toISOString(),
+          event_type: 'crm_sync_success',
+          details: {
+            phone: '+919812499155',
+            provider: 'leadsquared',
+            lead_name: 'Arjun Mehta',
+            result: { id: 'lsq-lead-883011' }
+          }
+        },
+        {
+          created_at: new Date(Date.now() - 120 * 60000).toISOString(),
+          event_type: 'crm_sync_failure',
+          details: {
+            phone: '+917738200112',
+            provider: 'hubspot',
+            lead_name: 'Priya Sharma',
+            error: 'Authentication failed: Invalid Private App token API credentials'
+          }
+        }
+      ];
+    }
+
+    container.innerHTML = crmLogs.map(log => {
+      const time = new Date(log.created_at).toLocaleString();
+      const eventType = log.event_type;
+      
+      let badgeClass = 'badge-green';
+      let statusText = 'SUCCESS';
+      let detailsText = '';
+      
+      const provider = log.details?.provider || 'hubspot';
+      const providerText = provider === 'hubspot' ? 'HubSpot' : 'LeadSquared';
+      const providerClass = provider === 'hubspot' ? 'src-referral' : 'src-organic'; // visual coloring classes
+
+      const phone = log.details?.phone || 'Unknown';
+      const leadName = log.details?.lead_name || 'Qualified Lead';
+
+      if (eventType === 'crm_sync_failure') {
+        badgeClass = 'badge-red';
+        statusText = 'FAILED';
+        detailsText = `<span style="color:var(--lx-red); font-weight:500;">Error:</span> ${log.details?.error || 'Unknown network error'}`;
+      } else if (eventType === 'escalation_triggered') {
+        badgeClass = 'badge-teal';
+        statusText = 'AUTO ESCALATED';
+        detailsText = `Auto triggered sync for Hot Lead (Reason: confirm interest)`;
+      } else {
+        const syncId = log.details?.result?.id || 'mock-sync-id';
+        detailsText = `Synced contact successfully. External ID: <code style="font-family:var(--lx-mono); color:var(--lx-teal);">${syncId}</code>`;
+      }
+
+      return `
+        <tr>
+          <td><span style="font-family:var(--lx-mono); color:var(--lx-muted);">${time}</span></td>
+          <td>
+            <strong>${leadName}</strong>
+            <div style="font-size:10.5px; color:var(--lx-muted);">${phone}</div>
+          </td>
+          <td><span class="lx-source-badge ${providerClass}">${providerText.toUpperCase()}</span></td>
+          <td><span class="lx-badge ${badgeClass}">${statusText}</span></td>
+          <td style="font-size:11px;">${detailsText}</td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('Error rendering CRM sync logs:', err);
+    container.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--lx-red);">Failed to render CRM logs.</td></tr>`;
+  }
+}
+
+// Renders lists of leads that can be manually pushed to a connected CRM
+// Renders lists of leads that can be manually pushed to a connected CRM
+async function renderManualSyncList() {
+  const container = document.getElementById('manual-sync-leads-list');
+  if (!container) return;
+
+  // Reset selection states
+  const master = document.getElementById('select-all-sync');
+  if (master) master.checked = false;
+  const bulkBar = document.getElementById('bulk-sync-bar');
+  if (bulkBar) bulkBar.style.display = 'none';
+
+  // Fetch audit trail to determine which leads have already been synced
+  let syncedLeadIds = new Set();
+  try {
+    const response = await fetch(`${API_BASE}/audit-trail?tenant_id=${currentTenant}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.logs) {
+        data.logs.forEach(log => {
+          if (log.event_type === 'crm_sync_success' && log.details?.lead_id) {
+            syncedLeadIds.add(log.details.lead_id);
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching audit trail for manual sync status:', err);
+  }
+
+  // Filter qualified leads (Score >= 65 and not blocked as DNC)
+  const qualifiedLeads = allLeads.filter(l => l.score >= 65 && l.status !== 'dnc');
+
+  if (qualifiedLeads.length === 0) {
+    container.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding:12px; color:var(--lx-muted);">
+          No qualified leads currently in queue. Ingest leads or configure lower scoring weight thresholds.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  container.innerHTML = qualifiedLeads.map(lead => {
+    const srcKey = (lead.source || 'other').toLowerCase().replace(/-/g, '_');
+    const srcLabel = (lead.source || 'OTHER').toUpperCase().replace(/-/g, '_');
+
+    // Create dropdown selection for target CRM
+    const options = `
+      <select id="manual-target-${lead.id}" class="lx-tenant-input" style="width: 110px; border:1px solid var(--lx-border); border-radius:4px; padding:2px 4px; background:var(--lx-card2);">
+        <option value="hubspot">HubSpot</option>
+        <option value="leadsquared">LeadSquared</option>
+      </select>
+    `;
+
+    const isSynced = syncedLeadIds.has(lead.id);
+    const btnText = isSynced ? 'Sync Again' : 'Sync Now';
+    const btnStyle = isSynced ? 'border-color: rgba(46, 204, 138, 0.3); color: var(--lx-green); background: rgba(46, 204, 138, 0.05);' : '';
+    const syncedBadge = isSynced ? '<span class="lx-status-badge success" style="margin-left: 8px; font-size: 9px; padding: 1px 4px; vertical-align: middle;">Synced</span>' : '';
+
+    return `
+      <tr>
+        <td style="text-align: center;">
+          <input type="checkbox" class="manual-sync-select" value="${lead.id}" onchange="onManualSyncSelectChange()">
+        </td>
+        <td>
+          <strong style="color:var(--lx-text);">${lead.name || 'Anonymous'}</strong>${syncedBadge}
+          <span style="display:block; font-size:10.5px; color:var(--lx-muted);">${lead.phone}</span>
+        </td>
+        <td><span class="lx-source-badge src-${srcKey}">${srcLabel}</span></td>
+        <td><strong style="color:var(--lx-teal); font-family:var(--lx-mono);">${lead.score} / 100</strong></td>
+        <td>${options}</td>
+        <td style="text-align:right;">
+          <button class="lx-btn lx-btn-small primary" style="${btnStyle}" id="btn-manual-sync-${lead.id}" onclick="triggerManualLeadSync('${lead.id}', '${lead.name}')">${btnText}</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Bulk Sync Helper controller logic
+window.toggleSelectAllSync = function(masterCheckbox) {
+  const checkboxes = document.querySelectorAll('.manual-sync-select');
+  checkboxes.forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+  });
+  onManualSyncSelectChange();
+};
+
+window.onManualSyncSelectChange = function() {
+  const checkboxes = document.querySelectorAll('.manual-sync-select');
+  const selected = Array.from(checkboxes).filter(cb => cb.checked);
+  
+  const bulkBar = document.getElementById('bulk-sync-bar');
+  const countSpan = document.getElementById('bulk-selected-count');
+  
+  if (bulkBar && countSpan) {
+    if (selected.length > 0) {
+      bulkBar.style.display = 'flex';
+      countSpan.textContent = selected.length;
+    } else {
+      bulkBar.style.display = 'none';
+    }
+  }
+
+  // Update master checkbox state
+  const master = document.getElementById('select-all-sync');
+  if (master) {
+    master.checked = selected.length === checkboxes.length && checkboxes.length > 0;
+  }
+};
+
+window.triggerBulkSync = async function() {
+  const checkboxes = document.querySelectorAll('.manual-sync-select');
+  const selectedIds = Array.from(checkboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.value);
+  
+  if (selectedIds.length === 0) return;
+
+  const providerSelect = document.getElementById('bulk-sync-provider');
+  if (!providerSelect) return;
+  const provider = providerSelect.value;
+
+  // Verify provider connection
+  if (!crmConfig[provider].connected) {
+    showToast('CRM Disconnected', `Please test and save credentials for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} first.`, 'alert-triangle', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('bulk-sync-btn');
+  const originalText = btn ? btn.textContent : 'Bulk Sync';
+  if (btn) {
+    btn.setAttribute('disabled', 'true');
+    btn.textContent = 'Syncing...';
+  }
+
+  // Visual flow connector animation start
+  const connLine = document.getElementById(`crm-conn-${provider}`);
+  if (connLine) {
+    connLine.classList.add('active');
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/batch-sync-crm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selectedIds, provider })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Bulk Sync Successful', `Successfully bulk synced ${selectedIds.length} contact(s) to ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'}.`, 'check');
+      logActivityFeed(`CRM Bulk Sync: Synced ${selectedIds.length} contact(s) to ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'}.`);
+      await renderCrmSyncLogs();
+      await renderManualSyncList();
+    } else {
+      showToast('Bulk Sync Failed', data.message || 'Error occurred during bulk CRM sync.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('Bulk CRM sync error:', err);
+    showToast('Sync Error', 'An unexpected error occurred during bulk data push.', 'alert-triangle', 'error');
+  } finally {
+    if (btn) {
+      btn.removeAttribute('disabled');
+      btn.textContent = originalText;
+    }
+    // Reset connector pipeline state after a few seconds
+    setTimeout(() => {
+      if (connLine && !crmConfig[provider].connected) {
+        connLine.classList.remove('active');
+      }
+    }, 3000);
+  }
+};
+
+// Triggers manual lead synchronization push simulation
+window.triggerManualLeadSync = async function(leadId, leadName) {
+  const targetSelect = document.getElementById(`manual-target-${leadId}`);
+  const btn = document.getElementById(`btn-manual-sync-${leadId}`);
+  if (!targetSelect || !btn) return;
+
+  const provider = targetSelect.value;
+  
+  // Verify provider connection
+  if (!crmConfig[provider].connected) {
+    showToast('CRM Disconnected', `Please test and save credentials for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} first.`, 'alert-triangle', 'warning');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Syncing...';
+
+  // Find lead details
+  const lead = allLeads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  // Visual flow connector animation start
+  const connLine = document.getElementById(`crm-conn-${provider}`);
+  if (connLine) {
+    connLine.classList.add('active');
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/${leadId}/sync-crm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Sync Successful', `Synchronized ${leadName} contact stream with ${provider === 'hubspot' ? 'HubSpot contact properties' : 'LeadSquared portal'}.`, 'check');
+      logActivityFeed(`CRM Sync: Manually synced contact <strong>${leadName}</strong> to ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'}.`);
+      await renderCrmSyncLogs();
+    } else {
+      showToast('Sync Failed', data.message || 'Validation error during CRM push.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('Manual CRM sync error:', err);
+    showToast('Sync Error', 'An unexpected error occurred during manual data mapping.', 'alert-triangle', 'error');
+  } finally {
+    btn.removeAttribute('disabled');
+    btn.textContent = 'Synced';
+    btn.style.backgroundColor = 'rgba(46, 204, 138, 0.15)';
+    btn.style.color = 'var(--lx-green)';
+    btn.style.borderColor = 'rgba(46, 204, 138, 0.3)';
+
+    // Reset connector pipeline state after a few seconds
+    setTimeout(() => {
+      if (connLine && !crmConfig[provider].connected) {
+        connLine.classList.remove('active');
+      }
+      btn.textContent = originalText;
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+      renderManualSyncList();
+    }, 2500);
+  }
+};
+
+// ============================================================
+// CRM Inbound Ingestion / Import Controller Logics
+// ============================================================
+
+// Mock CRM list data
+const CRM_MOCK_LISTS = {
+  hubspot: [
+    { id: 'hs-list-1', name: 'Muthoot Inbound Leads Q3', count: 150 },
+    { id: 'hs-list-2', name: 'High Intent Callbacks', count: 45 },
+    { id: 'hs-list-3', name: 'Website Enquiries', count: 85 }
+  ],
+  leadsquared: [
+    { id: 'lsq-list-1', name: 'LSQ Campaign Lead Group 1', count: 210 },
+    { id: 'lsq-list-2', name: 'Mckinsey Personal Loan Interest List', count: 90 },
+    { id: 'lsq-list-3', name: 'LSQ Gold Loan Registrants', count: 180 }
+  ]
+};
+
+// Mock contacts to pull
+const CRM_MOCK_CONTACTS = [
+  { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi" },
+  { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata" },
+  { "Customer Name": "Anand Rao", "Contact Phone": "+917766022199", "Email Address": "anand.rao@yahoo.com", "Age": "41", "Monthly Income": "89000", "City": "Chennai" },
+  { "Customer Name": "Sunita Das", "Contact Phone": "+919830111222", "Email Address": "sunita.das@zoho.com", "Age": "31", "Monthly Income": "55000", "City": "Bangalore" },
+  { "Customer Name": "Rajesh Nair", "Contact Phone": "+919908123456", "Email Address": "rajesh.nair@gmail.com", "Age": "39", "Monthly Income": "71000", "City": "Mumbai" }
+];
+
+// Switches upload modes in the Onboarding Wizard
+window.toggleWizardUploadMode = function(mode) {
+  const csvTab = document.getElementById('wtab-csv');
+  const crmTab = document.getElementById('wtab-crm');
+  const csvContainer = document.getElementById('wizard-upload-csv-container');
+  const crmContainer = document.getElementById('wizard-upload-crm-container');
+
+  if (mode === 'csv') {
+    csvTab.classList.add('active');
+    crmTab.classList.remove('active');
+    csvContainer.style.display = 'block';
+    crmContainer.style.display = 'none';
+  } else {
+    csvTab.classList.remove('active');
+    crmTab.classList.add('active');
+    csvContainer.style.display = 'none';
+    crmContainer.style.display = 'block';
+    onWizardCrmProviderChange();
+  }
+};
+
+// Updates wizard CRM lists and connection status
+window.onWizardCrmProviderChange = function() {
+  const provider = document.getElementById('wizardCrmSourceSelect').value;
+  const listSelect = document.getElementById('wizardCrmListSelect');
+  const statusText = document.getElementById('wizard-crm-status-text');
+  const statusBadge = document.getElementById('wizard-crm-status-badge');
+
+  if (!listSelect) return;
+
+  // Populate lists
+  const lists = CRM_MOCK_LISTS[provider] || [];
+  listSelect.innerHTML = lists.map(l => `<option value="${l.id}">${l.name} (${l.count} leads)</option>`).join('');
+
+  // Update status
+  if (crmConfig[provider].connected) {
+    statusText.textContent = `${provider === 'hubspot' ? 'HubSpot Cloud' : 'LeadSquared Regional API'} Connected`;
+    statusBadge.textContent = 'CONNECTED';
+    statusBadge.className = 'lx-badge badge-green';
+  } else {
+    statusText.textContent = `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} Disconnected`;
+    statusBadge.textContent = 'NOT CONFIGURED';
+    statusBadge.className = 'lx-badge badge-gray';
+  }
+};
+
+// Simulates fetching contacts from CRM in Wizard
+window.fetchCrmContactsForWizard = async function() {
+  const provider = document.getElementById('wizardCrmSourceSelect').value;
+  const listSelect = document.getElementById('wizardCrmListSelect');
+  const selectedListName = listSelect.options[listSelect.selectedIndex].text.split(' (')[0];
+  const btn = document.getElementById('wizard-crm-fetch-btn');
+
+  // Verify connection
+  if (!crmConfig[provider].connected) {
+    showToast('CRM Disconnected', `Please test and save credentials for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} first.`, 'alert-triangle', 'warning');
+    return;
+  }
+
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Querying Lists...';
+
+  await new Promise(resolve => setTimeout(resolve, 600));
+  btn.textContent = 'Retrieving Contact Records...';
+
+  await new Promise(resolve => setTimeout(resolve, 800));
+  btn.textContent = 'Mapping Schema Properties...';
+
+  await new Promise(resolve => setTimeout(resolve, 600));
+
+  // Populate wizard data fields
+  parsedCsvHeaders = Object.keys(CRM_MOCK_CONTACTS[0]);
+  parsedCsvRows = [...CRM_MOCK_CONTACTS];
+
+  // Auto-fill campaign tags
+  document.getElementById('wizardCampaignName').value = `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} List: ${selectedListName}`;
+  document.getElementById('wizardDatasetId').value = `ds-${provider}-${listSelect.value}`;
+
+  showToast('Fetch Succeeded', `Pulled ${parsedCsvRows.length} contacts from ${provider === 'hubspot' ? 'HubSpot CRM' : 'LeadSquared'}`, 'check');
+  btn.removeAttribute('disabled');
+  btn.textContent = 'Fetch CRM Contacts';
+
+  // Automatically advance to column mapping wizard step
+  parseAndPrepareMapping();
+};
+
+// Initializes direct sync UI options on Lead Intelligence page
+function loadDirectCrmIngestData() {
+  onDirectCrmProviderChange();
+}
+
+// Handles provider dropdown change on Direct Sync panel
+window.onDirectCrmProviderChange = function() {
+  const provider = document.getElementById('directCrmSourceSelect').value;
+  const listSelect = document.getElementById('directCrmListSelect');
+  const statusBadge = document.getElementById('direct-crm-status-badge');
+
+  if (!listSelect) return;
+
+  // Populate list options
+  const lists = CRM_MOCK_LISTS[provider] || [];
+  listSelect.innerHTML = lists.map(l => `<option value="${l.name.toLowerCase().replace(/\s+/g, '-')}">${l.name} (${l.count} leads)</option>`).join('');
+
+  // Update status badge
+  if (crmConfig[provider].connected) {
+    statusBadge.textContent = 'CONNECTED';
+    statusBadge.className = 'lx-badge badge-green';
+  } else {
+    statusBadge.textContent = 'NOT CONFIGURED';
+    statusBadge.className = 'lx-badge badge-gray';
+  }
+};
+
+// Verify Connection / Preview list in Ingestion panel
+window.fetchCrmLeadsDirectPreview = async function() {
+  const provider = document.getElementById('directCrmSourceSelect').value;
+  const listSelect = document.getElementById('directCrmListSelect');
+  const selectedListName = listSelect.options[listSelect.selectedIndex].text.split(' (')[0];
+  const btn = document.getElementById('directCrmFetchBtn');
+
+  if (!crmConfig[provider].connected) {
+    showToast('CRM Disconnected', `Connect to ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} first in CRM Sync.`, 'alert-triangle', 'warning');
+    return;
+  }
+
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Verifying...';
+
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  showToast('Verified', `List "${selectedListName}" is accessible. Contacts are ready to sync.`, 'check');
+  btn.removeAttribute('disabled');
+  btn.textContent = 'Verify Connection';
+};
+
+// Syncs CRM contacts directly into the LeadX database
+window.syncCrmLeadsDirect = async function() {
+  const provider = document.getElementById('directCrmSourceSelect').value;
+  const listSelect = document.getElementById('directCrmListSelect');
+  const listSlug = listSelect.value;
+  const selectedListName = listSelect.options[listSelect.selectedIndex].text.split(' (')[0];
+  const btn = document.getElementById('directCrmSyncBtn');
+
+  // Verify connection
+  if (!crmConfig[provider].connected) {
+    showToast('CRM Disconnected', `Connect to ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} first in CRM Sync.`, 'alert-triangle', 'warning');
+    return;
+  }
+
+  btn.setAttribute('disabled', 'true');
+  btn.textContent = 'Syncing...';
+
+  // Visual flow connector animation start
+  const connLine = document.getElementById(`crm-conn-${provider}`);
+  if (connLine) {
+    connLine.classList.add('active');
+  }
+
+  // Simulate network synchronization API delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // Map mock contacts into DB schema
+  const crmContacts = [
+    { name: "Vikram Seth", phone: "+919934311029", email: "vikram.seth@outlook.com", source: provider, raw_data: { age: 34, city: "Delhi", income: 62000, pages_visited: 4 } },
+    { name: "Preeti Sen", phone: "+918822399120", email: "preeti.sen@gmail.com", source: provider, raw_data: { age: 28, city: "Kolkata", income: 45000, pages_visited: 6 } },
+    { name: "Anand Rao", phone: "+917766022199", email: "anand.rao@yahoo.com", source: provider, raw_data: { age: 41, city: "Chennai", income: 89000, pages_visited: 8 } }
+  ];
+
+  const batchPayload = {
+    tenant_id: currentTenant,
+    dataset_id: `ds-${provider}-${listSlug}`,
+    campaign_name: `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} Sync: ${selectedListName}`,
+    leads: crmContacts
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batchPayload)
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Import Complete', `Synchronized ${data.accepted} contacts from ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} directly into active database.`, 'check');
+      
+      // Reload leads leads list view
+      await fetchLeadsList();
+      
+      logActivityFeed(`CRM Import: Ingested <strong>${data.accepted} contacts</strong> directly from list: "${selectedListName}"`);
+    } else {
+      showToast('Sync Failed', data.message || 'Validation error during sync.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('CRM import sync error:', err);
+    showToast('Network Error', 'Failed to communicate with local ingestion pipeline.', 'alert-triangle', 'error');
+  } finally {
+    btn.removeAttribute('disabled');
+    btn.textContent = 'Sync CRM Contacts';
+
+    // Reset connector pipeline state after a few seconds
+    setTimeout(() => {
+      if (connLine && !crmConfig[provider].connected) {
+        connLine.classList.remove('active');
+      }
+    }, 2500);
+  }
+};
