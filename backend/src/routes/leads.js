@@ -4,7 +4,7 @@ import { validateLead, validateScoringWeights, cleanPhone } from '../utils/valid
 import { computeLeadScore } from '../services/scoringEngine.js';
 import { initSession, normaliseEvent } from '../services/voizAdapter.js';
 import { sendSlackNotification } from '../services/slackService.js';
-import { syncToCRM } from '../services/crmService.js';
+import { syncToCRM, getCRMLists, getCRMContactsFromList } from '../services/crmService.js';
 
 const router = Router();
 
@@ -576,6 +576,105 @@ router.post('/:id/sync-crm', async (req, res, next) => {
 
     const result = await syncToCRM(lead.tenant_id, lead, provider);
     res.json({ success: true, message: `Lead successfully synced to ${provider}`, result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/crm-lists
+ * Retrieves available list segments from a CRM provider.
+ */
+router.get('/crm-lists', async (req, res, next) => {
+  try {
+    const { tenant_id, provider } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    if (!provider) {
+      return res.status(400).json({ error: 'Validation Error', message: 'provider query parameter is required' });
+    }
+
+    const lists = await getCRMLists(tenant_id, provider);
+    res.json({ success: true, lists });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/crm-contacts
+ * Retrieves contact members from a specific CRM list segment.
+ */
+router.get('/crm-contacts', async (req, res, next) => {
+  try {
+    const { tenant_id, provider, list_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    if (!provider) {
+      return res.status(400).json({ error: 'Validation Error', message: 'provider query parameter is required' });
+    }
+    if (!list_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'list_id query parameter is required' });
+    }
+
+    const contacts = await getCRMContactsFromList(tenant_id, provider, list_id);
+    res.json({ success: true, contacts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/campaigns
+ * Retrieves unique campaigns for a tenant and aggregates stats.
+ */
+router.get('/campaigns', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+
+    const leads = await db.getLeads(tenant_id);
+    const campaignsMap = {};
+
+    leads.forEach(lead => {
+      const campName = lead.campaign_name || 'Manual Ingests';
+      if (!campaignsMap[campName]) {
+        campaignsMap[campName] = {
+          name: campName,
+          ingested: 0,
+          attempted: 0,
+          connected: 0
+        };
+      }
+      const camp = campaignsMap[campName];
+      camp.ingested += 1;
+      
+      // attempted means status is not pending
+      if (lead.status && lead.status !== 'pending') {
+        camp.attempted += 1;
+      }
+      // connected means status is connected
+      if (lead.status === 'connected') {
+        camp.connected += 1;
+      }
+    });
+
+    const campaigns = Object.values(campaignsMap).map(camp => {
+      const rate = camp.attempted > 0 ? (camp.connected / camp.attempted) * 100 : 0;
+      return {
+        name: camp.name,
+        ingested: camp.ingested,
+        attempted: camp.attempted,
+        connected: camp.connected,
+        connect_rate: parseFloat(rate.toFixed(1))
+      };
+    });
+
+    res.json({ success: true, campaigns });
   } catch (error) {
     next(error);
   }

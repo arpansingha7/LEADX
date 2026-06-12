@@ -457,3 +457,18 @@ test('GET /oauth/hubspot/callback - Exchange mock code for tokens', async () => 
   assert.ok(config.hubspot_oauth.access_token.startsWith('mock-oauth-access-token-'));
   assert.ok(config.hubspot_oauth.refresh_token.startsWith('mock-oauth-refresh-token-'));
 });
+
+test('GET /leads/campaigns - Retrieve and aggregate campaigns list', async () => {
+  const response = await fetch(`${baseUrl}/leads/campaigns?tenant_id=test-tenant`);
+  assert.strictEqual(response.status, 200);
+  const data = await response.json();
+  assert.ok(data.success);
+  assert.ok(Array.isArray(data.campaigns));
+  assert.ok(data.campaigns.length >= 1);
+  const camp = data.campaigns[0];
+  assert.ok(camp.name);
+  assert.ok(camp.ingested >= 1);
+  assert.strictEqual(typeof camp.attempted, 'number');
+  assert.strictEqual(typeof camp.connected, 'number');
+  assert.strictEqual(typeof camp.connect_rate, 'number');
+});

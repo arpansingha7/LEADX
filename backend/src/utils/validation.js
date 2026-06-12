@@ -82,26 +82,27 @@ export function cleanPhone(phone) {
  */
 export function validateScoringWeights(weights) {
   const errors = [];
-  const requiredKeys = [
-    'demographic_fit',
-    'source_quality',
-    'recency',
-    'behavioural_signals',
-    'prior_interaction'
-  ];
 
   if (!weights || typeof weights !== 'object' || Array.isArray(weights)) {
     return { isValid: false, errors: ['Weights configuration must be an object'] };
   }
 
-  // Check required weight keys
-  for (const key of requiredKeys) {
-    if (weights[key] === undefined || weights[key] === null) {
+  const keys = Object.keys(weights);
+  if (keys.length === 0) {
+    return { isValid: false, errors: ['Weights configuration cannot be empty'] };
+  }
+
+  let sum = 0;
+  for (const key of keys) {
+    const val = weights[key];
+    if (val === undefined || val === null) {
       errors.push(`Weight field '${key}' is required`);
-    } else if (typeof weights[key] !== 'number' || isNaN(weights[key])) {
+    } else if (typeof val !== 'number' || isNaN(val)) {
       errors.push(`Weight field '${key}' must be a valid number`);
-    } else if (weights[key] < 0 || weights[key] > 1) {
+    } else if (val < 0 || val > 1) {
       errors.push(`Weight field '${key}' must be between 0 and 1`);
+    } else {
+      sum += val;
     }
   }
 
@@ -110,7 +111,6 @@ export function validateScoringWeights(weights) {
   }
 
   // Verify weights sum to 1.0 +/- 0.001
-  const sum = requiredKeys.reduce((acc, key) => acc + weights[key], 0);
   if (Math.abs(sum - 1.0) > 0.001) {
     errors.push(`Scoring weights must sum to 1.0 (got ${sum.toFixed(4)})`);
   }

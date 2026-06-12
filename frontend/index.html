@@ -54,15 +54,15 @@
         <div class="lx-sidebar-item" data-page="campaigns">
           <i data-lucide="target" class="lx-icon"></i> Campaigns
         </div>
-        <div class="lx-sidebar-item" data-page="crm">
-          <i data-lucide="link-2" class="lx-icon"></i> CRM Sync
+        <div class="lx-sidebar-item" data-page="leads">
+          <i data-lucide="zap" class="lx-icon"></i> Lead Intelligence
+          <span class="count" id="sidebarLeadsCount">0</span>
         </div>
         <div class="lx-sidebar-item" data-page="agents">
           <i data-lucide="users" class="lx-icon"></i> VOIZ Roster
         </div>
-        <div class="lx-sidebar-item" data-page="leads">
-          <i data-lucide="zap" class="lx-icon"></i> Lead Intelligence
-          <span class="count" id="sidebarLeadsCount">0</span>
+        <div class="lx-sidebar-item" data-page="crm">
+          <i data-lucide="link-2" class="lx-icon"></i> CRM Sync
         </div>
         <div class="lx-sidebar-section">Real-Time</div>
         <div class="lx-sidebar-item" data-page="monitor">
@@ -504,159 +504,17 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
 
               <!-- RT Tab Content -->
               <div class="tab-content show" id="camp-content-rt">
-                <div class="campaign-card">
-                  <div class="cc-top">
-                    <div>
-                      <div class="cc-name">Muthoot Gold Loan RT Ingestion</div>
-                      <div class="cc-sub">Mode: Real-Time Dialing | Tenant: default-tenant</div>
-                    </div>
-                    <span class="lx-badge badge-green">ACTIVE</span>
-                  </div>
-                  <div class="cc-stats">
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">12,450</div>
-                      <div class="cc-stat-label">Ingested</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">9,870</div>
-                      <div class="cc-stat-label">Attempted</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">8,204</div>
-                      <div class="cc-stat-label">Connected</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">82.6%</div>
-                      <div class="cc-stat-label">Connect Rate</div>
-                    </div>
-                  </div>
-                  <div class="cc-progress">
-                    <div class="cc-progress-label">
-                      <span>Roster: 8 VOIZ agents assigned</span>
-                      <span>Progress: 79%</span>
-                    </div>
-                    <div class="lx-progress-bar">
-                      <div class="lx-progress-fill" style="width: 79%; background: var(--lx-accent);"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="campaign-card">
-                  <div class="cc-top">
-                    <div>
-                      <div class="cc-name">Muthoot Home Loan Re-engagement</div>
-                      <div class="cc-sub">Mode: Real-Time Triggers | Tenant: default-tenant</div>
-                    </div>
-                    <span class="lx-badge badge-green">ACTIVE</span>
-                  </div>
-                  <div class="cc-stats">
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">2,142</div>
-                      <div class="cc-stat-label">Ingested</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">1,209</div>
-                      <div class="cc-stat-label">Attempted</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">812</div>
-                      <div class="cc-stat-label">Connected</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">67.1%</div>
-                      <div class="cc-stat-label">Connect Rate</div>
-                    </div>
-                  </div>
-                  <div class="cc-progress">
-                    <div class="cc-progress-label">
-                      <span>Roster: 4 VOIZ agents assigned</span>
-                      <span>Progress: 56%</span>
-                    </div>
-                    <div class="lx-progress-bar">
-                      <div class="lx-progress-fill" style="width: 56%; background: var(--lx-accent);"></div>
-                    </div>
-                  </div>
-                </div>
+                <div style="text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13px;">Loading real-time campaigns...</div>
               </div>
 
               <!-- Non-RT Tab Content -->
               <div class="tab-content" id="camp-content-nonrt">
-                <div class="campaign-card">
-                  <div class="cc-top">
-                    <div>
-                      <div class="cc-name">Muthoot Finance Personal Loan Batch</div>
-                      <div class="cc-sub">Mode: Non-RT Batch Outbound | Concurrency: 15</div>
-                    </div>
-                    <span class="lx-badge badge-amber">PAUSED</span>
-                  </div>
-                  <div class="cc-stats">
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">5,000</div>
-                      <div class="cc-stat-label">Batch Size</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">3,120</div>
-                      <div class="cc-stat-label">Attempted</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">1,822</div>
-                      <div class="cc-stat-label">Connected</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">58.4%</div>
-                      <div class="cc-stat-label">Connect Rate</div>
-                    </div>
-                  </div>
-                  <div class="cc-progress">
-                    <div class="cc-progress-label">
-                      <span>Roster: 6 VOIZ agents assigned</span>
-                      <span>Progress: 62%</span>
-                    </div>
-                    <div class="lx-progress-bar">
-                      <div class="lx-progress-fill" style="width: 62%; background: var(--lx-amber);"></div>
-                    </div>
-                  </div>
-                </div>
+                <div style="text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13px;">Loading batch campaigns...</div>
               </div>
 
               <!-- Scheduled Tab Content -->
               <div class="tab-content" id="camp-content-scheduled">
-                <div class="campaign-card">
-                  <div class="cc-top">
-                    <div>
-                      <div class="cc-name">Muthoot Gold Ingest Scheduled Q3</div>
-                      <div class="cc-sub">Mode: Scheduled Outbound | Starts: Tomorrow 10:00 AM</div>
-                    </div>
-                    <span class="lx-badge badge-gray">SCHEDULED</span>
-                  </div>
-                  <div class="cc-stats">
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">8,500</div>
-                      <div class="cc-stat-label">Expected Leads</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">0</div>
-                      <div class="cc-stat-label">Attempted</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">0</div>
-                      <div class="cc-stat-label">Connected</div>
-                    </div>
-                    <div class="cc-stat">
-                      <div class="cc-stat-val">0%</div>
-                      <div class="cc-stat-label">Connect Rate</div>
-                    </div>
-                  </div>
-                  <div class="cc-progress">
-                    <div class="cc-progress-label">
-                      <span>Roster: 10 VOIZ agents reserved</span>
-                      <span>Progress: 0%</span>
-                    </div>
-                    <div class="lx-progress-bar">
-                      <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
-                    </div>
-                  </div>
-                </div>
+                <div style="text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13px;">Loading scheduled campaigns...</div>
               </div>
             </div>
 
@@ -938,7 +796,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               </div>
             </div>
             <!-- 5 sliders in a row -->
-            <div class="li-sliders-row">
+            <div class="li-sliders-row" id="sliders-row-container">
               <div class="li-slider-item">
                 <div class="li-slider-top">
                   <span>Demographic Fit</span>
@@ -981,157 +839,6 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             </div>
           </div>
 
-          <!-- MIDDLE: Ingest form — full width, 2-column internal layout -->
-          <div class="lx-card li-ingest-card">
-            <div class="li-ingest-header">
-              <div class="lx-pill-tabs" id="ingest-mode-tabs">
-                <button class="lx-pill-tab active" data-tab="single"><i data-lucide="zap" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Ingest Single Lead</button>
-                <button class="lx-pill-tab" data-tab="batch"><i data-lucide="folder-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Batch JSON Upload</button>
-                <button class="lx-pill-tab" data-tab="crm-ingest"><i data-lucide="refresh-cw" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Import from CRM</button>
-              </div>
-            </div>
-
-            <!-- Single Lead Form — 2-column: left=identity, right=signals -->
-            <div class="tab-content show" id="ingest-form-single">
-              <form id="singleIngestForm" class="li-single-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <!-- LEFT COL: Identity -->
-                <div class="li-form-col">
-                  <div class="form-section-label">Identity & Source</div>
-                  <div class="li-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="form-group">
-                      <label for="leadName">Full Name</label>
-                      <input type="text" id="leadName" placeholder="John Doe" class="lx-input">
-                    </div>
-                    <div class="form-group">
-                      <label for="leadPhone">Phone Number *</label>
-                      <input type="tel" id="leadPhone" placeholder="+919876543210" required class="lx-input">
-                    </div>
-                    <div class="form-group">
-                      <label for="leadEmail">Email Address</label>
-                      <input type="email" id="leadEmail" placeholder="john@example.com" class="lx-input">
-                    </div>
-                    <div class="form-group">
-                      <label for="leadSource">Source *</label>
-                      <select id="leadSource" required class="lx-input">
-                        <option value="referral">Referral (High Fit)</option>
-                        <option value="organic">Organic Search</option>
-                        <option value="re-engagement">Re-engagement</option>
-                        <option value="paid_ads" selected>Paid Ads (AdWords/Meta)</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="form-section-label" style="margin-top:10px;">Demographics</div>
-                  <div class="li-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                    <div class="form-group">
-                      <label for="leadAge">Age</label>
-                      <input type="number" id="leadAge" placeholder="25" min="1" max="100" class="lx-input">
-                    </div>
-                    <div class="form-group">
-                      <label for="leadCity">City</label>
-                      <input type="text" id="leadCity" placeholder="Mumbai" class="lx-input">
-                    </div>
-                    <div class="form-group">
-                      <label for="leadIncome">Monthly Income (₹)</label>
-                      <input type="number" id="leadIncome" placeholder="60000" class="lx-input">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- RIGHT COL: Signals + Submit -->
-                <div class="li-form-col">
-                  <div class="form-section-label">Behavioural Signals</div>
-                  <div class="li-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items:center;">
-                    <div class="form-group">
-                      <label for="leadPages">Pages Visited</label>
-                      <input type="number" id="leadPages" placeholder="3" min="0" value="0" class="lx-input">
-                    </div>
-                    <div class="li-checkbox-group" style="margin-top: 20px;">
-                      <input type="checkbox" id="leadVideo">
-                      <label for="leadVideo">Watched Video</label>
-                    </div>
-                    <div class="li-checkbox-group" style="margin-top: 20px;">
-                      <input type="checkbox" id="leadCourse">
-                      <label for="leadCourse">Viewed Course</label>
-                    </div>
-                  </div>
-
-                  <div class="form-section-label" style="margin-top:10px;">Prior Interaction</div>
-                  <div class="form-group">
-                    <label for="leadPriorOutcome">Prior Outcome (Status)</label>
-                    <select id="leadPriorOutcome" class="lx-input">
-                      <option value="pending" selected>None (First Attempt)</option>
-                      <option value="callback_requested">Callback Requested</option>
-                      <option value="no_answer">No Answer / Busy</option>
-                      <option value="not_interested">Not Interested</option>
-                    </select>
-                  </div>
-
-                  <button type="submit" id="submitSingleBtn" class="lx-btn primary btn-block li-submit-btn" style="margin-top:15px;">
-                    Ingest Lead
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <!-- Batch JSON Form -->
-            <div class="tab-content" id="ingest-form-batch">
-              <div class="li-batch-form">
-                <div class="li-batch-hint" style="display:flex; gap:10px; align-items:center;">
-                  <i data-lucide="folder" style="width:20px; height:20px;"></i>
-                  <div>
-                    <div style="font-weight:600; color:var(--lx-text); font-size:12.5px;">Bulk Lead Upload</div>
-                    <div style="font-size:11px; color:var(--lx-muted); margin-top:2px;">Paste a JSON array of up to 500 leads. Click Load Template to see the expected format.</div>
-                  </div>
-                </div>
-                <textarea id="batchJsonArea" class="lx-input li-batch-textarea" placeholder="Paste JSON array here..."></textarea>
-                <div class="li-batch-actions" style="display:flex; gap:10px; margin-top:8px;">
-                  <button id="loadSampleBatchBtn" class="lx-btn" style="flex:1;"><i data-lucide="clipboard" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Load Template</button>
-                  <button id="submitBatchBtn" class="lx-btn primary" style="flex:1;"><i data-lucide="upload" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>Ingest Batch</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Direct CRM Sync Form -->
-            <div class="tab-content" id="ingest-form-crm-ingest">
-              <div class="li-batch-form">
-                <div class="li-batch-hint" style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
-                  <i data-lucide="refresh-cw" style="width:20px; height:20px;"></i>
-                  <div>
-                    <div style="font-weight:600; color:var(--lx-text); font-size:12.5px;">Direct CRM Inbound Sync</div>
-                    <div style="font-size:11px; color:var(--lx-muted); margin-top:2px;">Pull contact lists from your connected CRM portals directly into your active LeadX pipeline database.</div>
-                  </div>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:12px; align-items:flex-end;">
-                  <div class="form-group">
-                    <label for="directCrmSourceSelect">CRM Provider *</label>
-                    <select id="directCrmSourceSelect" class="lx-input" onchange="onDirectCrmProviderChange()">
-                      <option value="hubspot">HubSpot CRM</option>
-                      <option value="leadsquared">LeadSquared</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="directCrmListSelect">Target Sync List / Segment *</label>
-                    <select id="directCrmListSelect" class="lx-input">
-                      <!-- Dynamic list options -->
-                    </select>
-                  </div>
-                  <div style="display:flex; gap:8px;">
-                    <button id="directCrmFetchBtn" class="lx-btn" style="flex:1;" onclick="fetchCrmLeadsDirectPreview()">Verify Connection</button>
-                    <button id="directCrmSyncBtn" class="lx-btn primary" style="flex:1.5;" onclick="syncCrmLeadsDirect()"><i data-lucide="download" style="width:12px; height:12px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>Sync CRM Contacts</button>
-                  </div>
-                </div>
-
-                <div id="direct-crm-sync-status-row" style="margin-top: 10px; background: rgba(0, 0, 0, 0.15); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--lx-border); font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
-                  <span>CRM Integration Connection Status:</span>
-                  <span class="lx-badge badge-gray" id="direct-crm-status-badge">NOT CONFIGURED</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- BOTTOM: Leads Intelligence Table -->
           <div class="lx-card">
             <div class="leads-header" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 8px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -1146,6 +853,10 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="warm"><i data-lucide="thermometer" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Warm <span class="filter-count" id="fc-warm">0</span></span>
                   <span class="lx-badge badge-gray" style="cursor:pointer;" data-filter="cold"><i data-lucide="snowflake" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Cold <span class="filter-count" id="fc-cold">0</span></span>
                 </div>
+                <!-- Campaign Filter Dropdown -->
+                <select id="leads-campaign-filter" class="lx-input" style="width: 170px; padding: 3px 8px; font-size: 11.5px; margin: 0; height: 26px; line-height: 1.2;">
+                  <option value="all">All Campaigns</option>
+                </select>
                 <button id="rescoreAllBtn" class="lx-btn lx-btn-small">Rescore All Leads</button>
               </div>
             </div>
