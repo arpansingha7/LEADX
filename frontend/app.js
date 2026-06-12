@@ -10,6 +10,7 @@ let tenantWeights = {
 };
 let allLeads = [];
 let currentFilter = 'all';
+let tenantOnboardingConfig = {};
 
 let parsedCsvHeaders = [];
 let parsedCsvRows = [];
@@ -66,22 +67,6 @@ const leadsList = document.getElementById('leadsList');
 const leadsCount = document.getElementById('leadsCount');
 const sidebarLeadsCount = document.getElementById('sidebarLeadsCount');
 
-const sliders = {
-  demographic_fit: document.getElementById('weight-demographic_fit'),
-  source_quality: document.getElementById('weight-source_quality'),
-  recency: document.getElementById('weight-recency'),
-  behavioural_signals: document.getElementById('weight-behavioural_signals'),
-  prior_interaction: document.getElementById('weight-prior_interaction')
-};
-
-const sliderVals = {
-  demographic_fit: document.getElementById('val-demographic_fit'),
-  source_quality: document.getElementById('val-source_quality'),
-  recency: document.getElementById('val-recency'),
-  behavioural_signals: document.getElementById('val-behavioural_signals'),
-  prior_interaction: document.getElementById('val-prior_interaction')
-};
-
 // Toast Notification Elements
 const toast = document.getElementById('notificationToast');
 const toastIcon = document.getElementById('toastIcon');
@@ -96,6 +81,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadTenantData();
   startActivitySimulator();
   seedInitialDataIfEmpty();
+  fetchCampaignsList();
 
   // Poll call events stream every 5 seconds
   setInterval(fetchCallEventsStream, 5000);
@@ -128,6 +114,8 @@ function setupNavigation() {
       }
       if (pageId === 'crm') {
         loadCrmPageData();
+      } else if (pageId === 'campaigns') {
+        fetchCampaignsList();
       }
     });
   });
@@ -157,19 +145,18 @@ function setupEventListeners() {
     }
   });
 
-  // Dynamic slider input listeners
-  Object.keys(sliders).forEach(key => {
-    if (sliders[key]) {
-      sliders[key].addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        if (sliderVals[key]) sliderVals[key].textContent = val.toFixed(2);
-        updateWeightsSum();
-      });
-    }
-  });
+
 
   // Save weights config
   saveConfigBtn.addEventListener('click', saveWeightsConfig);
+
+  // Campaign scoring filter dropdown change listener
+  const campaignFilterDropdown = document.getElementById('leads-campaign-filter');
+  if (campaignFilterDropdown) {
+    campaignFilterDropdown.addEventListener('change', () => {
+      renderLeads(allLeads);
+    });
+  }
 
   // Ingest forms pill tab toggling
   const ingestTabs = document.querySelectorAll('#ingest-mode-tabs .lx-pill-tab');
@@ -179,9 +166,12 @@ function setupEventListeners() {
       tab.classList.add('active');
 
       const tabId = tab.getAttribute('data-tab');
-      document.getElementById('ingest-form-single').className = 'tab-content' + (tabId === 'single' ? ' show' : '');
-      document.getElementById('ingest-form-batch').className = 'tab-content' + (tabId === 'batch' ? ' show' : '');
-      document.getElementById('ingest-form-crm-ingest').className = 'tab-content' + (tabId === 'crm-ingest' ? ' show' : '');
+      const singleFormEl = document.getElementById('ingest-form-single');
+      const batchFormEl = document.getElementById('ingest-form-batch');
+      const crmFormEl = document.getElementById('ingest-form-crm-ingest');
+      if (singleFormEl) singleFormEl.className = 'tab-content' + (tabId === 'single' ? ' show' : '');
+      if (batchFormEl) batchFormEl.className = 'tab-content' + (tabId === 'batch' ? ' show' : '');
+      if (crmFormEl) crmFormEl.className = 'tab-content' + (tabId === 'crm-ingest' ? ' show' : '');
       if (tabId === 'crm-ingest') {
         loadDirectCrmIngestData();
       }
@@ -215,13 +205,19 @@ function setupEventListeners() {
   });
 
   // Single Ingest Submit
-  singleIngestForm.addEventListener('submit', handleSingleIngest);
+  if (singleIngestForm) {
+    singleIngestForm.addEventListener('submit', handleSingleIngest);
+  }
 
   // Sample Batch loading
-  loadSampleBatchBtn.addEventListener('click', loadSampleJsonTemplate);
+  if (loadSampleBatchBtn) {
+    loadSampleBatchBtn.addEventListener('click', loadSampleJsonTemplate);
+  }
 
   // Batch Ingest submit
-  submitBatchBtn.addEventListener('click', handleBatchIngest);
+  if (submitBatchBtn) {
+    submitBatchBtn.addEventListener('click', handleBatchIngest);
+  }
 
   // Rescore All Leads
   rescoreAllBtn.addEventListener('click', handleRescoreAll);
@@ -229,9 +225,13 @@ function setupEventListeners() {
   // Reset Scoring Weights to defaults
   if (resetWeightsBtn) {
     resetWeightsBtn.addEventListener('click', () => {
-      const isAlreadyDefault = Object.keys(DEFAULT_WEIGHTS).every(key =>
-        sliders[key] && Math.abs(parseFloat(sliders[key].value) - DEFAULT_WEIGHTS[key]) < 0.001
-      );
+      const activeIndustry = getActiveIndustry();
+      const activeKeys = getActiveSliderKeysForIndustry(activeIndustry);
+
+      const isAlreadyDefault = activeKeys.every(slider => {
+        const input = document.getElementById(`weight-${slider.key}`);
+        return input && Math.abs(parseFloat(input.value) - slider.defaultWeight) < 0.001;
+      });
 
       if (isAlreadyDefault) {
         resetWeightsBtn.textContent = 'Already Default';
@@ -245,12 +245,17 @@ function setupEventListeners() {
         return;
       }
 
-      Object.keys(DEFAULT_WEIGHTS).forEach(key => {
-        if (sliders[key]) sliders[key].value = DEFAULT_WEIGHTS[key];
-        if (sliderVals[key]) sliderVals[key].textContent = DEFAULT_WEIGHTS[key].toFixed(2);
+      activeKeys.forEach(slider => {
+        const input = document.getElementById(`weight-${slider.key}`);
+        if (input) input.value = slider.defaultWeight;
+        const valDisplay = document.getElementById(`val-${slider.key}`);
+        if (valDisplay) valDisplay.textContent = slider.defaultWeight.toFixed(2);
+        
+        tenantWeights[slider.key] = slider.defaultWeight;
       });
+
       updateWeightsSum();
-      showToast('Weights Reset', 'Restored to defaults: 0.25 / 0.25 / 0.20 / 0.15 / 0.15', 'rotate-ccw');
+      showToast('Weights Reset', 'Restored weights to active industry default configurations.', 'rotate-ccw');
     });
   }
 
@@ -350,18 +355,20 @@ function setupEventListeners() {
 // 3. Dynamic Weight Calculation & Delta Checking
 function updateWeightsSum() {
   let sum = 0;
-  Object.keys(sliders).forEach(key => {
-    if (sliders[key]) sum += parseFloat(sliders[key].value);
+  const rangeInputs = document.querySelectorAll('#sliders-row-container input[type="range"]');
+  rangeInputs.forEach(input => {
+    sum += parseFloat(input.value);
   });
   
-  sumIndicator.textContent = `Sum: ${sum.toFixed(3)}`;
-  
-  if (Math.abs(sum - 1.0) <= 0.001) {
-    sumIndicator.className = 'sum-indicator valid';
-    saveConfigBtn.removeAttribute('disabled');
-  } else {
-    sumIndicator.className = 'sum-indicator invalid';
-    saveConfigBtn.setAttribute('disabled', 'true');
+  if (sumIndicator) {
+    sumIndicator.textContent = `Sum: ${sum.toFixed(3)}`;
+    if (Math.abs(sum - 1.0) <= 0.001) {
+      sumIndicator.className = 'sum-indicator valid';
+      if (saveConfigBtn) saveConfigBtn.removeAttribute('disabled');
+    } else {
+      sumIndicator.className = 'sum-indicator invalid';
+      if (saveConfigBtn) saveConfigBtn.setAttribute('disabled', 'true');
+    }
   }
 }
 
@@ -373,13 +380,41 @@ async function loadTenantData() {
       const configData = await configRes.json();
       if (configData.success && configData.weights) {
         tenantWeights = configData.weights;
-        Object.keys(tenantWeights).forEach(key => {
-          if (sliders[key]) {
-            sliders[key].value = tenantWeights[key];
-            if (sliderVals[key]) sliderVals[key].textContent = tenantWeights[key].toFixed(2);
-          }
-        });
-        updateWeightsSum();
+      }
+    }
+
+    // Load onboarding / CRM credentials config on startup
+    const onboardRes = await fetch(`${API_BASE}/onboard?tenant_id=${currentTenant}`);
+    if (onboardRes.ok) {
+      const data = await onboardRes.json();
+      if (data.success && data.onboarding_config) {
+        tenantOnboardingConfig = data.onboarding_config;
+        // HubSpot
+        if (data.onboarding_config.hubspot_oauth) {
+          crmConfig.hubspot.connected = true;
+          crmConfig.hubspot.enabled = true;
+        }
+        if (data.onboarding_config.hubspot_api_key) {
+          crmConfig.hubspot.apiKey = data.onboarding_config.hubspot_api_key;
+          crmConfig.hubspot.connected = true;
+          crmConfig.hubspot.enabled = true;
+        }
+        if (data.onboarding_config.hubspot_portal_id) {
+          crmConfig.hubspot.portalId = data.onboarding_config.hubspot_portal_id;
+        }
+
+        // LeadSquared
+        if (data.onboarding_config.ls_access_key) {
+          crmConfig.leadsquared.accessKey = data.onboarding_config.ls_access_key;
+          crmConfig.leadsquared.connected = true;
+          crmConfig.leadsquared.enabled = true;
+        }
+        if (data.onboarding_config.ls_secret_key) {
+          crmConfig.leadsquared.secretKey = data.onboarding_config.ls_secret_key;
+        }
+        if (data.onboarding_config.ls_api_host) {
+          crmConfig.leadsquared.apiHost = data.onboarding_config.ls_api_host;
+        }
       }
     }
 
@@ -397,6 +432,7 @@ async function fetchLeadsList() {
       const leadsData = await leadsRes.json();
       if (leadsData.success) {
         allLeads = leadsData.leads;
+        updateCampaignFilterDropdown(allLeads);
         renderLeads(allLeads);
         updateDashboardKPIs(allLeads);
       }
@@ -468,15 +504,28 @@ function updateLeadIntelligenceAnalytics(leads) {
 
 // 5. Render Lead Feed & Dynamic UI Elements
 function renderLeads(leads) {
-  leadsCount.textContent = leads.length;
-  sidebarLeadsCount.textContent = leads.length;
-  updateFilterCounts(leads);
-  updateLeadIntelligenceAnalytics(leads);
+  const campaignFilterDropdown = document.getElementById('leads-campaign-filter');
+  const selectedCampaign = campaignFilterDropdown ? campaignFilterDropdown.value : 'all';
 
-  let filtered = leads;
-  if (currentFilter === 'hot') filtered = leads.filter(l => l.score >= 80);
-  else if (currentFilter === 'warm') filtered = leads.filter(l => l.score >= 50 && l.score < 80);
-  else if (currentFilter === 'cold') filtered = leads.filter(l => l.score < 50);
+  let campaignFilteredLeads = leads;
+  if (selectedCampaign && selectedCampaign !== 'all') {
+    campaignFilteredLeads = leads.filter(l => (l.campaign_name || 'Manual Ingests') === selectedCampaign);
+  }
+
+  // Render Dynamic weights sliders based on the active campaign industry
+  const activeIndustry = getActiveIndustry();
+  const activeKeys = getActiveSliderKeysForIndustry(activeIndustry);
+  renderSliders(activeKeys);
+
+  leadsCount.textContent = campaignFilteredLeads.length;
+  sidebarLeadsCount.textContent = leads.length;
+  updateFilterCounts(campaignFilteredLeads);
+  updateLeadIntelligenceAnalytics(campaignFilteredLeads);
+
+  let filtered = campaignFilteredLeads;
+  if (currentFilter === 'hot') filtered = campaignFilteredLeads.filter(l => l.score >= 80);
+  else if (currentFilter === 'warm') filtered = campaignFilteredLeads.filter(l => l.score >= 50 && l.score < 80);
+  else if (currentFilter === 'cold') filtered = campaignFilteredLeads.filter(l => l.score < 50);
 
   if (filtered.length === 0) {
     leadsList.innerHTML = `
@@ -617,8 +666,10 @@ function updateDashboardKPIs(leads) {
 // 7. Save Weights config API
 async function saveWeightsConfig() {
   const weights = {};
-  Object.keys(sliders).forEach(key => {
-    if (sliders[key]) weights[key] = parseFloat(sliders[key].value);
+  const rangeInputs = document.querySelectorAll('#sliders-row-container input[type="range"]');
+  rangeInputs.forEach(input => {
+    const key = input.id.replace('weight-', '');
+    weights[key] = parseFloat(input.value);
   });
 
   try {
@@ -1270,29 +1321,31 @@ function findBestHeaderMatch(targetKey, targetLabel, headers) {
   return bestMatch;
 }
 
-window.parseAndPrepareMapping = function() {
-  const uploadVal = document.getElementById('wizardUploadArea').value.trim();
-  if (!uploadVal) {
-    showToast('Input Required', 'Please paste CSV data first.', 'alert-triangle', 'warning');
-    return;
-  }
+window.parseAndPrepareMapping = function(isCrm = false) {
+  if (!isCrm) {
+    const uploadVal = document.getElementById('wizardUploadArea').value.trim();
+    if (!uploadVal) {
+      showToast('Input Required', 'Please paste CSV data first.', 'alert-triangle', 'warning');
+      return;
+    }
 
-  const lines = uploadVal.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  if (lines.length < 2) {
-    showToast('Format Error', 'CSV must contain at least a header line and one data row.', 'alert-triangle', 'error');
-    return;
-  }
+    const lines = uploadVal.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) {
+      showToast('Format Error', 'CSV must contain at least a header line and one data row.', 'alert-triangle', 'error');
+      return;
+    }
 
-  parsedCsvHeaders = lines[0].split(',').map(h => h.trim());
-  parsedCsvRows = [];
+    parsedCsvHeaders = lines[0].split(',').map(h => h.trim());
+    parsedCsvRows = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim());
-    const row = {};
-    parsedCsvHeaders.forEach((h, idx) => {
-      row[h] = cols[idx] || '';
-    });
-    parsedCsvRows.push(row);
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      const row = {};
+      parsedCsvHeaders.forEach((h, idx) => {
+        row[h] = cols[idx] || '';
+      });
+      parsedCsvRows.push(row);
+    }
   }
 
   const fieldsContainer = document.getElementById('mappingFieldsContainer');
@@ -1427,6 +1480,10 @@ window.commitWizardData = function() {
       }
     });
 
+    if (row.hubspot_id) {
+      lead.raw_data.hubspot_id = row.hubspot_id;
+    }
+
     return lead;
   }).filter(l => l.phone);
 
@@ -1453,6 +1510,9 @@ window.commitWizardData = function() {
   })
   .then(res => res.json())
   .then(onboardData => {
+    if (onboardData.success && onboardData.onboarding_config) {
+      tenantOnboardingConfig = onboardData.onboarding_config;
+    }
     const batchPayload = {
       tenant_id: currentTenant,
       dataset_id: datasetId,
@@ -1477,6 +1537,7 @@ window.commitWizardData = function() {
       if (leadsItem) leadsItem.click();
 
       await fetchLeadsList();
+      await fetchCampaignsList();
       fetchAuditTrail();
     } else {
       showToast('Ingest Failed', batchData.message || 'Error processing batch upload.', 'alert-triangle', 'error');
@@ -1884,6 +1945,9 @@ async function saveCrmConfig(provider) {
 
     onboardingConfig.hubspot_api_key = crmConfig.hubspot.apiKey;
     onboardingConfig.hubspot_portal_id = crmConfig.hubspot.portalId;
+    if (crmConfig.hubspot.apiKey) {
+      delete onboardingConfig.hubspot_oauth;
+    }
   } else {
     crmConfig.leadsquared.accessKey = document.getElementById('ls-access-key').value;
     crmConfig.leadsquared.secretKey = document.getElementById('ls-secret-key').value;
@@ -1908,6 +1972,8 @@ async function saveCrmConfig(provider) {
     if (res.ok) {
       const data = await res.json();
       if (data.success) {
+        crmConfig[provider].connected = true;
+        crmConfig[provider].enabled = true;
         showToast('Settings Saved', `Configurations saved and sync'd to server for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} integration.`, 'check');
       }
     }
@@ -2323,8 +2389,8 @@ window.toggleWizardUploadMode = function(mode) {
   }
 };
 
-// Updates wizard CRM lists and connection status
-window.onWizardCrmProviderChange = function() {
+// Updates wizard CRM lists and connection status dynamically from backend
+window.onWizardCrmProviderChange = async function() {
   const provider = document.getElementById('wizardCrmSourceSelect').value;
   const listSelect = document.getElementById('wizardCrmListSelect');
   const statusText = document.getElementById('wizard-crm-status-text');
@@ -2332,9 +2398,24 @@ window.onWizardCrmProviderChange = function() {
 
   if (!listSelect) return;
 
-  // Populate lists
-  const lists = CRM_MOCK_LISTS[provider] || [];
-  listSelect.innerHTML = lists.map(l => `<option value="${l.id}">${l.name} (${l.count} leads)</option>`).join('');
+  listSelect.innerHTML = '<option value="">Loading available lists...</option>';
+
+  try {
+    const res = await fetch(`${API_BASE}/crm-lists?tenant_id=${currentTenant}&provider=${provider}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.lists && data.lists.length > 0) {
+        listSelect.innerHTML = data.lists.map(l => `<option value="${l.id}">${l.name} (${l.count} leads)</option>`).join('');
+      } else {
+        listSelect.innerHTML = '<option value="">No list segments found</option>';
+      }
+    } else {
+      listSelect.innerHTML = '<option value="">Failed to query CRM lists</option>';
+    }
+  } catch (err) {
+    console.error('Error fetching CRM lists:', err);
+    listSelect.innerHTML = '<option value="">Error retrieving CRM lists</option>';
+  }
 
   // Update status
   if (crmConfig[provider].connected) {
@@ -2348,10 +2429,14 @@ window.onWizardCrmProviderChange = function() {
   }
 };
 
-// Simulates fetching contacts from CRM in Wizard
+// Fetches actual contact records from selected CRM list
 window.fetchCrmContactsForWizard = async function() {
   const provider = document.getElementById('wizardCrmSourceSelect').value;
   const listSelect = document.getElementById('wizardCrmListSelect');
+  if (!listSelect || listSelect.selectedIndex === -1 || !listSelect.value) {
+    showToast('Selection Required', 'Please select a lead list first.', 'alert-triangle', 'warning');
+    return;
+  }
   const selectedListName = listSelect.options[listSelect.selectedIndex].text.split(' (')[0];
   const btn = document.getElementById('wizard-crm-fetch-btn');
 
@@ -2364,28 +2449,43 @@ window.fetchCrmContactsForWizard = async function() {
   btn.setAttribute('disabled', 'true');
   btn.textContent = 'Querying Lists...';
 
-  await new Promise(resolve => setTimeout(resolve, 600));
+  await new Promise(resolve => setTimeout(resolve, 500));
   btn.textContent = 'Retrieving Contact Records...';
 
-  await new Promise(resolve => setTimeout(resolve, 800));
-  btn.textContent = 'Mapping Schema Properties...';
+  try {
+    const res = await fetch(`${API_BASE}/crm-contacts?tenant_id=${currentTenant}&provider=${provider}&list_id=${listSelect.value}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.contacts && data.contacts.length > 0) {
+        // Populate wizard data fields by taking the union of all keys across all contacts
+        const allKeys = new Set(['firstname', 'lastname', 'email', 'phone', 'Customer Name', 'Contact Phone', 'Email Address']);
+        data.contacts.forEach(c => {
+          Object.keys(c).forEach(k => allKeys.add(k));
+        });
+        parsedCsvHeaders = Array.from(allKeys);
+        parsedCsvRows = data.contacts;
 
-  await new Promise(resolve => setTimeout(resolve, 600));
+        // Auto-fill campaign tags
+        document.getElementById('wizardCampaignName').value = `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} List: ${selectedListName}`;
+        document.getElementById('wizardDatasetId').value = `ds-${provider}-${listSelect.value}`;
 
-  // Populate wizard data fields
-  parsedCsvHeaders = Object.keys(CRM_MOCK_CONTACTS[0]);
-  parsedCsvRows = [...CRM_MOCK_CONTACTS];
-
-  // Auto-fill campaign tags
-  document.getElementById('wizardCampaignName').value = `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} List: ${selectedListName}`;
-  document.getElementById('wizardDatasetId').value = `ds-${provider}-${listSelect.value}`;
-
-  showToast('Fetch Succeeded', `Pulled ${parsedCsvRows.length} contacts from ${provider === 'hubspot' ? 'HubSpot CRM' : 'LeadSquared'}`, 'check');
-  btn.removeAttribute('disabled');
-  btn.textContent = 'Fetch CRM Contacts';
-
-  // Automatically advance to column mapping wizard step
-  parseAndPrepareMapping();
+        showToast('Fetch Succeeded', `Pulled ${parsedCsvRows.length} contacts from ${provider === 'hubspot' ? 'HubSpot CRM' : 'LeadSquared'}`, 'check');
+        
+        // Automatically advance to column mapping wizard step
+        parseAndPrepareMapping(true);
+      } else {
+        showToast('Fetch Failed', 'No contact records returned from selected list.', 'alert-triangle', 'error');
+      }
+    } else {
+      showToast('Fetch Failed', 'Failed to retrieve list records from server.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('Fetch CRM contacts error:', err);
+    showToast('Fetch Error', 'Unexpected connection error during fetch.', 'alert-triangle', 'error');
+  } finally {
+    btn.removeAttribute('disabled');
+    btn.textContent = 'Fetch CRM Contacts';
+  }
 };
 
 // Initializes direct sync UI options on Lead Intelligence page
@@ -2395,7 +2495,9 @@ function loadDirectCrmIngestData() {
 
 // Handles provider dropdown change on Direct Sync panel
 window.onDirectCrmProviderChange = function() {
-  const provider = document.getElementById('directCrmSourceSelect').value;
+  const providerEl = document.getElementById('directCrmSourceSelect');
+  if (!providerEl) return;
+  const provider = providerEl.value;
   const listSelect = document.getElementById('directCrmListSelect');
   const statusBadge = document.getElementById('direct-crm-status-badge');
 
@@ -2490,6 +2592,7 @@ window.syncCrmLeadsDirect = async function() {
       
       // Reload leads leads list view
       await fetchLeadsList();
+      await fetchCampaignsList();
       
       logActivityFeed(`CRM Import: Ingested <strong>${data.accepted} contacts</strong> directly from list: "${selectedListName}"`);
     } else {
@@ -2508,5 +2611,481 @@ window.syncCrmLeadsDirect = async function() {
         connLine.classList.remove('active');
       }
     }, 2500);
+  }
+};
+
+// Dynamic Campaign Manager and Filtering Helpers
+function updateCampaignFilterDropdown(leads) {
+  const dropdown = document.getElementById('leads-campaign-filter');
+  if (!dropdown) return;
+
+  const currentValue = dropdown.value;
+
+  // Extract unique campaigns
+  const campaigns = new Set();
+  leads.forEach(l => {
+    if (l.campaign_name) campaigns.add(l.campaign_name);
+  });
+
+  dropdown.innerHTML = '<option value="all">All Campaigns</option>';
+  campaigns.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    dropdown.appendChild(opt);
+  });
+
+  // Re-set value if it still exists, otherwise default to all
+  if (campaigns.has(currentValue)) {
+    dropdown.value = currentValue;
+  } else {
+    dropdown.value = 'all';
+  }
+}
+
+function getActiveIndustry() {
+  const campaignFilterDropdown = document.getElementById('leads-campaign-filter');
+  const selectedCampaign = campaignFilterDropdown ? campaignFilterDropdown.value : 'all';
+
+  if (!selectedCampaign || selectedCampaign === 'all') {
+    return 'General';
+  }
+
+  const nameLower = selectedCampaign.toLowerCase();
+  if (nameLower.includes('real estate') || nameLower.includes('realestate') || nameLower.includes('property') || nameLower.includes('home') || nameLower.includes('housing')) {
+    return 'Real Estate';
+  } else if (nameLower.includes('bfsi') || nameLower.includes('bank') || nameLower.includes('loan') || nameLower.includes('gold loan') || nameLower.includes('credit') || nameLower.includes('finance')) {
+    return 'BFSI';
+  } else if (nameLower.includes('education') || nameLower.includes('course') || nameLower.includes('college') || nameLower.includes('school') || nameLower.includes('enrollment')) {
+    return 'Education';
+  }
+
+  // Scan leads of this specific campaign to see if we can find a dominant category
+  const campaignLeads = allLeads.filter(l => (l.campaign_name || 'Manual Ingests') === selectedCampaign);
+  let hasRealEstate = false;
+  let hasBFSI = false;
+  let hasEducation = false;
+  
+  for (const lead of campaignLeads) {
+    const raw = lead.raw_data || {};
+    if (raw.budget !== undefined || raw.property_type !== undefined || raw.location_preference !== undefined || raw.bhk !== undefined || raw.location !== undefined) {
+      hasRealEstate = true;
+      break;
+    }
+    if (raw.credit_score !== undefined || raw.monthly_income !== undefined || raw.loan_amount !== undefined || raw.desired_loan !== undefined) {
+      hasBFSI = true;
+      break;
+    }
+    if (raw.course_interest !== undefined || raw.qualification !== undefined || raw.year_of_graduation !== undefined) {
+      hasEducation = true;
+      break;
+    }
+  }
+
+  if (hasRealEstate) return 'Real Estate';
+  if (hasBFSI) return 'BFSI';
+  if (hasEducation) return 'Education';
+
+  return 'General';
+}
+
+function getActiveSliderKeysForIndustry(industry) {
+  const indNormalized = industry ? industry.toLowerCase().replace(/[^a-z]/g, '') : '';
+  if (indNormalized === 'realestate') {
+    return [
+      { key: 'budget', label: 'Budget Fit', defaultWeight: 0.33 },
+      { key: 'property_type', label: 'BHK Fit', defaultWeight: 0.33 },
+      { key: 'location_preference', label: 'Location Fit', defaultWeight: 0.34 }
+    ];
+  } else if (indNormalized === 'bfsi') {
+    return [
+      { key: 'monthly_income', label: 'Income Fit', defaultWeight: 0.33 },
+      { key: 'credit_score', label: 'Credit Score Fit', defaultWeight: 0.33 },
+      { key: 'loan_amount', label: 'Loan Amount Fit', defaultWeight: 0.34 }
+    ];
+  } else if (indNormalized === 'education') {
+    return [
+      { key: 'course_interest', label: 'Course Fit', defaultWeight: 0.50 },
+      { key: 'qualification', label: 'Qualification Fit', defaultWeight: 0.50 }
+    ];
+  } else {
+    // Keep original fallback of 5 weights
+    return [
+      { key: 'demographic_fit', label: 'Demographic Fit', defaultWeight: 0.25 },
+      { key: 'source_quality', label: 'Source Quality', defaultWeight: 0.25 },
+      { key: 'recency', label: 'Recency', defaultWeight: 0.20 },
+      { key: 'behavioural_signals', label: 'Behavioural Signals', defaultWeight: 0.15 },
+      { key: 'prior_interaction', label: 'Prior Interaction', defaultWeight: 0.15 }
+    ];
+  }
+}
+
+function renderSliders(activeSliderKeys) {
+  const container = document.getElementById('sliders-row-container');
+  if (!container) return;
+
+  // Check if same keys are already rendered to avoid destroying focus during slider dragging
+  const activeKeysStr = activeSliderKeys.map(k => k.key).join(',');
+  if (container.getAttribute('data-active-keys') === activeKeysStr) {
+    activeSliderKeys.forEach(slider => {
+      const input = document.getElementById(`weight-${slider.key}`);
+      if (input) {
+        let val = tenantWeights[slider.key];
+        if (val === undefined) val = slider.defaultWeight;
+        input.value = val;
+        const display = document.getElementById(`val-${slider.key}`);
+        if (display) display.textContent = val.toFixed(2);
+      }
+    });
+    updateWeightsSum();
+    return;
+  }
+
+  container.setAttribute('data-active-keys', activeKeysStr);
+  container.innerHTML = '';
+
+  activeSliderKeys.forEach((slider, idx) => {
+    const item = document.createElement('div');
+    item.className = 'li-slider-item';
+
+    let val = tenantWeights[slider.key];
+    if (val === undefined) {
+      val = slider.defaultWeight;
+    }
+
+    item.innerHTML = `
+      <div class="li-slider-top">
+        <span>${slider.label}</span>
+        <span id="val-${slider.key}" class="slider-val">${val.toFixed(2)}</span>
+      </div>
+      <input type="range" id="weight-${slider.key}" min="0" max="1" step="0.01" value="${val}" class="slider">
+    `;
+
+    container.appendChild(item);
+
+    if (idx < activeSliderKeys.length - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'li-slider-sep';
+      container.appendChild(sep);
+    }
+  });
+
+  setupSliderEventListeners();
+  updateWeightsSum();
+}
+
+function setupSliderEventListeners() {
+  const rangeInputs = document.querySelectorAll('#sliders-row-container input[type="range"]');
+  rangeInputs.forEach(input => {
+    const newEl = input.cloneNode(true);
+    input.parentNode.replaceChild(newEl, input);
+    
+    newEl.addEventListener('input', (e) => {
+      const key = e.target.id.replace('weight-', '');
+      const val = parseFloat(e.target.value);
+      const valDisplay = document.getElementById(`val-${key}`);
+      if (valDisplay) valDisplay.textContent = val.toFixed(2);
+
+      tenantWeights[key] = val;
+      updateWeightsSum();
+    });
+  });
+}
+
+window.fetchCampaignsList = async function() {
+  try {
+    const res = await fetch(`${API_BASE}/campaigns?tenant_id=${currentTenant}`);
+    if (!res.ok) throw new Error('Failed to fetch campaigns');
+    const data = await res.json();
+    if (data.success) {
+      renderCampaigns(data.campaigns);
+    }
+  } catch (err) {
+    console.error('Error fetching campaigns:', err);
+  }
+};
+
+function renderCampaigns(campaigns) {
+  const rtContainer = document.getElementById('camp-content-rt');
+  const nonrtContainer = document.getElementById('camp-content-nonrt');
+  const scheduledContainer = document.getElementById('camp-content-scheduled');
+
+  if (!rtContainer || !nonrtContainer || !scheduledContainer) return;
+
+  rtContainer.innerHTML = '';
+  nonrtContainer.innerHTML = '';
+  scheduledContainer.innerHTML = '';
+
+  const rtCamps = [];
+  const nonrtCamps = [];
+  const scheduledCamps = [];
+
+  campaigns.forEach(camp => {
+    const nameLower = camp.name.toLowerCase();
+    if (nameLower.includes('scheduled')) {
+      scheduledCamps.push(camp);
+    } else if (nameLower.includes('batch') || nameLower.includes('csv') || nameLower.includes('json') || nameLower.includes('upload')) {
+      nonrtCamps.push(camp);
+    } else {
+      rtCamps.push(camp);
+    }
+  });
+
+  // Render dynamic list or placeholders
+  if (rtCamps.length === 0) {
+    rtContainer.innerHTML = `
+      <div class="campaign-card">
+        <div class="cc-top">
+          <div>
+            <div class="cc-name">Muthoot Gold Loan RT Ingestion</div>
+            <div class="cc-sub">Mode: Real-Time Dialing | Tenant: ${currentTenant}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Gold Loan RT Ingestion')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <span class="lx-badge badge-green">ACTIVE</span>
+          </div>
+        </div>
+        <div class="cc-stats">
+          <div class="cc-stat">
+            <div class="cc-stat-val">12,450</div>
+            <div class="cc-stat-label">Ingested</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">9,870</div>
+            <div class="cc-stat-label">Attempted</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">8,204</div>
+            <div class="cc-stat-label">Connected</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">82.6%</div>
+            <div class="cc-stat-label">Connect Rate</div>
+          </div>
+        </div>
+        <div class="cc-progress">
+          <div class="cc-progress-label">
+            <span>Roster: 8 VOIZ agents assigned</span>
+            <span>Progress: 79%</span>
+          </div>
+          <div class="lx-progress-bar">
+            <div class="lx-progress-fill" style="width: 79%; background: var(--lx-accent);"></div>
+          </div>
+        </div>
+      </div>
+      <div class="campaign-card">
+        <div class="cc-top">
+          <div>
+            <div class="cc-name">Muthoot Home Loan Re-engagement</div>
+            <div class="cc-sub">Mode: Real-Time Triggers | Tenant: ${currentTenant}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Home Loan Re-engagement')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <span class="lx-badge badge-green">ACTIVE</span>
+          </div>
+        </div>
+        <div class="cc-stats">
+          <div class="cc-stat">
+            <div class="cc-stat-val">2,142</div>
+            <div class="cc-stat-label">Ingested</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">1,209</div>
+            <div class="cc-stat-label">Attempted</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">812</div>
+            <div class="cc-stat-label">Connected</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">67.1%</div>
+            <div class="cc-stat-label">Connect Rate</div>
+          </div>
+        </div>
+        <div class="cc-progress">
+          <div class="cc-progress-label">
+            <span>Roster: 4 VOIZ agents assigned</span>
+            <span>Progress: 56%</span>
+          </div>
+          <div class="lx-progress-bar">
+            <div class="lx-progress-fill" style="width: 56%; background: var(--lx-accent);"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    rtContainer.innerHTML = rtCamps.map(renderCampaignCardHtml).join('');
+  }
+
+  if (nonrtCamps.length === 0) {
+    nonrtContainer.innerHTML = `
+      <div class="campaign-card">
+        <div class="cc-top">
+          <div>
+            <div class="cc-name">Muthoot Finance Personal Loan Batch</div>
+            <div class="cc-sub">Mode: Non-RT Batch Outbound | Concurrency: 15</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Finance Personal Loan Batch')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <span class="lx-badge badge-amber">PAUSED</span>
+          </div>
+        </div>
+        <div class="cc-stats">
+          <div class="cc-stat">
+            <div class="cc-stat-val">5,000</div>
+            <div class="cc-stat-label">Batch Size</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">3,120</div>
+            <div class="cc-stat-label">Attempted</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">1,822</div>
+            <div class="cc-stat-label">Connected</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">58.4%</div>
+            <div class="cc-stat-label">Connect Rate</div>
+          </div>
+        </div>
+        <div class="cc-progress">
+          <div class="cc-progress-label">
+            <span>Roster: 6 VOIZ agents assigned</span>
+            <span>Progress: 62%</span>
+          </div>
+          <div class="lx-progress-bar">
+            <div class="lx-progress-fill" style="width: 62%; background: var(--lx-amber);"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    nonrtContainer.innerHTML = nonrtCamps.map(renderCampaignCardHtml).join('');
+  }
+
+  if (scheduledCamps.length === 0) {
+    scheduledContainer.innerHTML = `
+      <div class="campaign-card">
+        <div class="cc-top">
+          <div>
+            <div class="cc-name">Muthoot Gold Ingest Scheduled Q3</div>
+            <div class="cc-sub">Mode: Scheduled Outbound | Starts: Tomorrow 10:00 AM</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Gold Ingest Scheduled Q3')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <span class="lx-badge badge-gray">SCHEDULED</span>
+          </div>
+        </div>
+        <div class="cc-stats">
+          <div class="cc-stat">
+            <div class="cc-stat-val">8,500</div>
+            <div class="cc-stat-label">Expected Leads</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">0</div>
+            <div class="cc-stat-label">Attempted</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">0</div>
+            <div class="cc-stat-label">Connected</div>
+          </div>
+          <div class="cc-stat">
+            <div class="cc-stat-val">0%</div>
+            <div class="cc-stat-label">Connect Rate</div>
+          </div>
+        </div>
+        <div class="cc-progress">
+          <div class="cc-progress-label">
+            <span>Roster: 10 VOIZ agents reserved</span>
+            <span>Progress: 0%</span>
+          </div>
+          <div class="lx-progress-bar">
+            <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    scheduledContainer.innerHTML = scheduledCamps.map(renderCampaignCardHtml).join('');
+  }
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function renderCampaignCardHtml(camp) {
+  let agentsAssigned = 4;
+  if (camp.name.toLowerCase().includes('real estate')) agentsAssigned = 6;
+  else if (camp.name.toLowerCase().includes('gold')) agentsAssigned = 8;
+  
+  const progressPercent = camp.ingested > 0 ? Math.min(Math.round((camp.attempted / camp.ingested) * 100), 100) : 0;
+  
+  return `
+    <div class="campaign-card">
+      <div class="cc-top">
+        <div>
+          <div class="cc-name">${camp.name}</div>
+          <div class="cc-sub">Leads Active | Tenant: ${currentTenant}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="lx-btn primary" onclick="viewCampaignScores('${camp.name}')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+          <span class="lx-badge badge-green">ACTIVE</span>
+        </div>
+      </div>
+      <div class="cc-stats">
+        <div class="cc-stat">
+          <div class="cc-stat-val">${camp.ingested.toLocaleString()}</div>
+          <div class="cc-stat-label">Ingested</div>
+        </div>
+        <div class="cc-stat">
+          <div class="cc-stat-val">${camp.attempted.toLocaleString()}</div>
+          <div class="cc-stat-label">Attempted</div>
+        </div>
+        <div class="cc-stat">
+          <div class="cc-stat-val">${camp.connected.toLocaleString()}</div>
+          <div class="cc-stat-label">Connected</div>
+        </div>
+        <div class="cc-stat">
+          <div class="cc-stat-val">${camp.connect_rate}%</div>
+          <div class="cc-stat-label">Connect Rate</div>
+        </div>
+      </div>
+      <div class="cc-progress">
+        <div class="cc-progress-label">
+          <span>Roster: ${agentsAssigned} VOIZ agents assigned</span>
+          <span>Progress: ${progressPercent}%</span>
+        </div>
+        <div class="lx-progress-bar">
+          <div class="lx-progress-fill" style="width: ${progressPercent}%; background: var(--lx-accent);"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.viewCampaignScores = function(campaignName) {
+  const leadsItem = document.querySelector('.lx-sidebar-item[data-page="leads"]');
+  if (leadsItem) {
+    leadsItem.click();
+  }
+
+  const filterDropdown = document.getElementById('leads-campaign-filter');
+  if (filterDropdown) {
+    let found = false;
+    for (let i = 0; i < filterDropdown.options.length; i++) {
+      if (filterDropdown.options[i].value === campaignName) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = campaignName;
+      opt.textContent = campaignName;
+      filterDropdown.appendChild(opt);
+    }
+    filterDropdown.value = campaignName;
+    filterDropdown.dispatchEvent(new Event('change'));
   }
 };
