@@ -1,46 +1,34 @@
 # LEADX Module 1 — Ingestion & Scoring Engine Technical Guide
 
-This document is the official reference manual for **Module 1 (Week 1)** of the LEADX Platform. It outlines what was built, the architectural design decisions, installation steps, Saturday mentor demonstration walkthroughs, and business/technical Q&A prep cards to aid in your Pre-Placement Offer (PPO) review.
+This document is the official technical reference for the core ingestion and lead scoring capabilities of the LEADX Platform. It outlines the architecture, database constraints, verification steps, Saturday demo script, and core engineering concepts.
 
 ---
 
-## 1. Executive Summary & Purpose
+## 1. Executive Summary & Capabilities
 
-### 1.1 What Has Been Done
-We have designed and developed the complete foundation of the LEADX Core Layer:
-*   **Database Infrastructure:** Set up standard SQL tables to represent the system entities, including `leads`, `call_sessions`, `call_events`, `tenant_configs`, and `config_audit_log` with robust constraints.
-*   **Dual-mode DB Client:** Programmed a smart database client that connects to live Supabase (via web socket clients) or gracefully falls back to an in-memory database mock.
-*   **Lead Ingestion REST Engine:** Implemented highly validated endpoints for single and batch ingestion (up to 500 leads), including phone-number normalization and validation checks.
-*   **Scoring Engine v1:** Developed a dynamic, config-driven scoring engine that evaluates demographic fit, source quality, recency, behavioral signals, and interaction outcomes against weights.
-*   **Premium Glassmorphic Dashboard:** Built a sleek multi-page dashboard utilizing dark mode glassmorphism and modern UI paradigms. It contains six sections:
-    1.  **Dashboard**: Main dashboard with KPI strips, 7-stage campaign funnels, real-time activity timelines, and hot leads lists with intent rings.
-    2.  **Campaign Manager**: Separates Real-Time, Non-RT, and Scheduled modes. Customizes retry configurations, call windows, and concurrency thresholds.
-    3.  **VOIZ Roster**: Displays status cards (On Call, Idle, Offline) with language settings, calls completed, and roster comparison matrices.
-    4.  **Lead Intelligence**: Unifies single lead ingestion, batch JSON uploads, scoring weight configuration, and the leads table with masked numbers and action buttons.
-    5.  **Live Monitor**: real-time tracking of active calls with animated audio waveforms, teal highlights on warm human handoffs, and FIFO queues.
-    6.  **Client Portal**: Muthoot Finance branded co-header, WoW trends, API response health, and export hooks.
-*   **Automated Testing Suite:** Implemented unit/integration tests and parallel load benchmark tests verifying p99 response latencies.
+LEADX owns the orchestration layer for Predixion AI's voice agent telephony infrastructure. In Module 1, we implemented the foundational ingestion and scoring pipeline:
 
-### 1.2 Business & Technical Purpose
-*   **Immediate Qualification (Business):** Manual sales outreach is slow and expensive. LEADX ingests leads instantly, formats them, and computes a score to identify "Hot" leads immediately, ensuring they are queued for dialers before they turn cold.
-*   **Multi-tenant Configurability (Business):** A lending client values income above all, while an ed-tech client values age and city. By using JSON-driven configurations per tenant, deployment teams customize scoring criteria instantly without modifying application code.
-*   **Database Resilience (Technical):** Separating the DB layer and building a seeded mock DB lets developers and mentors start testing locally with `npm run dev` in 5 seconds flat without waiting to provision cloud databases.
-*   **Testing Isolation (Technical):** By decoupling the Express `app` setup from the TCP network binding (`server.js`), we run isolated, parallel unit tests on random ports without port collisions.
+*   **Database Infrastructure:** Set up standard SQL tables (`leads`, `call_sessions`, `call_events`, `tenant_configs`, `config_audit_log`) with strict constraints.
+*   **Dual-Mode DB Client:** Built a database client that connects to live Supabase cloud databases or falls back to an in-memory database mock for local development and testing.
+*   **Lead Ingestion REST Engine:** Highly validated REST endpoints for single (`POST /leads/ingest`) and batch uploads (`POST /leads/batch`) up to 500 leads, including E.164 phone normalization.
+*   **Scoring Engine (v1):** Developed a dynamic, config-driven scoring engine that evaluates demographic fit, source quality, recency, behavioral signals, and interaction outcomes against weights.
+*   **Glassmorphic Control Dashboard:** Built a sleek multi-page dark-themed dashboard using vanilla HTML, CSS, and JS.
+*   **Automated Testing Suite:** Native unit and integration tests combined with high-concurrency load testing stress benchmarks.
+
+---
 
 ## 2. Technology Stack & Design Decisions
 
-We chose a highly performant and lightweight technology stack tailored for live voice operations:
-
 *   **API / Backend: Node.js + Express (ESM)**
-    *   *Why this choice:* Express is extremely fast and lightweight, running on Node's async non-blocking event loop. In telephony orchestration, VOIZ events stream in real-time as HTTP webhooks. Express processes these asynchronous payloads with minimal memory footprint. We used modern ES Modules (`import/export`) to ensure alignment with standard modern JavaScript patterns.
+    *   *Decision:* Express runs on Node's async non-blocking event loop. telephonies stream in real-time, and Express handles these async webhook payloads with a minimal memory footprint. ES Modules ensure modern JS compliance.
 *   **Database: Supabase (PostgreSQL)**
-    *   *Why this choice:* PostgreSQL was chosen over NoSQL databases because lead status tracking requires ACID-compliant state transitions. Supabase provides PostgreSQL hosting out-of-the-box. We leverage Postgres indexing on query fields (`tenant_id`) and unique indexes (`tenant_id`, `phone`) to prevent race conditions. Additionally, native `JSONB` support allows us to store raw, schema-less demographic and behavioral lead data securely without losing indexing power.
+    *   *Decision:* State tracking requires ACID-compliant transitions. PostgreSQL unique indexes on `(tenant_id, phone)` prevent concurrency race conditions. Native `JSONB` allows schema-less demographic/behavioral lead data storage while maintaining indexing power.
 *   **Testing: Node.js Native Test Runner (`node:test`)**
-    *   *Why this choice:* We selected Node's native test runner (available in Node 18+) instead of third-party libraries like Jest or Mocha. It requires zero external dependencies, features native ES Modules compatibility without Babel transpilers, and runs our integration suite in less than 1.5 seconds.
-*   **Frontend UI: Vanilla HTML5, CSS3, & JS (No Tailwind/React)**
-    *   *Why this choice:* For the Week 1 dashboard, we chose vanilla HTML/CSS to build a custom, high-fidelity glassmorphic interface. This avoids bloating the client bundle with unnecessary framework overhead. It gives us granular, low-level control over micro-animations (such as CSS keyframe audio waveforms and SVG-calculated intent score rings) which are crucial to showcase premium design aesthetics to the mentor.
+    *   *Decision:* Zero external dependencies, native ES Module support, and lightning-fast execution (<1.5s).
+*   **Frontend UI: Vanilla HTML5, CSS3, & JS**
+    *   *Decision:* Vanilla code provides low-level control over animations (voice waveforms) and custom SVG rings without framework overhead.
 *   **Normalizer: UUID v4**
-    *   *Why this choice:* We generate random UUIDs on the backend rather than using auto-incrementing integer IDs. This prevents ID enumeration attacks (where a malicious tenant guesses another tenant's lead IDs by guessing `id+1`) and eliminates synchronization clashes when merging offline or batch-ingested records.
+    *   *Decision:* Prevents ID enumeration attacks and synchronization clashes when merging offline batch uploads.
 
 ---
 
@@ -49,216 +37,105 @@ We chose a highly performant and lightweight technology stack tailored for live 
 ```text
 LEADX/
 ├── database/
-│   └── schema.sql             # SQL script mapping the full database layout
+│   └── schema.sql             # SQL database migrations
 ├── backend/
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── db.js          # Database client (live Supabase & offline in-memory mock)
+│   │   │   └── db.js          # Database client adapter (live/mock)
 │   │   ├── routes/
-│   │   │   └── leads.js       # API routes (ingest, batch, rescore, configurations)
+│   │   │   └── leads.js       # Ingestion & scoring routes
 │   │   ├── services/
-│   │   │   └── scoringEngine.js # Config-driven lead score calculator
+│   │   │   └── scoringEngine.js # Config-driven scoring math
 │   │   ├── utils/
-│   │   │   └── validation.js  # Field check validations & phone formatters
-│   │   ├── app.js             # Express app & routing definitions (serves frontend)
-│   │   └── server.js          # Main entrypoint running TCP listen
+│   │   │   └── validation.js  # Field check validations & sanitization
+│   │   ├── app.js             # Express application definition
+│   │   └── server.js          # Server entrypoint running TCP listen
 │   └── tests/
-│       ├── api.test.js        # Automated API integration tests (using node:test)
-│       └── load_test.js       # Dynamic performance stress load-testing suite
-├── frontend/
-│   ├── index.html             # Control panel dashboard HTML
-│   ├── style.css              # Custom CSS stylesheet
-│   └── app.js                 # Frontend API controller
-├── .env                       # Local environment variables
-├── .env.example               # Template environment configuration
-├── .gitignore                 # Files excluded from git
-└── package.json               # Node dependencies & execution scripts
+│       ├── api.test.js        # Automated API integration tests
+│       └── load_test.js       # Concurrent load-testing benchmarks
+└── frontend/
+    ├── index.html             # Control panel dashboard
+    ├── style.css              # Custom glassmorphic styles
+    └── app.js                 # Frontend API controller
 ```
 
 ---
 
-## 4. How to Run & Verify
+## 4. Quick Start & Verification
 
-### 4.1 Quick Start (Offline Mock DB Mode)
-No configuration required. The database adapter runs an in-memory seed dataset automatically.
+### 4.1 Running in Offline Mock DB Mode
+By default, the server starts in mock mode if no Supabase keys are configured.
+1.  **Install dependencies:** `npm install`
+2.  **Start development server:** `npm run dev`
+3.  **Open Dashboard:** Access [http://localhost:3000](http://localhost:3000)
 
-1.  **Install dependencies:**
-    ```bash
-    npm install
+### 4.2 Running in Live Supabase Mode
+1.  Create a Supabase project.
+2.  Run **[database/schema.sql](../database/schema.sql)** inside Supabase SQL Editor.
+3.  Configure your **[.env](../.env)** file:
+    ```env
+    PORT=3000
+    NODE_ENV=development
+    SUPABASE_URL=https://<your-project-id>.supabase.co
+    SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
     ```
-2.  **Start development server:**
-    ```bash
-    npm run dev
-    ```
-3.  **Access the Dashboard:**
-    Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-### 4.2 Production Start (Live Supabase DB Mode)
-1.  Create a project on [Supabase](https://supabase.com).
-2.  Navigate to **SQL Editor** in Supabase and paste the contents of `database/schema.sql`. Run it to create all tables and indices.
-3.  Create a `.env` file in the project root:
+---
 
-## 5. Saturday Mentor Demo - Shared Presentation Script
-
-To show maximum engineering professionalism, you should conduct the demo as a team. Below is the exact step-by-step split script for **Arpan (Backend & DB Focus)** and **Vedika (Frontend & UI Focus)**.
+## 5. Saturday Mentor Demo - Presentation Script
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Mentor
-    Arpan->>Mentor: Welcome, Architecture Overview & Live Server Init
+    Arpan->>Mentor: Architecture Overview & Server Start
     Vedika->>Mentor: Sidebar Navigation & UI Overview
     Vedika->>Mentor: Ingesting a Lead (Dynamic UI Scoring & SVG Rings)
-    Arpan->>Mentor: Backend validation & CleanPhone logic
-    Arpan->>Mentor: Double-Defense Deduplication (409 Conflict)
-    Vedika->>Mentor: Config Sliders & Weight Constraints
+    Arpan->>Mentor: Backend phone normalization & validation logic
+    Arpan->>Mentor: Concurrency Protection (409 Conflict demo)
+    Vedika->>Mentor: Sliders Configuration & Weight Validation
     Arpan->>Mentor: Floating-point delta tolerance (IEEE-754)
-    Vedika->>Mentor: Call Simulator (Waveforms, Handoff, DNC)
-    Arpan->>Mentor: Performance Stress-Test Benchmark (npm run perf)
+    Arpan->>Mentor: Run test suites live (npm test & npm run perf)
 ```
 
----
+### 🎙️ Part 1: Arpan (Backend & DB Focus) — 4 Minutes
+1.  **Server Init:** Start the server live with `npm run dev` and point out the terminal connection log.
+    > *"Good morning. I'll cover the backend, validation patterns, and database adapters. Our server connects to a live Supabase instance and gracefully falls back to an offline mock database in-memory if credentials are not configured, allowing immediate local testing."*
+2.  **Database Schema:** Show **[schema.sql](../database/schema.sql)**.
+    > *"Multi-tenancy is integrated at the database level. Every query is scoped by `tenant_id`. In our sandbox, we disabled PostgreSQL Row-Level Security (RLS) so the dashboard can directly interact with the tables during evaluation."*
+3.  **Sanitization & Duplicates:** Show **[validation.js](../backend/src/utils/validation.js)** and **[leads.js](../backend/src/routes/leads.js)**.
+    > *"When leads are ingested, `cleanPhone` normalizes phone numbers into E.164 formats. To prevent concurrent race conditions, we enforce a database unique index `UNIQUE(tenant_id, phone)`. If two identical requests hit the server at the exact same millisecond, the database catches the second request and throws a unique constraint violation (error 23505). Our route catches this and returns a HTTP 409 Conflict."*
 
-### 🎙️ Part 1: Arpan (Backend, DB Setup, & Validation) — 6 Minutes
-
-#### Step 1.1: Live Server Initialization & Architecture (1.5 mins)
-*   **What to do:** Open your code editor and terminal. Run the server live using `npm start` and show the terminal log output: `Successfully initialized live Supabase client.`
-*   **What to say:**
-    > *"Good morning. Today we are demonstrating Module 1 of the LEADX core layer. I will be covering the backend API, validation patterns, and database scaling. As you can see in the terminal, our Express server is running and has successfully connected to our live Supabase instance. Our DB client is designed with an offline-fallback mode—if Supabase credentials are missing, it seeds a mock database in-memory so developers can get started immediately with zero network dependency."*
-
-#### Step 1.2: Database Schema & Multi-Tenancy Scoping (1 min)
-*   **What to do:** Show the [schema.sql](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/database/schema.sql) file in your code editor. Highlight the `tenant_id` column on the tables.
-*   **What to say:**
-    > *"In our database schema, we have established our core tables: leads, call_sessions, call_events, tenant_configs, and config_audit_logs. Multi-tenancy is a first-class citizen—every table is indexed by `tenant_id`, and every SELECT/INSERT is scoped to this ID. During setup on Supabase, we disabled Postgres Row-Level Security (RLS) for our public sandbox access, meaning our public publishable keys can securely communicate with these endpoints."*
-
-#### Step 1.3: Ingestion Routing, CleanPhone, & Validation (1.5 mins)
-*   **What to do:** Open [validation.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/utils/validation.js) in your editor. Highlight the `cleanPhone` function and lead validation loops.
-*   **What to say:**
-    > *"When a lead is ingested via `POST /leads/ingest`, the request goes through strict validation checks. We check that `tenant_id`, `phone`, and `source` are present. Our `cleanPhone` helper sanitizes phone numbers, stripping away spaces, hyphens, and parenthesis, preserving only the digits and a leading `+` if present. This ensures that phone numbers are stored in a standard normalized format."*
-
-#### Step 1.4: Double-Defense Deduplication & 409 Conflict (2 mins)
-*   **What to do:** Open [leads.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/routes/leads.js) and point to the duplicate phone check (lines 87-93). Also, point to the DB unique constraint catch in `app.js` (lines 50-55).
-*   **What to say:**
-    > *"To prevent race conditions where two identical requests arrive at the exact same millisecond, we implement a double-defense deduplication system. First, the route handler does a select query check. If that check misses due to concurrency, our database unique constraint on `(tenant_id, phone)` throws a key conflict error (Postgres code 23505). Our global Express middleware catches this and maps it to a standard HTTP 409 Conflict response. Let's watch Vedika demonstrate this duplicate handling live in the UI."*
+### 🎙️ Part 2: Vedika (Frontend & UI Focus) — 4 Minutes
+1.  **Dashboard UI:** Navigate through the 6 sidebar panels at `http://localhost:3000`.
+    > *"Hi! I'll demonstrate the dashboard. We built a high-fidelity glassmorphic panel using vanilla HTML, CSS, and JS. It features a 7-stage campaign conversion funnel, active rosters, and lead lists."*
+2.  **Ingestion Form & Priority:** Add a lead in the **Lead Intelligence** page and submit.
+    > *"Ingested leads are saved on Supabase and scored immediately. The table highlights lead priority using colors (green for Hot, amber for Warm, red for Cold) and dynamically renders custom SVG score rings with a calculated stroke offset."*
+3.  **Weights Configurator:** Move weights sliders until the sum exceeds 1.0. Show that save is disabled, then balance it to 1.00 and save.
+    > *"If weights don't sum to exactly 1.0, the UI disables saving. Once balanced, we click Save, triggering the backend to save the weights. We then click 'Rescore All Leads' to recalculate all scores live."*
 
 ---
 
-### 🎙️ Part 2: Vedika (Frontend UI & Visual Interactions) — 6 Minutes
-
-#### Step 2.1: Glassmorphic UI & Sidebar Navigation (1.5 mins)
-*   **What to do:** Share your browser screen at `http://localhost:3000`. Click through the sidebar links (Dashboard, Campaigns, VOIZ Roster, Lead Intelligence, Live Monitor, Client Portal).
-*   **What to say:**
-    > *"Hi! I'll be demonstrating the LEADX Control Center. We built a high-fidelity glassmorphic user interface using vanilla HTML and CSS, designed to resemble premium voice applications. We have separate panels: the main Dashboard funnel, a Campaign Scheduler showing dial parameters, active VOIZ agent rosters, and our Lead Intelligence center."*
-
-#### Step 2.2: Lead Ingestion Form & Interactive Score Badges (1.5 mins)
-*   **What to do:** Click **Lead Intelligence**. Fill out the manual form with standard details (referral source, Mumbai, income 600,000, checked video). Click **Ingest Lead**. Show the toast notification and scroll down to the Leads table to show the new lead with its score ring.
-*   **What to say:**
-    > *"Let's ingest a new lead manually. The frontend validates the fields locally and posts to the API. The lead is created on Supabase, scored, and updated immediately. In our leads table, I designed tier color bandings (green for Hot, amber for Warm, red for Cold) and embedded custom SVG-rendered score rings. These SVG rings compute their dashoffset dynamically based on the lead's intent score, giving immediate visual feedback of lead priority."*
-
-#### Step 2.3: Triggering Duplicate Toast Alerts (1 min)
-*   **What to do:** Click the **Ingest Lead** button again using the same phone number.
-*   **Result:** A warning toast will slide in: *"Duplicate Lead: 409: Phone number already exists for this tenant."*
-*   **What to say:**
-    > *"If I attempt to submit this duplicate phone number again, our backend blocks the insertion and returns a 409, which the frontend displays instantly via this warning toast notification, preventing double-dialing."*
-
-#### Step 2.4: Sliders Configuration & UI Rescoring (2 mins)
-*   **What to do:** Move the **Demographic Fit** slider up until the sum exceeds 1.0. Show that the sum indicator text turns red and the "Save" button is disabled. Adjust the sliders back to sum to exactly `1.00`, click **Save Scoring Weights**, then click **Rescore All Leads** and show the score rings update.
-*   **What to say:**
-    > *"We also built a dynamic Weights Configurator. If the weights do not sum to exactly 1.0, the UI disables the save button. Once balanced, we save the weights to the database. Clicking 'Rescore All Leads' triggers the backend recalculation, which updates all lead scores live in our table in a fraction of a second."*
-
----
-
-### 🎙️ Part 3: Arpan (Technical Deep-Dive: Float Safety & Benchmarks) — 3 Minutes
-
-#### Step 3.1: Floating-Point Math Safety (1.5 mins)
-*   **What to do:** Open [validation.js](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/src/utils/validation.js) in the editor and highlight lines 112-116.
-*   **What to say:**
-    > *"One technical detail we had to solve is binary floating-point rounding errors. In JavaScript, adding decimals like `0.1 + 0.2` results in `0.30000000000000004` due to IEEE-754 float representations. If we checked `sum === 1.0`, it would fail valid weights configuration. To prevent this, we implemented a delta tolerance check: `Math.abs(sum - 1.0) <= 0.001`, which allows floating-point safety while keeping math configurations strict."*
-
-#### Step 3.2: Performance Load Tests (1.5 mins)
-*   **What to do:** Open your terminal and run the benchmark script:
-    ```bash
-    npm run perf
-    ```
-*   **What to say:**
-    > *"Finally, we run parallel stress benchmarks locally. We simulate 100 requests fired concurrently in the same millisecond to test our event loop efficiency. Our server processes them at a throughput of over 250 requests per second, with a mean latency of ~250ms. Individually, each request processes in under 3ms, demonstrating that our ingestion and scoring engine is highly scalable and ready for Module 2's Queue Orchestrator. This concludes our Week 1 demonstration."*
-
----
-
-## 6. Technical & Business Q&A Prep Cards (PPO Prep)
-
-Be prepared to answer these questions during your mentor interview.
-
-### 6.1 Technical Deep Dives
+## 6. Technical & Business Q&A Prep
 
 > [!TIP]
-> **Q: How does the system handle high-concurrency duplicates? What happens if two identical requests hit the server at the exact same millisecond?**
-> *   **Answer:** *"We use a double-defense system. First, the application cleanses the phone number and performs a SELECT query. Second, to prevent race conditions (where both SELECTs return empty before both INSERTs execute), we enforce a unique database constraint `UNIQUE INDEX ON leads(tenant_id, phone)`. If a collision occurs at the storage layer, the database aborts the transaction. The database unique index throws a constraint violation (Postgres error 23505), which our global error handler intercepts and maps to a clean, user-friendly HTTP 409 Conflict."*
+> **Q: Why separate app.js and server.js?**
+> *   **Answer:** *"For test isolation. `app.js` registers Express routes, and `server.js` starts the TCP listener. This allows our test runner to import `app.js` and spin up the server on dynamic random ports concurrently, preventing EADDRINUSE collisions."*
 
 > [!TIP]
-> **Q: Why did you separate `app.js` and `server.js`?**
-> *   **Answer:** *"This is an industry best practice for test isolation. `app.js` configures the middleware, routes, and error handlers, but does not bind to a port. `server.js` imports `app` and runs `app.listen()`. This allows our test runner (`api.test.js`) and load tester (`load_test.js`) to import the app and spin up multiple server instances on dynamic random ports (`server.listen(0)`) concurrently, eliminating port collisions in CI/CD environments."*
-
-> [!TIP]
-> **Q: How will this system scale to 10,000 active leads and 500 events in under 5 minutes?**
-> *   **Answer:** *"At the API level, Express is stateless, and scoring computations are purely mathematical $O(1)$ operations taking less than 1ms. For the database, we index key search criteria, particularly `tenant_id` and `(tenant_id, phone)`, so lookups take less than 5ms. In Sprint 2, when we add the Queue Orchestrator (BullMQ/Redis), heavy operations like outbound call triggering and CRM writes are offloaded to background worker threads, allowing the ingestion API to consistently respond under 200ms."*
-
-> [!TIP]
-> **Q: How did you implement floating-point safety when validating weights?**
-> *   **Answer:** *"In JavaScript, summing floats like `0.1 + 0.2` results in `0.30000000000000004` due to binary IEEE-754 representation. Asserting `sum === 1.0` would fail. We implemented a delta tolerance check: `Math.abs(sum - 1.0) <= 0.001` to safely check for validity while avoiding float rounding errors."*
-
-### 6.2 Business & Product Alignment
-
-> [!IMPORTANT]
-> **Q: Why do we score leads dynamically instead of storing a static score?**
-> *   **Answer:** *"Lead intent is highly fluid. A lead who filled a form 3 days ago is cold. But if they watch our product video today, or request a call, their behavioral and recency signals spike. By recalculating the score, we bump them to the top of the queue, calling them within 60 seconds of high-intent actions when their purchase intent is peak."*
-
-> [!IMPORTANT]
-> **Q: What is the benefit of mapping scores to 'Hot', 'Warm', and 'Cold' bands?**
-> *   **Answer:** *"It drives resource optimization. 'Hot' leads (score $\ge$ 80) trigger immediate outbound voice agent calls and warm human handoffs. 'Warm' leads (50-79) receive scheduled callbacks during optimal hours. 'Cold' leads (< 50) are routed to low-cost channels like WhatsApp drip campaigns or email, saving expensive voice dialer minutes."*
-
-> [!IMPORTANT]
-> **Q: How do we prevent tenants from seeing or tampering with each other's data?**
-> *   **Answer:** *"We implement multi-tenant scoping. Every table is indexed by a `tenant_id`. Every API query (and database lookup) requires an explicit `tenant_id` filter. No wildcard queries are exposed. In production, row-level security (RLS) is enabled on Supabase so tenant accounts are completely sandboxed at the database level."*
+> **Q: How does the system protect weights configurations from floating-point errors?**
+> *   **Answer:** *"In JavaScript, adding decimals like `0.1 + 0.2` results in `0.30000000000000004` due to IEEE-754 binary representation. Strict checks like `sum === 1.0` would fail valid weight configuration setups. We implemented a delta tolerance check: `Math.abs(sum - 1.0) <= 0.001` in `validation.js` to ensure safety while keeping checks strict."*
 
 ---
 
-## 7. Intern Study Guide: Core Concepts & Examples
+## 7. Intern Study Guide: Core Concepts
 
-This study guide explains the core software engineering concepts used in Module 1 with easy-to-understand examples. Read this to build a solid foundation before your mentor evaluation.
+### 💡 Concept 1: Test Isolation via Separated Server Entrypoints
+By separating the configuration (`app.js`) from the network binding (`server.js`), the main application can run on port 3000, while tests concurrently load `app.js` and bind to a dynamic random port (`server.listen(0)`), avoiding address collisions.
 
-### 💡 Concept 1: Separating Express Setup (`app.js`) from Server Startup (`server.js`)
-*   **The Problem:** Normally, Node.js applications combine route setup and server listening in one file. If you run tests that start the server while your main app is already running, you get a crash: `EADDRINUSE: address already in use :::3000`.
-*   **The Solution:** We separate the **routing logic** from the **listening engine**.
-    *   `app.js` defines the middleware, routes, and JSON parsers, but it **never** calls `app.listen()`. It is just a configuration template.
-    *   `server.js` imports `app.js` and calls `app.listen(3000)` to bind to a physical port.
-*   **Related Example:** When you run `npm run dev` in your terminal, it executes `server.js` and locks port 3000. But when our automated integration test suite (`api.test.js`) runs, it imports `app.js` directly and spins it up on a random, dynamically allocated port (port `0`). This allows tests to run smoothly without colliding with your active development server.
+### 💡 Concept 2: Double-Defense Concurrency Protection
+1.  **Defense 1 (Application):** The handler runs a SQL `SELECT` to check if a phone number exists before inserting.
+2.  **Defense 2 (Database Index):** If two concurrent requests pass Defense 1 at the same millisecond, PostgreSQL catches the duplicate insert via a unique constraint index, throwing error `23505`. The backend catches this database error code and maps it to a standard `HTTP 409 Conflict`.
 
-### 💡 Concept 2: Resilient Dual-Mode Database Adapter (`db.js`)
-*   **The Problem:** If you force the server to always connect to a live cloud database, developers cannot test their code offline, or when internet connectivity is spotty.
-*   **The Solution:** We build a database adapter that detects if Supabase credentials are set in your `.env` file. If they are, it initializes the live Supabase client. If they are missing or commented out, it falls back to an offline mock database (`mockDb`) created using standard JavaScript arrays.
-*   **Related Example:** During local development, if you comment out `SUPABASE_URL`, the server starts in **Mock Database Mode**. When you send a request to `POST /leads/ingest`, the lead is appended to a local array in the server's memory (`mockDb.leads.push(newLead)`). When you paste your credentials back in, it restarts and writes to the cloud tables automatically.
-
-### 💡 Concept 3: "Double-Defense" Concurrency Protection
-*   **The Problem (Race Conditions):** Imagine two identical lead submissions with the phone number `+919876543210` hit the server at the exact same millisecond. If we only check for duplicates by running a SQL `SELECT` statement in our Express code, both requests will run the `SELECT` query at the same time, find no duplicates, and both will run `INSERT`. This is a classic **race condition** resulting in a duplicate database record.
-*   **The Solution:** We implement two defense walls:
-    1.  *Application Wall (Defense 1):* The route handler runs a `SELECT` check first. This handles 99% of normal duplicate cases.
-    2.  *Database Wall (Defense 2):* In `schema.sql`, we create a unique constraint index: `CREATE UNIQUE INDEX leads_tenant_phone_idx ON leads(tenant_id, phone);`.
-*   **Related Example:** If the millisecond race condition occurs and both requests bypass the first wall, the PostgreSQL database catches the second insertion at the storage engine level and rejects it, throwing error code `23505` (Unique Violation). Our Express middleware intercepts this database error code and returns a clear `HTTP 409 Conflict` to the user instead of letting the application crash or duplicate the data.
-
-### 💡 Concept 4: Floating-Point Rounding & Delta Tolerance Validation
-*   **The Problem:** Computers represent numbers in binary (base-2). Decimals like `0.1` and `0.2` cannot be represented exactly in binary, resulting in tiny rounding errors. In JavaScript:
-    ```javascript
-    0.1 + 0.2 === 0.3 // returns FALSE (it actually equals 0.30000000000000004)
-    ```
-    If a client configures their scoring weights to be `0.10`, `0.20`, `0.20`, `0.25`, and `0.25`, checking if the weights sum exactly to `1.0` (`sum === 1.0`) will fail due to rounding precision, blocking valid configurations from being saved.
-*   **The Solution:** Instead of strict equality, we use a **Delta Tolerance check**. We assert that the absolute difference between the sum and `1.0` is smaller than a tiny threshold (the epsilon delta, in our case `0.001`):
-    ```javascript
-    Math.abs(sum - 1.0) <= 0.001
-    ```
-*   **Related Example:** If a tenant configures weights that add up to `1.00000004` due to float calculations, `Math.abs(1.00000004 - 1.0)` is `0.00000004`, which is less than `0.001`. The configuration is correctly accepted and validated.
-
-### 💡 Concept 5: Row-Level Security (RLS) on Supabase
-*   **The Problem:** Supabase is designed as a secure backend-as-a-service. When you create tables in the Supabase dashboard, it automatically enables Row-Level Security (RLS). This blocks any anonymous API request (using the publishable key) from inserting or reading data, throwing error code `42501` (new row violates row-level security policy).
-*   **The Solution:** We must tell PostgreSQL how to handle public access. For local developer sandboxes or staging environments, we run `ALTER TABLE ... DISABLE ROW LEVEL SECURITY;` for all tables.
-*   **Related Example:** Once you run the SQL migration script containing the `ALTER TABLE leads DISABLE ROW LEVEL SECURITY` command, the live Supabase database cache refreshes, and your frontend dashboard's publishable keys are instantly allowed to fetch and ingest lead rows without getting blocked by RLS policies.
+### 💡 Concept 3: Resilient Dual-Mode Database Client
+If the environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are not configured in your `.env` file, the database layer (`db.js`) automatically swaps query methods to edit an in-memory array (`mockDb`). This prevents the application from failing to start and lets developers test locally without network dependencies.

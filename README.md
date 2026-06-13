@@ -3,11 +3,11 @@
 [![Tech Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20Express%20%7C%20Postgres-blueviolet?style=for-the-badge)](https://nodejs.org)
 [![Database](https://img.shields.io/badge/Database-Supabase%20%7C%20PostgreSQL-3ecf8e?style=for-the-badge&logo=supabase)](https://supabase.com)
 [![Build Status](https://img.shields.io/badge/Build-Passing-2ecc71?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
-[![Version](https://img.shields.io/badge/Version-1.2.0%20(Week%201)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
+[![Version](https://img.shields.io/badge/Version-2.0.0%20(Week%202)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
 
-LEADX is a next-generation AI-powered lead qualification and conversion platform built on top of **VOIZ**—Predixion AI's voice agent telephony infrastructure. While VOIZ handles ASR, TTS, and conversational LLM runtimes, **LEADX** owns the orchestration layer: ingestion pipelines, dynamic intent scoring, caller scheduling, DNC screening, human escalation handoffs, and real-time CRM updates.
+LEADX is a next-generation AI-powered lead qualification and conversion platform built on top of **VOIZ**—Predixion AI's voice agent telephony infrastructure. While VOIZ handles ASR, TTS, and conversational LLM runtimes, **LEADX** owns the orchestration layer: ingestion pipelines, dynamic intent scoring, onboarding configurations, caller scheduling, DNC screening, CRM integrations, and operations alerting.
 
-Developed by engineering interns **Arpan & Vedika** as part of the 8-week engineering handbook program at Predixion AI.
+Developed by engineering interns **Arpan & Vedika** as part of the engineering program at Predixion AI.
 
 ---
 
@@ -15,34 +15,54 @@ Developed by engineering interns **Arpan & Vedika** as part of the 8-week engine
 
 ```mermaid
 flowchart TD
-    A[External Lead Sources] -->|POST /leads/ingest| B(Ingestion API)
-    B -->|1. Normalize & Clean| C{Duplicate Check}
+    A[External Lead Sources / CSVs] -->|POST /leads/ingest or /batch| B(Ingestion API)
+    CRM[CRM Contacts Inbound] -->|Pull List Segments| B
+    B -->|1. Normalize Phone| C{Duplicate Check}
     C -->|Duplicate Found| D[409 Conflict Response]
-    C -->|Unique Lead| E[Scoring Engine v1]
-    E -->|2. Compute Score| F[Dual-Mode Database Adapter]
-    F -->|Supabase Configured| G[(Live Supabase Cloud DB)]
-    F -->|Supabase Offline| H[(In-Memory Sandbox DB)]
-    G & H -->|3. Live Refresh| I[Glassmorphic Control Center UI]
+    C -->|Unique Phone| E{DNC Screen}
+    E -->|Blocked| F[DNC Status & Slack Alert]
+    E -->|Allowed| G[Scoring Engine v2]
+    G -->|2. Compute Score BFSI/RE/Edu| H[Dual-Mode Database Adapter]
+    H -->|Supabase Configured| I[(Live Supabase Cloud DB)]
+    H -->|Supabase Offline| J[(In-Memory Sandbox DB)]
+    I & J -->|3. Live Refresh| K[Glassmorphic Control Center UI]
+    K -->|4. Trigger Outbound Call| L[VOIZ Dialer Adapter]
+    L -->|5. Webhook callbacks| B
+    B -->|6. Sync Outcomes| M[CRM Sync Adapter HubSpot/LS]
+    B -->|7. Slack webhook| N[Slack Notifications]
 ```
 
 ---
 
-## 🚀 Key Features Implemented (Module 1)
+## 🚀 Key Features Implemented (Modules 1 & 2)
 
-### 1. Ingest & Validate Engine
-*   **Normalized Phone Parsing:** Cleans spaces, dashes, and brackets down to standard E.164 formats (`+919876543210`).
-*   **Double-Defense Deduplication:** Employs application-level checks and a SQL unique index `UNIQUE(tenant_id, phone)` to prevent concurrent race conditions.
-*   **Flexible Ingest Endpoints:** Supports single lead ingestion (`POST /ingest`) and high-throughput batch uploads up to 500 leads (`POST /batch`).
+### 1. Client Onboarding & Questionnaire Wizard
+*   **Domain-Specific Questionnaire:** New clients select industry templates (**BFSI**, **Real Estate**, or **Education**) and customize campaign goals and instructions.
+*   **Self-Serve Column Mapper:** Parses uploaded CSV sheets, maps custom spreadsheet headers (e.g. *Customer Name*, *Mobile Number*) to internal schema fields, and previews the mapped grid live.
+*   **DNC Compliance Registry:** Prevents calls to Do Not Call (DNC) numbers at the platform layer.
 
-### 2. Config-Driven Scoring Engine v1
-*   **Multi-Factor Formula:** Scores leads from `0-100` dynamically based on Demographic Fit, Source Quality, Interaction Recency, and Behavioral signals (pages clicked, video watch duration).
-*   **Float Rounding Safety:** Implements delta tolerance validation (`Math.abs(sum - 1.0) <= 0.001`) to protect weights configuration from IEEE-754 decimal rounding errors.
+### 2. Config-Driven Scoring Engine (v2)
+*   **Domain-Specific Multipliers:** Scores leads dynamically from `0-100` based on industry profiles:
+    *   **BFSI:** Credit scores, monthly income tiers, and requested loan ranges.
+    *   **Real Estate:** Budgets, BHK preferences (e.g. 2BHK/3BHK), and center/city locations.
+    *   **Education:** Academic qualifications and course interests.
+*   **General Fallback:** Evaluates age, city tiers, and standard income fields.
+*   **IEEE-754 Safety:** Employs delta checks (`Math.abs(sum - 1.0) <= 0.001`) to protect weights configuration from decimal rounding issues.
 
-### 3. Glassmorphic Control Dashboard
-*   **Funnel Tracker:** Displays a 7-stage conversion funnel (Ingested $\rightarrow$ Connected $\rightarrow$ Qualified).
-*   **SVG Intent Rings:** Custom SVG circles on rows that animate their stroke offset dynamically according to calculated lead scores.
-*   **Interactive Call wave Simulator:** Triggers simulated VOIZ dial handshakes, active stream timers, and live voice waveforms in the CSS layout.
-*   **Branded Client Portal:** Co-branded Muthoot Finance workspace showing connect rates, API SLA status, and PDF export simulation.
+### 3. Dual-Mode CRM Integration Hub
+*   **HubSpot OAuth 2.0 & Auto-Refresh:** Supports token-based HubSpot authorization with automatic background access token refreshes when expired.
+*   **Private Key Support:** Connects securely to HubSpot Private Apps or LeadSquared regional APIs.
+*   **Bulk & Manual Push Queues:** Push qualified leads in bulk or individually. Includes a full audit logbook tracking sync statuses.
+*   **Direct Inbound Pulling:** Sync lists/segments directly from CRM contacts into the LEADX dialer.
+
+### 4. Glassmorphic Control Dashboard
+*   **Visual KPIs & Conversion Funnels:** Displays WoW trends, SLA response times, connect rates, and funnel logs.
+*   **Active Waveform Simulator:** Runs simulated active stream call timers and animated speech waveforms in the UI.
+*   **Lead Feed & SVG Intent Rings:** Rows animate customized SVG score rings dynamically colored by priority (Hot $\ge$ 80, Qualified $\ge$ 65).
+
+### 5. Central Logbook & Slack Webhook Alerts
+*   **Slack Operations Channel:** Sends instant Slack webhook notifications for hot lead ingests, configuration changes, dialing outcomes, and CRM failures.
+*   **Audit Trail:** Centralized database audit log mapping all ingestion metrics, manual updates, and CRM sync results.
 
 ---
 
@@ -50,11 +70,11 @@ flowchart TD
 
 | Component | Technology | Product Deciding Factors |
 | :--- | :--- | :--- |
-| **API / Backend** | **Node.js + Express (ESM)** | Asynchronous event loop; highly efficient at scale for high-frequency incoming webhooks. |
-| **Database** | **Supabase (PostgreSQL)** | ACID-compliant relational schema to track lead state transitions + native JSONB indexing. |
-| **Testing** | **Node.js Native Test Runner** | Zero external dependencies, native ES Module support, lightning-fast execution (<1.5s). |
-| **Frontend UI** | **Vanilla HTML5 & CSS3** | Custom-built dark theme; zero-overhead execution for custom micro-animations (voice waveforms). |
-| **Normalizer** | **UUID v4** | Prevents ID enumeration security exploits and sync clashes during offline batch uploads. |
+| **API / Backend** | **Node.js + Express (ESM)** | Asynchronous event loop; highly efficient for real-time voice webhook streams. |
+| **Database** | **Supabase (PostgreSQL)** | Relational schema for ACID-compliant lead state transitions + native JSONB indexing. |
+| **Testing** | **Node.js Native Test Runner** | Zero external dependencies, native ES Module support, lightning-fast execution. |
+| **Frontend UI** | **Vanilla HTML5 & CSS3** | Custom-built dark theme; zero-overhead execution for custom micro-animations. |
+| **Normalizer** | **UUID v4** | Prevents ID enumeration security exploits and sync conflicts. |
 
 ---
 
@@ -67,25 +87,31 @@ npm install
 ```
 
 ### 2. Database Migration (Supabase Cloud)
-> [!IMPORTANT]
-> If you are setting up the live Supabase database for the first time, you must disable Row-Level Security (RLS) on your tables so the publishable API key can read/write data.
-1. Create a project in your **[Supabase Dashboard](https://supabase.com/dashboard)**.
+1. Create a project in your **[Supabase Dashboard](https://supabase.com)**.
 2. Go to the **SQL Editor** tab.
-3. Open the local schema file: **[database/schema.sql](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/database/schema.sql)**.
+3. Open the local schema file: **[database/schema.sql](database/schema.sql)**.
 4. Copy its contents, paste it into the editor, and click **Run**.
 
 ### 3. Environment Configuration
-Configure Environment Variables: Create a `.env` file in the root directory and copy the contents from [`.env.example`](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/backend/.env.example). You can use these values for mock integration:
+Create a `.env` file in the root directory and copy the contents from **[backend/.env.example](backend/.env.example)**. Fill in the keys:
 ```env
 PORT=3000
 NODE_ENV=development
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/mock/webhook/url
-HUBSPOT_API_KEY=mock-hubspot-api-key
-LEADSQUARED_API_KEY=mock-leadsquared-api-key
-```
 
-> [!NOTE]
-> If you do not specify a `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, the server automatically initializes in offline mock database mode using in-memory arrays. This allows you to test the API immediately.
+# Database Settings (Leave blank to use Mock In-Memory DB)
+SUPABASE_URL=https://<your-project-id>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+
+# Slack Webhook (Leave blank/mock to fall back to Console stdout logs)
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/mock/webhook/url
+
+# CRM Credentials
+HUBSPOT_CLIENT_ID=<your-client-id>
+HUBSPOT_CLIENT_SECRET=<your-client-secret>
+HUBSPOT_REDIRECT_URI=http://localhost:3000/oauth/hubspot/callback
+HUBSPOT_API_KEY=<your-private-app-token>
+LEADSQUARED_API_KEY=<your-leadsquared-access-key>
+```
 
 ### 4. Run Development Server
 ```bash
@@ -93,12 +119,11 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
-### 5. Run Validation Tests
-Run the integration API test suite:
+### 5. Run Verification Tests
 ```bash
 npm test
 ```
-Run the concurrent load-testing stress benchmark:
+To run concurrent load-testing stress benchmarks:
 ```bash
 npm run perf
 ```
@@ -107,7 +132,6 @@ npm run perf
 
 ## 📚 Study Guides & Presentation Documentation
 
-For deeper details, Saturday presentation checklists, split scripts for Arpan and Vedika, and business/technical interview prep sheets:
-*   📖 **[LEADX Module 1 Technical Documentation (docs/module1_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module1_documentation.md)**
-*   🎙️ **[Live Saturday Demo Pitch Guide & Scripts (docs/module1_documentation.md#5-saturday-mentor-demo-shared-presentation-script)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module1_documentation.md#5-saturday-mentor-demo-shared-presentation-script)**
-*   💡 **[Intern Core Concepts Study Guide (docs/module1_documentation.md#7-intern-study-guide-core-concepts-examples)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module1_documentation.md#7-intern-study-guide-core-concepts-examples)**
+For deeper details, presentation checklists, and study guides:
+*   📖 **[LEADX Technical Guide (docs/module1_documentation.md)](docs/module1_documentation.md)** — Core architectures, validations, and Saturday demo scripts.
+*   🎙️ **[LEADX Onboarding & CRM Reference (docs/module2_documentation.md)](docs/module2_documentation.md)** — Integration guides, OAuth, DNC registry, and CRM workflows.
