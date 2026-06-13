@@ -11,7 +11,7 @@ Module 2 extends the platform with enterprise onboarding capabilities and CRM ad
 *   **Onboarding Questionnaire Wizard:** A step-by-step onboarding pipeline mapping campaign objectives, industry domains, and CRM destinations.
 *   **Self-Serve Spreadsheet Parser:** Parses raw CSV lead sheets in the browser, allowing clients to map custom headers dynamically to internal schema fields.
 *   **DNC Compliance Registry Shield:** Integrates a platform-level screening step checking numbers against national Do Not Call registries before dial sessions.
-*   **HubSpot OAuth 2.0 & Auto-Refresh:** Supports token-based HubSpot authentication, storing credentials in a Postgres JSONB field, and refreshing expired access tokens server-to-server automatically.
+*   **HubSpot OAuth 2.0 & Auto-Refresh:** Supports token-based HubSpot authorization, storing credentials in a Postgres JSONB field, and refreshing expired access tokens server-to-server automatically.
 *   **LeadSquared CRM Integration:** Standard API-key connector supporting custom payloads.
 *   **Central logbook & Slack Webhook Alerts:** Structured SQL logs (`audit_trail`) tracking sync actions and dispatching instant notices to operations channels.
 *   **Dynamic Lead Analytics:** Computes average intent score, hot lead volume, and qualification rates.
@@ -61,11 +61,11 @@ LEADX uses the **Adapter Pattern** to abstract HubSpot and LeadSquared integrati
 *   **Payload Format:**
     ```json
     [
-      { "Attribute": "FirstName", "Value": "Jane Doe" },
-      { "Attribute": "Phone", "Value": "+919999988888" },
-      { "Attribute": "EmailAddress", "Value": "jane.doe@gmail.com" },
-      { "Attribute": "mx_LeadX_Score", "Value": "85" },
-      { "Attribute": "mx_LeadX_Status", "Value": "hot_escalated" }
+      { "Attribute": "FirstName", "Value": lead.name },
+      { "Attribute": "Phone", "Value": lead.phone },
+      { "Attribute": "EmailAddress", "Value": lead.email },
+      { "Attribute": "mx_LeadX_Score", "Value": String(lead.score) },
+      { "Attribute": "mx_LeadX_Status", "Value": lead.status }
     ]
     ```
 
@@ -157,3 +157,54 @@ To shift from offline mock mode to live databases:
 1.  **Postgres Migrations:** Run **[schema.sql](../database/schema.sql)** inside your Supabase project SQL Editor.
 2.  **Environment Settings:** Add database keys, HubSpot client credentials, and Slack webhooks to **[.env](../.env)**.
 3.  **Expose Webhooks:** Use `ngrok http 3000` to expose the Express server and map webhook endpoints for telephony events.
+
+---
+
+## 8. Platform Functionality Verification Guide (How to Use & Test)
+
+Here is a step-by-step guide to verify each specific functionality implemented in the system. Make sure the development server is running (`npm run dev`) and access `http://localhost:3000` in your web browser.
+
+### 8.1 Onboarding & Column Mapping
+*   **Step 1:** Click on the **Onboarding** tab in the sidebar.
+*   **Step 2:** Choose the **BFSI** template in the industry selector, enter campaign criteria, and click **Proceed to Data Upload**.
+*   **Step 3:** Under the file uploader section, click **Load BFSI CSV Sample**. The system parses the headers and moves you to the column mapper page.
+*   **Step 4:** Observe that custom columns are mapped to schema keys. Choose mappings in the dropdowns and verify that the live preview table columns update.
+*   **Step 5:** Toggle **Enable Platform DNC Check**, select **HubSpot** in CRM destination, and click **Finalize & Ingest**. Check the leads list below to see the ingested leads.
+
+### 8.2 Phone Normalization & Lead Ingestion
+*   **Step 1:** Open the **Lead Intelligence** tab in the sidebar.
+*   **Step 2:** Under **Single Lead Ingest**, fill in name, email, referral source, monthly income, and a phone number containing formatting marks (e.g. `+91 (9988) 77-66-55`).
+*   **Step 3:** Click **Ingest Lead**. A success toast will appear.
+*   **Step 4:** Locate the lead in the table and verify that the phone number is stored in standard E.164 format: `+919988776655`.
+
+### 8.3 Weight Configurations & Dynamic Rescoring
+*   **Step 1:** Under the **Lead Intelligence** page, adjust the 5 weights sliders (Demographic Fit, Source Quality, Recency, Behavioral Signals, Prior Outcomes).
+*   **Step 2:** Try to adjust them so they sum to more than `1.000` (e.g. `1.15`). Verify that the indicator turns red and the **Save Scoring Weights** button is disabled.
+*   **Step 3:** Rebalance the sliders to sum to exactly `1.00` and click **Save Scoring Weights**.
+*   **Step 4:** Click **Rescore All Leads**. Verify that the SVG intent rings update their scores and offsets on all rows.
+
+### 8.4 HubSpot OAuth 2.0 Integration
+*   **Step 1:** Go to the **CRM Integration** tab in the sidebar.
+*   **Step 2:** Under HubSpot panel, click **Connect HubSpot CRM**.
+*   **Step 3:** A mock consent window will pop up. Click **Approve Connection**.
+*   **Step 4:** The pop-up closes automatically, a success toast pops up on the main page, the HubSpot node on the interactive connection graph glows green, and the status changes to `CONNECTED`.
+
+### 8.5 CRM Synchronizations (Manual & Bulk Pushes)
+*   **Step 1:** Click on the **CRM Integration** tab.
+*   **Step 2:** Open the **Manual Push & Bulk Sync Queue** drawer at the bottom.
+*   **Step 3:** Check the boxes next to multiple qualified leads. Choose **HubSpot** in the selector, and click **Bulk Sync**.
+*   **Step 4:** Review the **CRM Logs** table below. Verify that success sync outcomes are logged with active timestamps and external mock IDs.
+
+### 8.6 Slack Operations Webhook Alerts
+*   **Step 1:** In mock mode (no `SLACK_WEBHOOK_URL` in `.env`), perform a hot lead ingestion ($\ge 80$) or save a new weight configuration.
+*   **Step 2:** Inspect your node server console (the shell running `npm run dev`).
+*   **Step 3:** Verify that mock Slack messages are logged in the stdout feed:
+    `[Slack Notification Mock] Channel #notifications: [Ingestion Alert] HOT Lead Ingested...`
+*   *(If a live webhook is configured, the messages will be delivered directly to the designated channel).*
+
+### 8.7 VOIZ Call & Webhook Event Simulator
+*   **Step 1:** Open the **Lead Intelligence** feed.
+*   **Step 2:** Click the **Call** button next to a lead row.
+*   **Step 3:** Switch to the **Live Monitor** tab in the sidebar.
+*   **Step 4:** Note that the lead is now appearing in the active call monitors with an active call duration clock and an animated speech waveform.
+*   **Step 5:** Review the **VOIZ Call Event Stream Logs** in the panel. Verify that webhook events like `call_started`, `objection_raised`, `qualification_intent`, and `call_ended` are arriving in real time.
