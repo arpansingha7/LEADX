@@ -12,6 +12,7 @@ let port;
 let baseUrl;
 
 test.before(async () => {
+  process.env.NODE_ENV = 'test';
   await db.clearDb();
 
   return new Promise((resolve) => {

@@ -98,9 +98,20 @@ router.post('/ingest', async (req, res, next) => {
     // Check for duplicate in database
     const existingLead = await db.findLeadByPhone(tenant_id, cleaned);
     if (existingLead) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: 'A lead with this phone number already exists under the specified tenant.'
+      const newCampaign = leadData.campaign_name || 'Manual Campaigns';
+      const currentCampaigns = existingLead.campaign_name ? existingLead.campaign_name.split(',').map(c => c.trim()) : [];
+      
+      if (!currentCampaigns.includes(newCampaign)) {
+        currentCampaigns.push(newCampaign);
+        const updatedCampaignString = currentCampaigns.join(', ');
+        await db.updateLeadCampaign(existingLead.id, updatedCampaignString);
+        existingLead.campaign_name = updatedCampaignString;
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Lead already exists. Appended to new campaign.',
+        lead: existingLead
       });
     }
 
@@ -171,6 +182,7 @@ router.post('/batch', async (req, res, next) => {
     let accepted = 0;
     let rejected = 0;
     let duplicates = 0;
+    let appended = 0;
     const details = [];
 
     // Track phones inside the batch itself to prevent batch self-duplication
@@ -212,13 +224,28 @@ router.post('/batch', async (req, res, next) => {
       try {
         const existing = await db.findLeadByPhone(tenant_id, cleaned);
         if (existing) {
-          duplicates++;
-          details.push({
-            index: i,
-            phone: cleaned,
-            status: 'duplicate',
-            errors: ['Lead already exists in database']
-          });
+          const newCampaign = campaign_name || 'Batch Campaigns';
+          const currentCampaigns = existing.campaign_name ? existing.campaign_name.split(',').map(c => c.trim()) : [];
+          if (!currentCampaigns.includes(newCampaign)) {
+            currentCampaigns.push(newCampaign);
+            const updatedCampaignString = currentCampaigns.join(', ');
+            await db.updateLeadCampaign(existing.id, updatedCampaignString);
+            appended++;
+            details.push({
+              index: i,
+              phone: cleaned,
+              status: 'appended',
+              lead_id: existing.id
+            });
+          } else {
+            duplicates++;
+            details.push({
+              index: i,
+              phone: cleaned,
+              status: 'duplicate',
+              errors: ['Lead already exists in database and campaign']
+            });
+          }
           continue;
         }
 
@@ -256,24 +283,26 @@ router.post('/batch', async (req, res, next) => {
       }
     }
 
-    // Insert System Audit Log
     await db.insertAuditLog(tenant_id, 'batch_leads_ingested', {
       dataset_id: dataset_id || 'batch-upload',
       campaign_name: campaign_name || 'Batch Campaigns',
       accepted,
-      duplicates,
       rejected,
-      total_attempted: leads.length
+      duplicates,
+      appended
     });
 
-    // Slack webhook trigger for bulk ingestions
-    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${duplicates} duplicates filtered, ${rejected} rejected for campaign "${campaign_name || 'Batch Campaigns'}".`);
+    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${appended} appended, ${duplicates} duplicates filtered, ${rejected} rejected for campaign "${campaign_name || 'Batch Campaigns'}".`);
 
-    res.json({
+    res.status(200).json({
       success: true,
-      accepted,
-      rejected,
-      duplicates,
+      summary: {
+        accepted,
+        appended,
+        rejected,
+        duplicates,
+        total: leads.length
+      },
       details
     });
   } catch (error) {

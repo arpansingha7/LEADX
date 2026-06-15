@@ -10,6 +10,7 @@ let baseUrl;
 
 // Set up server before running tests
 test.before(async () => {
+  process.env.NODE_ENV = 'test';
   // Use in-memory mock database for tests to be fast and independent of networks
   await db.clearDb();
 
@@ -65,12 +66,13 @@ test('POST /leads/ingest - Ingest valid lead', async () => {
   assert.strictEqual(data.lead.status, 'queued');
 });
 
-test('POST /leads/ingest - Ingest duplicate lead (409 Conflict)', async () => {
+test('POST /leads/ingest - Ingest duplicate lead appends campaign', async () => {
   const payload = {
     tenant_id: 'test-tenant',
     name: 'Duplicate Test',
     phone: '+919999988888', // Same phone as previous test
-    source: 'organic'
+    source: 'organic',
+    campaign_name: 'New Campaign'
   };
 
   const response = await fetch(`${baseUrl}/leads/ingest`, {
@@ -79,9 +81,10 @@ test('POST /leads/ingest - Ingest duplicate lead (409 Conflict)', async () => {
     body: JSON.stringify(payload)
   });
 
-  assert.strictEqual(response.status, 409);
+  assert.strictEqual(response.status, 200);
   const data = await response.json();
-  assert.strictEqual(data.error, 'Conflict');
+  assert.strictEqual(data.success, true);
+  assert.ok(data.lead.campaign_name.includes('New Campaign'));
 });
 
 test('POST /leads/ingest - Ingest invalid lead format (400 Bad Request)', async () => {
@@ -187,9 +190,10 @@ test('POST /leads/batch - Ingest batch of leads', async () => {
   assert.strictEqual(response.status, 200);
   const data = await response.json();
   assert.strictEqual(data.success, true);
-  assert.strictEqual(data.accepted, 2);
-  assert.strictEqual(data.rejected, 1);
-  assert.strictEqual(data.duplicates, 1);
+  assert.strictEqual(data.summary.accepted, 2);
+  assert.strictEqual(data.summary.rejected, 1);
+  assert.strictEqual(data.summary.duplicates, 1);
+  assert.strictEqual(data.summary.appended, 0);
 });
 
 test('POST /leads/:id/rescore - Dynamic lead rescore', async () => {

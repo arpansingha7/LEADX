@@ -257,6 +257,25 @@ const db = {
     }
   },
 
+  async updateLeadCampaign(id, campaign_name) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ campaign_name, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const lead = mockDb.leads.find(l => l.id === id);
+      if (!lead) throw new Error('Lead not found');
+      lead.campaign_name = campaign_name;
+      lead.updated_at = new Date().toISOString();
+      return lead;
+    }
+  },
+
   async getAllLeadsByStatus(statuses) {
     if (supabase) {
       const { data, error } = await supabase
@@ -296,8 +315,6 @@ const db = {
       return mockDb.callSessions.filter(s => s.lead_id === leadId).length;
     }
   },
-
-
   async getLeads(tenantId) {
     if (supabase) {
       const { data, error } = await supabase
