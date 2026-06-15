@@ -3969,13 +3969,13 @@ window.viewBriefModal = async function(leadId) {
                         <div>
                           <div class="section-title">Key Phrases</div>
                           <div>
-                            ${keyPhrases.map(p => \`<span class="badge badge-teal">\${p}</span>\`).join('') || 'None detected'}
+                            ${keyPhrases.map(p => `<span class="badge badge-teal">${p}</span>`).join('') || 'None detected'}
                           </div>
                         </div>
                         <div>
                           <div class="section-title">Objections</div>
                           <div>
-                            ${objections.map(o => \`<span class="badge badge-red">\${o}</span>\`).join('') || 'None detected'}
+                            ${objections.map(o => `<span class="badge badge-red">${o}</span>`).join('') || 'None detected'}
                           </div>
                         </div>
                       </div>
