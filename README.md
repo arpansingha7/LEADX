@@ -146,6 +146,10 @@ For deeper details, presentation checklists, and study guides:
 *   🎙️ **[Module 2 Guide (docs/module2_documentation.md)](docs/module2_documentation.md)** — Onboarding questionnaire, dynamic CSV mapping, and HubSpot OAuth.
 *   ⚙️ **[Module 3 Guide (docs/module3_documentation.md)](docs/module3_documentation.md)** — Dialer worker loop, calling hours calculations, and exponential backoff retry math.
 *   🔌 **[Module 4 Guide (docs/module4_documentation.md)](docs/module4_documentation.md)** — Unified CRM adapters (HubSpot, LeadSquared, Salesforce), credentials flow, and LeadSquared HMAC webhook security.
+*   💬 **[Module 5 Guide (docs/module5_documentation.md)](docs/module5_documentation.md)** — Script authoring nodes, validation engine, and real-time transcript screening for supervisor escalations.
+*   🚨 **[Module 6 Guide (docs/module6_documentation.md)](docs/module6_documentation.md)** — Operations handoff flow, automatic specialist brief generation, Slack alerts, and instant dial bypass queue.
+*   📊 **[Module 7 Guide (docs/module7_documentation.md)](docs/module7_documentation.md)** — Glassmorphic dashboard, Chart.js connect rate trends/dispositions charts, and dynamic active escalation banners.
+*   🎓 **[Module 8 Guide (docs/module8_documentation.md)](docs/module8_documentation.md)** — Turnkey Ed-Tech Admissions config package, scoring weights, CRM schema mapping, and calling timezone calendars.
 *   🚀 **[Azure Deployment Guide (docs/deployment-guide.md)](docs/deployment-guide.md)** — Production setup, App Services deployment, configuration keys, and database scaling.
 *   🔌 **[CRM Sync Connector Setup (docs/crm-connector-setup.md)](docs/crm-connector-setup.md)** — HubSpot OAuth, LeadSquared webhook HMAC setup, and Salesforce task activity sync.
 *   📄 **[API Contracts Reference (docs/api-contracts.md)](docs/api-contracts.md)** — Complete REST endpoint reference with payload examples.
