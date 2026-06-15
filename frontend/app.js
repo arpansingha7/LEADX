@@ -34,6 +34,15 @@ let crmConfig = {
     apiHost: 'api.leadsquared.com',
     ruleHot: true,
     ruleCustom: true
+  },
+  salesforce: {
+    enabled: false,
+    connected: false,
+    clientId: 'mock-salesforce-client-id',
+    clientSecret: 'mock-salesforce-client-secret',
+    loginUrl: 'https://login.salesforce.com',
+    ruleHot: true,
+    ruleCustom: true
   }
 };
 
@@ -90,6 +99,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Audit Logs Poller
   setInterval(fetchAuditTrail, 10000);
   fetchAuditTrail();
+
+  // Queue Status Poller
+  setInterval(fetchQueueStatus, 5000);
+  fetchQueueStatus();
 });
 
 // 1. Navigation Panel Handler
@@ -316,6 +329,14 @@ function setupEventListeners() {
     });
   }
 
+  const sfToggle = document.getElementById('sf-toggle-btn');
+  if (sfToggle) {
+    sfToggle.addEventListener('change', (e) => {
+      crmConfig.salesforce.enabled = e.target.checked;
+      updateCrmPipelineUI();
+    });
+  }
+
   if (hsTest) {
     hsTest.addEventListener('click', () => testCrmConnection('hubspot'));
   }
@@ -414,6 +435,19 @@ async function loadTenantData() {
         }
         if (data.onboarding_config.ls_api_host) {
           crmConfig.leadsquared.apiHost = data.onboarding_config.ls_api_host;
+        }
+
+        // Salesforce
+        if (data.onboarding_config.sf_client_id) {
+          crmConfig.salesforce.clientId = data.onboarding_config.sf_client_id;
+          crmConfig.salesforce.connected = true;
+          crmConfig.salesforce.enabled = true;
+        }
+        if (data.onboarding_config.sf_client_secret) {
+          crmConfig.salesforce.clientSecret = data.onboarding_config.sf_client_secret;
+        }
+        if (data.onboarding_config.sf_login_url) {
+          crmConfig.salesforce.loginUrl = data.onboarding_config.sf_login_url;
         }
       }
     }
@@ -1741,6 +1775,25 @@ async function loadCrmPageData() {
           const lsHostEl = document.getElementById('ls-api-host');
           if (lsHostEl) lsHostEl.value = data.onboarding_config.ls_api_host;
         }
+
+        // Load Salesforce settings
+        if (data.onboarding_config.sf_client_id) {
+          crmConfig.salesforce.clientId = data.onboarding_config.sf_client_id;
+          const sfClientEl = document.getElementById('sf-client-id');
+          if (sfClientEl) sfClientEl.value = data.onboarding_config.sf_client_id;
+          crmConfig.salesforce.connected = true;
+          crmConfig.salesforce.enabled = true;
+        }
+        if (data.onboarding_config.sf_client_secret) {
+          crmConfig.salesforce.clientSecret = data.onboarding_config.sf_client_secret;
+          const sfSecretEl = document.getElementById('sf-client-secret');
+          if (sfSecretEl) sfSecretEl.value = data.onboarding_config.sf_client_secret;
+        }
+        if (data.onboarding_config.sf_login_url) {
+          crmConfig.salesforce.loginUrl = data.onboarding_config.sf_login_url;
+          const sfLoginUrlEl = document.getElementById('sf-login-url');
+          if (sfLoginUrlEl) sfLoginUrlEl.value = data.onboarding_config.sf_login_url;
+        }
       }
     }
   } catch (err) {
@@ -1860,11 +1913,36 @@ function updateCrmPipelineUI() {
       lsBadge.className = 'lx-badge badge-gray';
     }
   }
+
+  // Update Salesforce visual pipeline
+  const sfToggle = document.getElementById('sf-toggle-btn');
+  if (crmConfig.salesforce.enabled) {
+    if (sfToggle) sfToggle.checked = true;
+    const sfBadge = document.getElementById('sf-status-badge');
+    if (crmConfig.salesforce.connected) {
+      if (sfBadge) {
+        sfBadge.textContent = 'CONNECTED';
+        sfBadge.className = 'lx-badge badge-green';
+      }
+    } else {
+      if (sfBadge) {
+        sfBadge.textContent = 'ENABLED (UNTESTED)';
+        sfBadge.className = 'lx-badge badge-amber';
+      }
+    }
+  } else {
+    if (sfToggle) sfToggle.checked = false;
+    const sfBadge = document.getElementById('sf-status-badge');
+    if (sfBadge) {
+      sfBadge.textContent = 'DISCONNECTED';
+      sfBadge.className = 'lx-badge badge-gray';
+    }
+  }
 }
 
 // Simulates API handshake with external provider
 async function testCrmConnection(provider) {
-  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : 'ls'}-test-btn`);
+  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : provider === 'leadsquared' ? 'ls' : 'sf'}-test-btn`);
   if (!btn) return;
 
   const originalText = btn.textContent;
@@ -1877,9 +1955,12 @@ async function testCrmConnection(provider) {
   if (provider === 'hubspot') {
     apiKey = document.getElementById('hs-api-key').value;
     detailField = document.getElementById('hs-portal-id').value;
-  } else {
+  } else if (provider === 'leadsquared') {
     apiKey = document.getElementById('ls-access-key').value;
     detailField = document.getElementById('ls-api-host').value;
+  } else if (provider === 'salesforce') {
+    apiKey = document.getElementById('sf-client-id').value;
+    detailField = document.getElementById('sf-client-secret').value;
   }
 
   // Simulate networking delay
@@ -1897,14 +1978,16 @@ async function testCrmConnection(provider) {
   crmConfig[provider].enabled = true;
   updateCrmPipelineUI();
 
-  showToast('Handshake Succeeded', `Successfully authenticated with ${provider === 'hubspot' ? 'HubSpot Cloud' : 'LeadSquared Regional API'}`, 'check');
+  let friendlyProviderName = provider === 'hubspot' ? 'HubSpot Cloud' : provider === 'leadsquared' ? 'LeadSquared Regional API' : 'Salesforce Cloud';
+  showToast('Handshake Succeeded', `Successfully authenticated with ${friendlyProviderName}`, 'check');
   btn.removeAttribute('disabled');
   btn.textContent = 'Tested Ok';
   btn.style.borderColor = 'var(--lx-green)';
   btn.style.color = 'var(--lx-green)';
 
   // Log in activity feed
-  logActivityFeed(`CRM Connection: Handshake succeeded with <strong>${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'}</strong> provider.`);
+  let simpleProviderName = provider === 'hubspot' ? 'HubSpot' : provider === 'leadsquared' ? 'LeadSquared' : 'Salesforce';
+  logActivityFeed(`CRM Connection: Handshake succeeded with <strong>${simpleProviderName}</strong> provider.`);
   
   setTimeout(() => {
     btn.textContent = originalText;
@@ -1915,7 +1998,7 @@ async function testCrmConnection(provider) {
 
 // Saves integration settings
 async function saveCrmConfig(provider) {
-  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : 'ls'}-save-btn`);
+  const btn = document.getElementById(`${provider === 'hubspot' ? 'hs' : provider === 'leadsquared' ? 'ls' : 'sf'}-save-btn`);
   if (!btn) return;
 
   const originalText = btn.textContent;
@@ -1948,7 +2031,7 @@ async function saveCrmConfig(provider) {
     if (crmConfig.hubspot.apiKey) {
       delete onboardingConfig.hubspot_oauth;
     }
-  } else {
+  } else if (provider === 'leadsquared') {
     crmConfig.leadsquared.accessKey = document.getElementById('ls-access-key').value;
     crmConfig.leadsquared.secretKey = document.getElementById('ls-secret-key').value;
     crmConfig.leadsquared.apiHost = document.getElementById('ls-api-host').value;
@@ -1958,6 +2041,16 @@ async function saveCrmConfig(provider) {
     onboardingConfig.ls_access_key = crmConfig.leadsquared.accessKey;
     onboardingConfig.ls_secret_key = crmConfig.leadsquared.secretKey;
     onboardingConfig.ls_api_host = crmConfig.leadsquared.apiHost;
+  } else if (provider === 'salesforce') {
+    crmConfig.salesforce.clientId = document.getElementById('sf-client-id').value;
+    crmConfig.salesforce.clientSecret = document.getElementById('sf-client-secret').value;
+    crmConfig.salesforce.loginUrl = document.getElementById('sf-login-url').value;
+    crmConfig.salesforce.ruleHot = document.getElementById('sf-rule-hot').checked;
+    crmConfig.salesforce.ruleCustom = document.getElementById('sf-rule-custom').checked;
+
+    onboardingConfig.sf_client_id = crmConfig.salesforce.clientId;
+    onboardingConfig.sf_client_secret = crmConfig.salesforce.clientSecret;
+    onboardingConfig.sf_login_url = crmConfig.salesforce.loginUrl;
   }
 
   try {
@@ -1974,7 +2067,8 @@ async function saveCrmConfig(provider) {
       if (data.success) {
         crmConfig[provider].connected = true;
         crmConfig[provider].enabled = true;
-        showToast('Settings Saved', `Configurations saved and sync'd to server for ${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} integration.`, 'check');
+        let displayProvider = provider === 'hubspot' ? 'HubSpot' : provider === 'leadsquared' ? 'LeadSquared' : 'Salesforce';
+        showToast('Settings Saved', `Configurations saved and sync'd to server for ${displayProvider} integration.`, 'check');
       }
     }
   } catch (err) {
@@ -3087,5 +3181,102 @@ window.viewCampaignScores = function(campaignName) {
     }
     filterDropdown.value = campaignName;
     filterDropdown.dispatchEvent(new Event('change'));
+  }
+};
+
+window.fetchQueueStatus = async function() {
+  try {
+    const res = await fetch(`${API_BASE}/queue-status?tenant_id=${currentTenant}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.stats) {
+        const stats = data.stats;
+        const queuedEl = document.getElementById('queue-stat-queued');
+        const callingEl = document.getElementById('queue-stat-calling');
+        const retriesEl = document.getElementById('queue-stat-retries');
+        const dncEl = document.getElementById('queue-stat-dnc');
+        
+        if (queuedEl) queuedEl.textContent = stats.queued ?? 0;
+        if (callingEl) callingEl.textContent = stats.calling ?? 0;
+        if (retriesEl) retriesEl.textContent = stats.re_queued ?? 0;
+        if (dncEl) dncEl.textContent = stats.dnc ?? 0;
+      }
+    }
+    
+    // Also update the active ingestion queue table!
+    const leadsRes = await fetch(`${API_BASE}?tenant_id=${currentTenant}`);
+    if (leadsRes.ok) {
+      const leadsData = await leadsRes.json();
+      if (leadsData.success) {
+        allLeads = leadsData.leads;
+        renderActiveQueueTable(allLeads);
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching queue status:', err);
+  }
+};
+
+function renderActiveQueueTable(leads) {
+  const tbody = document.getElementById('monitor-queue-tbody');
+  if (!tbody) return;
+
+  const queuedLeads = leads.filter(l => l.status === 'queued' || l.status === 're-queued' || l.status === 'calling');
+  // Sort by score descending
+  queuedLeads.sort((a, b) => b.score - a.score);
+
+  if (queuedLeads.length === 0) {
+    tbody.innerHTML = `
+      <tr class="lx-empty-row">
+        <td colspan="3" style="text-align: center; color: var(--lx-muted); padding: 12px;">No leads currently queued.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = queuedLeads.map(lead => {
+    let badgeColor = 'var(--lx-text)';
+    if (lead.status === 'calling') badgeColor = 'var(--lx-green)';
+    if (lead.status === 're-queued') badgeColor = 'var(--lx-amber)';
+    return `
+      <tr>
+        <td><strong>${lead.name || 'Unknown'}</strong></td>
+        <td><span style="font-family: var(--lx-mono); color: ${badgeColor};">${lead.phone} (${lead.status})</span></td>
+        <td style="text-align: right;"><span class="lx-badge badge-teal">${lead.score}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.triggerForceRetryDialer = async function() {
+  const btn = document.getElementById('forceRetryDialerBtn');
+  if (btn) {
+    btn.setAttribute('disabled', 'true');
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = 'Retrying...';
+    try {
+      const res = await fetch(`${API_BASE}/force-retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: currentTenant })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          showToast('Force Retry Succeeded', data.message || 'Leads re-queued successfully.', 'check');
+          fetchQueueStatus();
+        } else {
+          showToast('Force Retry Failed', data.message || 'Could not re-queue leads.', 'alert-triangle', 'error');
+        }
+      } else {
+        showToast('Force Retry Error', 'Server returned status ' + res.status, 'alert-triangle', 'error');
+      }
+    } catch (err) {
+      console.error('Error triggering force retry dialer:', err);
+      showToast('Network Error', 'Failed to reach backend server.', 'alert-triangle', 'error');
+    } finally {
+      btn.removeAttribute('disabled');
+      btn.innerHTML = originalContent;
+    }
   }
 };

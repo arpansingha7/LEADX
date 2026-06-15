@@ -62,7 +62,7 @@ test('POST /leads/ingest - Ingest valid lead', async () => {
   assert.ok(data.lead.id);
   assert.strictEqual(data.lead.phone, '+919999988888');
   assert.ok(data.lead.score > 0);
-  assert.strictEqual(data.lead.status, 'pending');
+  assert.strictEqual(data.lead.status, 'queued');
 });
 
 test('POST /leads/ingest - Ingest duplicate lead (409 Conflict)', async () => {
@@ -472,3 +472,193 @@ test('GET /leads/campaigns - Retrieve and aggregate campaigns list', async () =>
   assert.strictEqual(typeof camp.connected, 'number');
   assert.strictEqual(typeof camp.connect_rate, 'number');
 });
+
+// ============================================================
+// MODULE 3 & 4 TESTS (Priority Queue, DNC, Retry, Webhooks, CRM)
+// ============================================================
+
+import { isCallable, handleCallOutcome } from '../src/services/queueService.js';
+import { getCRMConnector } from '../src/services/crmService.js';
+import crypto from 'crypto';
+
+test('POST /leads/dnc - Register phone in DNC registry', async () => {
+  // First ingest a lead
+  const phone = '+919999911111';
+  const ingestPayload = {
+    tenant_id: 'test-tenant',
+    name: 'DNC Target Lead',
+    phone,
+    source: 'organic'
+  };
+
+  const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ingestPayload)
+  });
+  const ingestData = await ingestRes.json();
+  assert.strictEqual(ingestData.success, true);
+
+  // Now, call POST /leads/dnc
+  const dncRes = await fetch(`${baseUrl}/leads/dnc`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tenant_id: 'test-tenant', phone })
+  });
+
+  assert.strictEqual(dncRes.status, 200);
+  const dncData = await dncRes.json();
+  assert.strictEqual(dncData.success, true);
+  assert.ok(dncData.message.includes('registered in DNC'));
+
+  // Check database that the lead's status is updated to 'dnc'
+  const lead = await db.findLeadById(ingestData.lead.id);
+  assert.strictEqual(lead.status, 'dnc');
+
+  // Check isDncNumber directly
+  const isDnc = await db.isDncNumber('test-tenant', phone);
+  assert.strictEqual(isDnc, true);
+});
+
+test('POST /leads/webhook/leadsquared - Valid HMAC signature', async () => {
+  const secretKey = 'mock-secret';
+  const payload = {
+    FirstName: 'John',
+    LastName: 'Doe',
+    Phone: '+919000012345',
+    EmailAddress: 'john.doe@lsq.com',
+    dataset_id: 'inbound-lsq',
+    campaign_name: 'LeadSquared Inbound'
+  };
+
+  const hmac = crypto.createHmac('sha256', secretKey);
+  const signature = hmac.update(JSON.stringify(payload)).digest('hex');
+
+  const response = await fetch(`${baseUrl}/leads/webhook/leadsquared?tenant_id=test-tenant`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-ls-signature': signature
+    },
+    body: JSON.stringify(payload)
+  });
+
+  assert.strictEqual(response.status, 201);
+  const data = await response.json();
+  assert.strictEqual(data.success, true);
+  assert.strictEqual(data.lead.phone, '+919000012345');
+  assert.strictEqual(data.lead.status, 'queued');
+});
+
+test('POST /leads/webhook/leadsquared - Invalid HMAC signature (401)', async () => {
+  const payload = {
+    FirstName: 'Hacker',
+    Phone: '+919000067890'
+  };
+
+  const response = await fetch(`${baseUrl}/leads/webhook/leadsquared?tenant_id=test-tenant`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-ls-signature': 'invalid-signature-value'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  assert.strictEqual(response.status, 401);
+  const data = await response.json();
+  assert.strictEqual(data.error, 'Unauthorized');
+});
+
+test('Unit - calling hours enforcer (isCallable)', () => {
+  const lead = { phone: '+919876543210' };
+  
+  // Test bypass mode
+  assert.strictEqual(isCallable(lead, { bypass_calling_hours: true }), true);
+
+  // Test default logic in test context
+  assert.strictEqual(isCallable(lead, {}), true);
+});
+
+test('Unit - Dialer Retry Logic and Exponential Backoff', async () => {
+  // Reset db
+  await db.clearDb();
+  
+  // Ingest a lead
+  const processedLead = {
+    tenant_id: 'test-tenant',
+    name: 'Retry Test Lead',
+    phone: '+919876543211',
+    source: 'referral',
+    score: 80
+  };
+  const lead = await db.insertLead(processedLead);
+
+  // Create a mock call session
+  const voizSessionId = 'mock-session-retry-123';
+  await db.insertCallSession({
+    tenant_id: 'test-tenant',
+    lead_id: lead.id,
+    voiz_session_id: voizSessionId,
+    disposition: 'calling'
+  });
+
+  // Execute call outcome: failed attempt (e.g. no_answer)
+  // NODE_ENV is 'test', so retry_gaps will be [1000, 2000, 3000] milliseconds
+  await handleCallOutcome(voizSessionId, 'no_answer', 10, 'No answer from customer');
+
+  // Verify lead state is 're-queued' and retry details are calculated
+  const updatedLead1 = await db.findLeadById(lead.id);
+  assert.strictEqual(updatedLead1.status, 're-queued');
+  assert.strictEqual(updatedLead1.raw_data.attempts, 1);
+  assert.ok(updatedLead1.raw_data.next_retry_at);
+
+  // Second failure
+  const voizSessionId2 = 'mock-session-retry-124';
+  await db.insertCallSession({
+    tenant_id: 'test-tenant',
+    lead_id: lead.id,
+    voiz_session_id: voizSessionId2,
+    disposition: 'calling'
+  });
+
+  await handleCallOutcome(voizSessionId2, 'busy', 5, 'Customer busy');
+
+  const updatedLead2 = await db.findLeadById(lead.id);
+  assert.strictEqual(updatedLead2.status, 're-queued');
+  assert.strictEqual(updatedLead2.raw_data.attempts, 2);
+
+  // Third failure: should reach max attempts (3 by default) and mark status as 'closed'
+  const voizSessionId3 = 'mock-session-retry-125';
+  await db.insertCallSession({
+    tenant_id: 'test-tenant',
+    lead_id: lead.id,
+    voiz_session_id: voizSessionId3,
+    disposition: 'calling'
+  });
+
+  await handleCallOutcome(voizSessionId3, 'failed', 0, 'Call failed to connect');
+
+  const updatedLead3 = await db.findLeadById(lead.id);
+  assert.strictEqual(updatedLead3.status, 'closed');
+});
+
+test('Unit - CRM Adapter Salesforce token and activity write', async () => {
+  const adapter = getCRMConnector('salesforce');
+  assert.ok(adapter);
+
+  // Read mock leads
+  const leads = await adapter.readLeads(Date.now() - 10000, { sf_client_id: 'mock-id' });
+  assert.strictEqual(leads.length, 2);
+  assert.strictEqual(leads[0].source, 'salesforce');
+
+  // Write mock activity
+  const res = await adapter.writeActivity('session-sf-123', {
+    tenantConfig: { sf_client_id: 'mock-id' },
+    disposition: 'Qualified',
+    duration: 120,
+    summary: 'Mock salesforce task creation test'
+  });
+  assert.ok(res.id.startsWith('mock-sf-task-id-'));
+});
+

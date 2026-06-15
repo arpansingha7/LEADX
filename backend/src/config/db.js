@@ -29,7 +29,8 @@ const mockDb = {
   configAuditLog: [],
   callSessions: [],
   callEvents: [],
-  auditTrail: []
+  auditTrail: [],
+  dncRegistry: []
 };
 
 // Seed default configs for tenant 'default-tenant' and 'test-tenant'
@@ -234,6 +235,67 @@ const db = {
     }
   },
 
+  async updateLeadStatusAndData(id, status, rawData) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ status, raw_data: rawData, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const lead = mockDb.leads.find(l => l.id === id);
+      if (!lead) throw new Error('Lead not found');
+      lead.status = status;
+      lead.raw_data = rawData;
+      lead.updated_at = new Date().toISOString();
+      return lead;
+    }
+  },
+
+  async getAllLeadsByStatus(statuses) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .in('status', statuses);
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.leads.filter(l => statuses.includes(l.status));
+    }
+  },
+
+  async getActiveCallsCount(tenantId) {
+    if (supabase) {
+      const { count, error } = await supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('status', 'calling');
+      if (error) throw error;
+      return count || 0;
+    } else {
+      return mockDb.leads.filter(l => l.tenant_id === tenantId && l.status === 'calling').length;
+    }
+  },
+
+  async getCallSessionsCount(leadId) {
+    if (supabase) {
+      const { count, error } = await supabase
+        .from('call_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('lead_id', leadId);
+      if (error) throw error;
+      return count || 0;
+    } else {
+      return mockDb.callSessions.filter(s => s.lead_id === leadId).length;
+    }
+  },
+
+
   async getLeads(tenantId) {
     if (supabase) {
       const { data, error } = await supabase
@@ -434,8 +496,80 @@ const db = {
     }
   },
 
+  async addDncNumber(tenantId, phone) {
+    const cleaned = phone.replace(/[^0-9+]/g, '');
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('dnc_registry')
+        .upsert({ tenant_id: tenantId, phone: cleaned }, { onConflict: 'tenant_id,phone' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const exists = mockDb.dncRegistry.some(d => d.tenant_id === tenantId && d.phone === cleaned);
+      if (!exists) {
+        mockDb.dncRegistry.push({
+          id: uuidv4(),
+          tenant_id: tenantId,
+          phone: cleaned,
+          created_at: new Date().toISOString()
+        });
+      }
+      return { tenant_id: tenantId, phone: cleaned };
+    }
+  },
+
+  async isDncNumber(tenantId, phone) {
+    const cleaned = phone.replace(/[^0-9+]/g, '');
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('dnc_registry')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('phone', cleaned)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    } else {
+      return mockDb.dncRegistry.some(d => d.tenant_id === tenantId && d.phone === cleaned);
+    }
+  },
+
+  async getDncList(tenantId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('dnc_registry')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.dncRegistry.filter(d => d.tenant_id === tenantId);
+    }
+  },
+
+  async getLeadsByStatus(tenantId, statuses) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .in('status', statuses)
+        .order('score', { ascending: false });
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.leads
+        .filter(l => l.tenant_id === tenantId && statuses.includes(l.status))
+        .sort((a, b) => b.score - a.score);
+    }
+  },
+
   async clearDb() {
     if (supabase) {
+      await supabase.from('dnc_registry').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('call_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('call_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('audit_trail').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -448,6 +582,7 @@ const db = {
       mockDb.callSessions = [];
       mockDb.callEvents = [];
       mockDb.auditTrail = [];
+      mockDb.dncRegistry = [];
       // Re-seed defaults
       mockDb.tenantConfigs = {};
       mockDb.tenantConfigs['default-tenant'] = {

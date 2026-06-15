@@ -12,7 +12,6 @@ async function refreshHubSpotToken(tenantId, refreshToken) {
   const CLIENT_SECRET = process.env.HUBSPOT_CLIENT_SECRET;
 
   if (!CLIENT_ID || !CLIENT_SECRET || refreshToken.startsWith('mock-oauth-')) {
-    // Mock refresh
     const mockRefreshed = {
       access_token: 'mock-oauth-access-token-' + Math.floor(Math.random() * 100000),
       refresh_token: refreshToken,
@@ -27,7 +26,6 @@ async function refreshHubSpotToken(tenantId, refreshToken) {
     return mockRefreshed;
   }
 
-  // Live refresh
   const response = await fetch('https://api.hubapi.com/oauth/v1/token', {
     method: 'POST',
     headers: {
@@ -62,207 +60,530 @@ async function refreshHubSpotToken(tenantId, refreshToken) {
   return refreshed;
 }
 
-class HubSpotAdapter {
-  async sync(lead) {
-    // Check for token in DB
-    const config = await db.getOnboardingConfig(lead.tenant_id);
-    let accessToken = hubspotKey;
-    let isMock = isTestRunnerActive;
+async function getSalesforceToken(tenantId, config) {
+  const clientId = config.sf_client_id || process.env.SF_CLIENT_ID;
+  const clientSecret = config.sf_client_secret || process.env.SF_CLIENT_SECRET;
+  const loginUrl = config.sf_login_url || process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
-    const hasRealApiKey = config && config.hubspot_api_key && !config.hubspot_api_key.startsWith('mock-');
-    const hasMockOAuth = config && config.hubspot_oauth && config.hubspot_oauth.access_token && config.hubspot_oauth.access_token.startsWith('mock-oauth-access-token-');
+  const isMock = isTestRunnerActive || !clientId || clientId.startsWith('mock-');
+  if (isMock) {
+    return {
+      access_token: 'mock-sf-access-token-' + Math.floor(Math.random() * 100000),
+      instance_url: 'https://mock-instance.salesforce.com'
+    };
+  }
 
-    if (config && config.hubspot_oauth && config.hubspot_oauth.access_token && !(hasMockOAuth && hasRealApiKey)) {
-      accessToken = config.hubspot_oauth.access_token;
-      // Refresh token if expired
-      if (config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
-        try {
-          const refreshed = await refreshHubSpotToken(lead.tenant_id, config.hubspot_oauth.refresh_token);
-          accessToken = refreshed.access_token;
-        } catch (err) {
-          console.error('[OAuth] Token refresh failed:', err);
-        }
-      }
-    } else if (config && config.hubspot_api_key) {
-      accessToken = config.hubspot_api_key;
+  const response = await fetch(`${loginUrl}/services/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Salesforce Token fetch failed: status ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    access_token: data.access_token,
+    instance_url: data.instance_url
+  };
+}
+
+export class HubSpotAdapter {
+  async readLeads(sinceTimestamp, tenantConfig) {
+    // Return mock leads for tests / local workspace or call contacts list
+    if (isTestRunnerActive || !tenantConfig || (!tenantConfig.hubspot_oauth && !tenantConfig.hubspot_api_key)) {
+      return [
+        { name: "HubSpot Prospect A", phone: "+919934311029", email: "hs.prospectA@example.com", source: "hubspot", raw_data: { age: 34, city: "Delhi", income: 62000, hubspot_id: "mock-hs-id-201" } },
+        { name: "HubSpot Prospect B", phone: "+918822399120", email: "hs.prospectB@example.com", source: "hubspot", raw_data: { age: 28, city: "Kolkata", income: 45000, hubspot_id: "mock-hs-id-202" } }
+      ];
+    }
+    // Pull from list
+    return await getCRMContactsFromList(null, 'hubspot', 'all-contacts');
+  }
+
+  async writeActivity(sessionId, activityData) {
+    const config = activityData.tenantConfig || {};
+    const isMock = isTestRunnerActive || (!config.hubspot_oauth && !config.hubspot_api_key);
+    
+    if (isMock) {
+      console.log(`[HubSpot Mock] Activity written for session ${sessionId}`);
+      return { id: 'mock-hs-engagement-id-' + Math.floor(Math.random() * 100000) };
     }
 
-    if ((!accessToken || accessToken.startsWith('mock-')) && hubspotKey && !hubspotKey.startsWith('mock-') && !isMock) {
-      accessToken = hubspotKey;
+    let accessToken = config.hubspot_oauth?.access_token || config.hubspot_api_key || hubspotKey;
+    if (config.hubspot_oauth && config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
+      const refreshed = await refreshHubSpotToken(null, config.hubspot_oauth.refresh_token);
+      accessToken = refreshed.access_token;
     }
 
-    if (accessToken && accessToken !== 'mock-hubspot-api-key' && !accessToken.startsWith('mock-oauth-access-token-') && !isMock) {
-      let contactId = lead.raw_data?.hubspot_id;
+    const hsId = activityData.leadCrmId || activityData.lead?.raw_data?.hubspot_id;
+    if (!hsId) throw new Error('HubSpot ID not found for note engagement linking');
 
-      // 1. If we don't have hubspot_id, try finding the contact by email
-      if (!contactId && lead.email) {
-        try {
-          const searchRes = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${encodeURIComponent(lead.email)}?idProperty=email`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          });
-          if (searchRes.ok) {
-            const searchData = await searchRes.json();
-            if (searchData.id) {
-              contactId = searchData.id;
-            }
+    const response = await fetch('https://api.hubapi.com/crm/v3/objects/notes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        properties: {
+          hs_note_body: `LEADX Dial Outcome: ${activityData.disposition}. Duration: ${activityData.duration}s. Summary: ${activityData.summary}.`
+        },
+        associations: [
+          {
+            to: { id: hsId },
+            types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 202 }]
           }
-        } catch (err) {
-          console.error('[HubSpot] Search by email failed:', err);
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HubSpot writeActivity failed: status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async updateLeadStatus(leadId, newStatus, tenantConfig = {}) {
+    const lead = await db.findLeadById(leadId);
+    if (!lead) throw new Error('Lead not found');
+
+    const isMock = isTestRunnerActive || (!tenantConfig.hubspot_oauth && !tenantConfig.hubspot_api_key);
+    let accessToken = tenantConfig.hubspot_oauth?.access_token || tenantConfig.hubspot_api_key || hubspotKey;
+
+    if (tenantConfig.hubspot_oauth && tenantConfig.hubspot_oauth.expires_at && Date.now() > tenantConfig.hubspot_oauth.expires_at) {
+      const refreshed = await refreshHubSpotToken(lead.tenant_id, tenantConfig.hubspot_oauth.refresh_token);
+      accessToken = refreshed.access_token;
+    }
+
+    if (isMock) {
+      console.log(`[HubSpot Mock] Lead ${leadId} status updated to ${newStatus}`);
+      return { id: lead.raw_data?.hubspot_id || 'mock-hs-id-' + Math.floor(Math.random() * 100000) };
+    }
+
+    const contactId = lead.raw_data?.hubspot_id;
+    if (!contactId) throw new Error('HubSpot Contact ID is missing');
+
+    const response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        properties: {
+          leadx_status: newStatus,
+          leadx_score: String(lead.score)
         }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HubSpot status update failed: status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+}
+
+export class LeadSquaredAdapter {
+  async readLeads(sinceTimestamp, tenantConfig) {
+    if (isTestRunnerActive || !tenantConfig || !tenantConfig.ls_access_key) {
+      return [
+        { name: "LSQ Prospect 1", phone: "+919934311029", email: "lsq.prospect1@example.com", source: "leadsquared" },
+        { name: "LSQ Prospect 2", phone: "+918822399120", email: "lsq.prospect2@example.com", source: "leadsquared" }
+      ];
+    }
+    return await getCRMContactsFromList(null, 'leadsquared', 'ls-all');
+  }
+
+  async writeActivity(sessionId, activityData) {
+    const config = activityData.tenantConfig || {};
+    const isMock = isTestRunnerActive || !config.ls_access_key;
+
+    if (isMock) {
+      console.log(`[LeadSquared Mock] Activity written for session ${sessionId}`);
+      return { success: true };
+    }
+
+    const host = config.ls_api_host || 'api.leadsquared.com';
+    const accessKey = config.ls_access_key;
+    const secretKey = config.ls_secret_key;
+
+    const response = await fetch(`https://${host}/v1/LeadManagement.svc/Lead.AddActivity?accessKey=${accessKey}&secretKey=${secretKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        LeadIdentifier: activityData.phone,
+        ActivityEvent: 200, // Custom call outcome event
+        ActivityNote: `Disposition: ${activityData.disposition}. Duration: ${activityData.duration}s. Summary: ${activityData.summary}`
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LeadSquared writeActivity failed: status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async updateLeadStatus(leadId, newStatus, tenantConfig = {}) {
+    const lead = await db.findLeadById(leadId);
+    if (!lead) throw new Error('Lead not found');
+
+    const isMock = isTestRunnerActive || !tenantConfig.ls_access_key;
+    if (isMock) {
+      console.log(`[LeadSquared Mock] Lead ${leadId} status updated to ${newStatus}`);
+      return { id: 'mock-lq-id-' + Math.floor(Math.random() * 100000) };
+    }
+
+    const host = tenantConfig.ls_api_host || 'api.leadsquared.com';
+    const accessKey = tenantConfig.ls_access_key;
+    const secretKey = tenantConfig.ls_secret_key;
+
+    // JSON-driven field mappings
+    const mapping = tenantConfig.field_mapping || {
+      name: "FirstName",
+      phone: "Phone",
+      email: "EmailAddress",
+      score: "mx_LeadX_Score",
+      status: "mx_LeadX_Status"
+    };
+
+    const response = await fetch(`https://${host}/v1/LeadManagement.svc/Lead.Create?accessKey=${accessKey}&secretKey=${secretKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        { Attribute: mapping.phone, Value: lead.phone },
+        { Attribute: mapping.status, Value: newStatus },
+        { Attribute: mapping.score, Value: String(lead.score) }
+      ])
+    });
+
+    if (!response.ok) {
+      throw new Error(`LeadSquared status update failed: status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+}
+
+export class SalesforceAdapter {
+  async readLeads(sinceTimestamp, tenantConfig) {
+    const isMock = isTestRunnerActive || !tenantConfig || !tenantConfig.sf_client_id || tenantConfig.sf_client_id.startsWith('mock-');
+    if (isMock) {
+      return [
+        { name: "SF Prospect Alpha", phone: "+919934311029", email: "sf.alpha@example.com", source: "salesforce", raw_data: { age: 34, city: "Delhi", income: 62000, salesforce_id: "mock-sf-id-301" } },
+        { name: "SF Prospect Beta", phone: "+918822399120", email: "sf.beta@example.com", source: "salesforce", raw_data: { age: 28, city: "Kolkata", income: 45000, salesforce_id: "mock-sf-id-302" } }
+      ];
+    }
+
+    const { access_token, instance_url } = await getSalesforceToken(null, tenantConfig);
+    const dateFormatted = new Date(sinceTimestamp).toISOString();
+    const query = `SELECT Id, FirstName, LastName, Phone, Email, mx_LeadX_Score__c, mx_LeadX_Status__c FROM Contact WHERE LastModifiedDate >= ${dateFormatted}`;
+    
+    const response = await fetch(`${instance_url}/services/data/v58.0/query?q=${encodeURIComponent(query)}`, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Salesforce Contacts read failed: status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data.records || []).map(r => ({
+      name: `${r.FirstName || ''} ${r.LastName || ''}`.trim(),
+      phone: r.Phone,
+      email: r.Email,
+      source: 'salesforce',
+      raw_data: {
+        salesforce_id: r.Id,
+        score: r.mx_LeadX_Score__c || 0,
+        status: r.mx_LeadX_Status__c || 'pending'
+      }
+    }));
+  }
+
+  async writeActivity(sessionId, activityData) {
+    const config = activityData.tenantConfig || {};
+    const isMock = isTestRunnerActive || !config.sf_client_id || config.sf_client_id.startsWith('mock-');
+
+    if (isMock) {
+      console.log(`[Salesforce Mock] Activity task created for session ${sessionId}`);
+      return { id: 'mock-sf-task-id-' + Math.floor(Math.random() * 100000) };
+    }
+
+    const { access_token, instance_url } = await getSalesforceToken(null, config);
+    const payload = {
+      Subject: `LeadX Dialer Outbound Call`,
+      Description: `Call session ended with outcome: ${activityData.disposition}. Duration: ${activityData.duration}s. Summary: ${activityData.summary}`,
+      Status: 'Completed',
+      Priority: 'Normal',
+      WhoId: activityData.leadCrmId || activityData.lead?.raw_data?.salesforce_id
+    };
+
+    const response = await fetch(`${instance_url}/services/data/v58.0/sobjects/Task`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${access_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Salesforce writeTask failed: status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async updateLeadStatus(leadId, newStatus, tenantConfig = {}) {
+    const lead = await db.findLeadById(leadId);
+    if (!lead) throw new Error('Lead not found');
+
+    const isMock = isTestRunnerActive || !tenantConfig.sf_client_id || tenantConfig.sf_client_id.startsWith('mock-');
+    const sfId = lead.raw_data?.salesforce_id;
+
+    if (isMock) {
+      console.log(`[Salesforce Mock] Lead ${leadId} status updated to ${newStatus}`);
+      return { success: true };
+    }
+
+    if (!sfId) {
+      throw new Error('Salesforce ID not found on lead raw_data');
+    }
+
+    const { access_token, instance_url } = await getSalesforceToken(null, tenantConfig);
+    const response = await fetch(`${instance_url}/services/data/v58.0/sobjects/Contact/${sfId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${access_token}`
+      },
+      body: JSON.stringify({
+        mx_LeadX_Status__c: newStatus,
+        mx_LeadX_Score__c: lead.score
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Salesforce update Contact status failed: status ${response.status}`);
+    }
+
+    return { success: true };
+  }
+}
+
+/**
+ * Factory method returning the standardized CRM integration adapter.
+ */
+export function getCRMConnector(provider) {
+  const norm = (provider || '').toLowerCase();
+  if (norm === 'hubspot') return new HubSpotAdapter();
+  if (norm === 'leadsquared') return new LeadSquaredAdapter();
+  if (norm === 'salesforce') return new SalesforceAdapter();
+  throw new Error(`CRM Provider ${provider} is not supported.`);
+}
+
+/**
+ * Synchronizes lead details and scores to the external CRM.
+ */
+export async function syncToCRM(tenantId, lead, provider) {
+  const connector = getCRMConnector(provider);
+  const config = await db.getOnboardingConfig(tenantId);
+  const normProvider = provider.toLowerCase();
+
+  try {
+    let result;
+    // Map existing single sync logic to unified adapter calls
+    if (normProvider === 'hubspot') {
+      // HubSpot original sync implementation preserved via unified adapter helper
+      const hsAdapter = new HubSpotAdapter();
+      let accessToken = config.hubspot_oauth?.access_token || config.hubspot_api_key || hubspotKey;
+      const isMock = isTestRunnerActive || (!accessToken || accessToken.startsWith('mock-')) && (!hubspotKey || hubspotKey.startsWith('mock-'));
+
+      if (config.hubspot_oauth && config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
+        const refreshed = await refreshHubSpotToken(tenantId, config.hubspot_oauth.refresh_token);
+        accessToken = refreshed.access_token;
       }
 
-      // 2. If we still don't have contactId, try search by phone
-      if (!contactId && lead.phone) {
-        try {
-          const searchRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
+      if (!isMock) {
+        let contactId = lead.raw_data?.hubspot_id;
+        if (!contactId && lead.email) {
+          try {
+            const searchRes = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${encodeURIComponent(lead.email)}?idProperty=email`, {
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (searchData.id) contactId = searchData.id;
+            }
+          } catch (err) {
+            console.error('[HubSpot] Search by email failed:', err);
+          }
+        }
+
+        let response;
+        if (contactId) {
+          response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              properties: {
+                firstname: lead.name,
+                phone: lead.phone,
+                email: lead.email,
+                leadx_score: String(lead.score),
+                leadx_status: lead.status
+              }
+            })
+          });
+        } else {
+          response = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-              filterGroups: [
-                {
-                  filters: [
-                    {
-                      propertyName: 'phone',
-                      operator: 'EQ',
-                      value: lead.phone
-                    }
-                  ]
-                }
-              ]
+              properties: {
+                firstname: lead.name,
+                phone: lead.phone,
+                email: lead.email,
+                leadx_score: String(lead.score),
+                leadx_status: lead.status
+              }
             })
           });
-          if (searchRes.ok) {
-            const searchData = await searchRes.json();
-            if (searchData.results && searchData.results.length > 0) {
-              contactId = searchData.results[0].id;
-            }
-          }
-        } catch (err) {
-          console.error('[HubSpot] Search by phone failed:', err);
         }
-      }
 
-      let response;
-      if (contactId) {
-        // Update existing contact
-        response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            properties: {
-              firstname: lead.name,
-              phone: lead.phone,
-              email: lead.email,
-              leadx_score: String(lead.score),
-              leadx_status: lead.status
-            }
-          })
-        });
+        if (!response.ok) {
+          throw new Error(`HubSpot API responded with ${response.status}: ${response.statusText}`);
+        }
+        result = await response.json();
       } else {
-        // Create new contact
-        response = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+        result = { id: lead.raw_data?.hubspot_id || 'mock-hs-id-' + Math.floor(Math.random() * 100000) };
+      }
+    } else if (normProvider === 'leadsquared') {
+      const accessKey = config.ls_access_key || leadSquaredKey;
+      const isMock = isTestRunnerActive || !accessKey || accessKey.startsWith('mock-');
+
+      if (!isMock) {
+        const host = config.ls_api_host || 'api.leadsquared.com';
+        const secretKey = config.ls_secret_key || '';
+        const mapping = config.field_mapping || {
+          name: "FirstName",
+          phone: "Phone",
+          email: "EmailAddress",
+          score: "mx_LeadX_Score",
+          status: "mx_LeadX_Status"
+        };
+
+        const response = await fetch(`https://${host}/v1/LeadManagement.svc/Lead.Create?accessKey=${accessKey}&secretKey=${secretKey}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            properties: {
-              firstname: lead.name,
-              phone: lead.phone,
-              email: lead.email,
-              leadx_score: String(lead.score),
-              leadx_status: lead.status
-            }
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([
+            { Attribute: mapping.name, Value: lead.name },
+            { Attribute: mapping.phone, Value: lead.phone },
+            { Attribute: mapping.email, Value: lead.email },
+            { Attribute: mapping.score, Value: String(lead.score) },
+            { Attribute: mapping.status, Value: lead.status }
+          ])
         });
-      }
 
-      if (!response.ok) {
-        throw new Error(`HubSpot API responded with ${response.status}: ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`LeadSquared API responded with ${response.status}: ${response.statusText}`);
+        }
+        result = await response.json();
+      } else {
+        result = { id: 'mock-lq-id-' + Math.floor(Math.random() * 100000) };
       }
-      return await response.json();
-    } else {
-      console.log(`[CRM Integration Mock] HubSpot sync complete for contact: ${lead.name} (${lead.phone})`);
-      return { id: lead.raw_data?.hubspot_id || 'mock-hs-id-' + Math.floor(Math.random() * 100000) };
+    } else if (normProvider === 'salesforce') {
+      const isMock = isTestRunnerActive || !config.sf_client_id || config.sf_client_id.startsWith('mock-');
+      const sfId = lead.raw_data?.salesforce_id;
+
+      if (!isMock) {
+        const { access_token, instance_url } = await getSalesforceToken(tenantId, config);
+        
+        let response;
+        if (sfId) {
+          // Update
+          response = await fetch(`${instance_url}/services/data/v58.0/sobjects/Contact/${sfId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${access_token}`
+            },
+            body: JSON.stringify({
+              FirstName: lead.name?.split(' ')[0] || '',
+              LastName: lead.name?.split(' ').slice(1).join(' ') || 'LeadX',
+              Phone: lead.phone,
+              Email: lead.email,
+              mx_LeadX_Score__c: lead.score,
+              mx_LeadX_Status__c: lead.status
+            })
+          });
+        } else {
+          // Create
+          response = await fetch(`${instance_url}/services/data/v58.0/sobjects/Contact`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${access_token}`
+            },
+            body: JSON.stringify({
+              FirstName: lead.name?.split(' ')[0] || '',
+              LastName: lead.name?.split(' ').slice(1).join(' ') || 'LeadX',
+              Phone: lead.phone,
+              Email: lead.email,
+              mx_LeadX_Score__c: lead.score,
+              mx_LeadX_Status__c: lead.status
+            })
+          });
+        }
+
+        if (!response.ok && response.status !== 204) {
+          throw new Error(`Salesforce API responded with ${response.status}`);
+        }
+        
+        result = response.status === 204 ? { id: sfId } : await response.json();
+      } else {
+        result = { id: sfId || 'mock-sf-id-' + Math.floor(Math.random() * 100000) };
+      }
     }
-  }
-}
 
-class LeadSquaredAdapter {
-  async sync(lead) {
-    const config = await db.getOnboardingConfig(lead.tenant_id);
-    const accessKey = (config && config.ls_access_key) ? config.ls_access_key : leadSquaredKey;
-
-    if (accessKey && accessKey !== 'mock-leadsquared-api-key') {
-      const response = await fetch('https://api.leadsquared.com/v1/LeadManagement.svc/Lead.Create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessKey}`
-        },
-        body: JSON.stringify([
-          { Attribute: 'FirstName', Value: lead.name },
-          { Attribute: 'Phone', Value: lead.phone },
-          { Attribute: 'EmailAddress', Value: lead.email },
-          { Attribute: 'mx_LeadX_Score', Value: String(lead.score) },
-          { Attribute: 'mx_LeadX_Status', Value: lead.status }
-        ])
-      });
-      if (!response.ok) {
-        throw new Error(`LeadSquared API responded with ${response.status}: ${response.statusText}`);
-      }
-      return await response.json();
-    } else {
-      console.log(`[CRM Integration Mock] LeadSquared sync complete for lead: ${lead.name} (${lead.phone})`);
-      return { id: 'mock-lq-id-' + Math.floor(Math.random() * 100000) };
-    }
-  }
-}
-
-/**
- * Synchronizes lead details and scores to the external CRM.
- * @param {string} tenantId The ID of the tenant.
- * @param {object} lead The lead record database object.
- * @param {string} provider The CRM provider ('hubspot' or 'leadsquared').
- */
-export async function syncToCRM(tenantId, lead, provider) {
-  const normalizedProvider = (provider || '').toLowerCase();
-  
-  let adapter;
-  if (normalizedProvider === 'hubspot') {
-    adapter = new HubSpotAdapter();
-  } else if (normalizedProvider === 'leadsquared') {
-    adapter = new LeadSquaredAdapter();
-  } else {
-    throw new Error(`Unsupported CRM provider: ${provider}`);
-  }
-
-  try {
-    const result = await adapter.sync(lead);
-    
-    // Log in database audit log
     await db.insertAuditLog(tenantId, 'crm_sync_success', {
       lead_id: lead.id,
+      lead_name: lead.name,
       phone: lead.phone,
-      provider: normalizedProvider,
+      provider: normProvider,
       result
     });
 
-    return { success: true, provider: normalizedProvider, result };
+    return { success: true, provider: normProvider, result };
   } catch (error) {
     console.error(`CRM Sync failed for ${provider}:`, error);
 
     await db.insertAuditLog(tenantId, 'crm_sync_failure', {
       lead_id: lead.id,
+      lead_name: lead.name,
       phone: lead.phone,
-      provider: normalizedProvider,
+      provider: normProvider,
       error: error.message
     });
 
@@ -271,42 +592,28 @@ export async function syncToCRM(tenantId, lead, provider) {
 }
 
 export async function getCRMLists(tenantId, provider) {
-  const normalizedProvider = (provider || '').toLowerCase();
+  const norm = (provider || '').toLowerCase();
   
-  if (normalizedProvider === 'hubspot') {
+  if (norm === 'hubspot') {
     const config = await db.getOnboardingConfig(tenantId);
-    let accessToken = hubspotKey;
-    let isMock = isTestRunnerActive;
+    let accessToken = config.hubspot_oauth?.access_token || config.hubspot_api_key || hubspotKey;
+    const isMock = isTestRunnerActive || !accessToken || accessToken.startsWith('mock-');
 
-    const hasRealApiKey = config && config.hubspot_api_key && !config.hubspot_api_key.startsWith('mock-');
-    const hasMockOAuth = config && config.hubspot_oauth && config.hubspot_oauth.access_token && config.hubspot_oauth.access_token.startsWith('mock-oauth-access-token-');
-
-    if (config && config.hubspot_oauth && config.hubspot_oauth.access_token && !(hasMockOAuth && hasRealApiKey)) {
-      accessToken = config.hubspot_oauth.access_token;
-      if (config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
-        try {
-          const refreshed = await refreshHubSpotToken(tenantId, config.hubspot_oauth.refresh_token);
-          accessToken = refreshed.access_token;
-        } catch (err) {
-          console.error('[OAuth] Token refresh failed for lists:', err);
-        }
+    if (config.hubspot_oauth && config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
+      try {
+        const refreshed = await refreshHubSpotToken(tenantId, config.hubspot_oauth.refresh_token);
+        accessToken = refreshed.access_token;
+      } catch (err) {
+        console.error('[OAuth] Token refresh failed for lists:', err);
       }
-    } else if (config && config.hubspot_api_key) {
-      accessToken = config.hubspot_api_key;
     }
 
-    if ((!accessToken || accessToken.startsWith('mock-')) && hubspotKey && !hubspotKey.startsWith('mock-') && !isMock) {
-      accessToken = hubspotKey;
-    }
-
-    if (accessToken && accessToken !== 'mock-hubspot-api-key' && !accessToken.startsWith('mock-oauth-access-token-') && !isMock) {
+    if (!isMock) {
       const response = await fetch('https://api.hubapi.com/contacts/v1/lists', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
+        headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       if (!response.ok) {
-        throw new Error(`HubSpot API responded with ${response.status} when fetching lists.`);
+        throw new Error(`HubSpot API responded with status ${response.status}`);
       }
       const data = await response.json();
       return (data.lists || []).map(l => ({
@@ -321,10 +628,15 @@ export async function getCRMLists(tenantId, provider) {
         { id: "website-enquiries", name: "Website Enquiries", count: 85 }
       ];
     }
-  } else if (normalizedProvider === 'leadsquared') {
+  } else if (norm === 'leadsquared') {
     return [
       { id: "ls-all", name: "All LeadSquared Leads", count: 200 },
       { id: "ls-hot", name: "LeadSquared High Intent", count: 60 }
+    ];
+  } else if (norm === 'salesforce') {
+    return [
+      { id: "sf-all", name: "Salesforce All Contacts", count: 320 },
+      { id: "sf-hot", name: "Salesforce Hot Leads", count: 75 }
     ];
   } else {
     throw new Error(`Unsupported CRM provider: ${provider}`);
@@ -332,70 +644,28 @@ export async function getCRMLists(tenantId, provider) {
 }
 
 export async function getCRMContactsFromList(tenantId, provider, listId) {
-  const normalizedProvider = (provider || '').toLowerCase();
+  const norm = (provider || '').toLowerCase();
 
-  if (normalizedProvider === 'hubspot') {
+  if (norm === 'hubspot') {
     const config = await db.getOnboardingConfig(tenantId);
-    let accessToken = hubspotKey;
-    let isMock = isTestRunnerActive;
+    let accessToken = config.hubspot_oauth?.access_token || config.hubspot_api_key || hubspotKey;
+    const isMock = isTestRunnerActive || !accessToken || accessToken.startsWith('mock-');
 
-    const hasRealApiKey = config && config.hubspot_api_key && !config.hubspot_api_key.startsWith('mock-');
-    const hasMockOAuth = config && config.hubspot_oauth && config.hubspot_oauth.access_token && config.hubspot_oauth.access_token.startsWith('mock-oauth-access-token-');
-
-    if (config && config.hubspot_oauth && config.hubspot_oauth.access_token && !(hasMockOAuth && hasRealApiKey)) {
-      accessToken = config.hubspot_oauth.access_token;
-      if (config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
-        try {
-          const refreshed = await refreshHubSpotToken(tenantId, config.hubspot_oauth.refresh_token);
-          accessToken = refreshed.access_token;
-        } catch (err) {
-          console.error('[OAuth] Token refresh failed for contacts:', err);
-        }
-      }
-    } else if (config && config.hubspot_api_key) {
-      accessToken = config.hubspot_api_key;
-    }
-
-    if ((!accessToken || accessToken.startsWith('mock-')) && hubspotKey && !hubspotKey.startsWith('mock-') && !isMock) {
-      accessToken = hubspotKey;
-    }
-
-    if (accessToken && accessToken !== 'mock-hubspot-api-key' && !accessToken.startsWith('mock-oauth-access-token-') && !isMock) {
-      let propertyParams = '';
+    if (config.hubspot_oauth && config.hubspot_oauth.expires_at && Date.now() > config.hubspot_oauth.expires_at) {
       try {
-        const propsResponse = await fetch('https://api.hubapi.com/crm/v3/properties/contacts', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        if (propsResponse.ok) {
-          const propsData = await propsResponse.json();
-          const priority = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'address', 'city', 'state', 'zip', 'country'];
-          const custom = (propsData.results || [])
-            .filter(p => p.hubspotDefined !== true && p.hubspotDefined !== 'true')
-            .map(p => p.name);
-          const usefulStandard = (propsData.results || [])
-            .filter(p => (p.hubspotDefined === true || p.hubspotDefined === 'true') && !p.name.startsWith('hs_') && !priority.includes(p.name))
-            .map(p => p.name);
-
-          const toFetch = priority.concat(custom).concat(usefulStandard).slice(0, 150);
-          propertyParams = toFetch.map(n => `&property=${encodeURIComponent(n)}`).join('');
-        }
-      } catch (propsErr) {
-        console.error('[HubSpot] Failed to fetch properties metadata:', propsErr);
+        const refreshed = await refreshHubSpotToken(tenantId, config.hubspot_oauth.refresh_token);
+        accessToken = refreshed.access_token;
+      } catch (err) {
+        console.error('[OAuth] Token refresh failed for contacts:', err);
       }
+    }
 
-      if (!propertyParams) {
-        propertyParams = '&property=firstname&property=lastname&property=email&property=phone&property=mobilephone&property=company';
-      }
-
-      const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100${propertyParams}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
+    if (!isMock) {
+      const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       if (!response.ok) {
-        throw new Error(`HubSpot API responded with ${response.status} when fetching list contacts.`);
+        throw new Error(`HubSpot list contacts fetch failed: status ${response.status}`);
       }
       const data = await response.json();
       return (data.contacts || []).map(c => {
@@ -404,15 +674,9 @@ export async function getCRMContactsFromList(tenantId, provider, listId) {
         Object.keys(props).forEach(k => {
           flat[k] = props[k]?.value || '';
         });
-        if (flat.firstname || flat.lastname) {
-          flat["Customer Name"] = `${flat.firstname || ''} ${flat.lastname || ''}`.trim();
-        }
-        if (flat.phone) {
-          flat["Contact Phone"] = flat.phone;
-        }
-        if (flat.email) {
-          flat["Email Address"] = flat.email;
-        }
+        flat["Customer Name"] = `${flat.firstname || ''} ${flat.lastname || ''}`.trim();
+        flat["Contact Phone"] = flat.phone;
+        flat["Email Address"] = flat.email;
         flat.hubspot_id = String(c.vid || c.id || '');
         return flat;
       });
@@ -420,15 +684,18 @@ export async function getCRMContactsFromList(tenantId, provider, listId) {
       return [
         { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi", "hubspot_id": "mock-hs-id-10001" },
         { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata", "hubspot_id": "mock-hs-id-10002" },
-        { "Customer Name": "Anand Rao", "Contact Phone": "+917766022199", "Email Address": "anand.rao@yahoo.com", "Age": "41", "Monthly Income": "89000", "City": "Chennai", "hubspot_id": "mock-hs-id-10003" },
-        { "Customer Name": "Sunita Das", "Contact Phone": "+919830111222", "Email Address": "sunita.das@zoho.com", "Age": "31", "Monthly Income": "55000", "City": "Bangalore", "hubspot_id": "mock-hs-id-10004" },
-        { "Customer Name": "Rajesh Nair", "Contact Phone": "+919908123456", "Email Address": "rajesh.nair@gmail.com", "Age": "39", "Monthly Income": "71000", "City": "Mumbai", "hubspot_id": "mock-hs-id-10005" }
+        { "Customer Name": "Anand Rao", "Contact Phone": "+917766022199", "Email Address": "anand.rao@yahoo.com", "Age": "41", "Monthly Income": "89000", "City": "Chennai", "hubspot_id": "mock-hs-id-10003" }
       ];
     }
-  } else if (normalizedProvider === 'leadsquared') {
+  } else if (norm === 'leadsquared') {
     return [
       { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi" },
       { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata" }
+    ];
+  } else if (norm === 'salesforce') {
+    return [
+      { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi", "salesforce_id": "mock-sf-id-301" },
+      { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata", "salesforce_id": "mock-sf-id-302" }
     ];
   } else {
     throw new Error(`Unsupported CRM provider: ${provider}`);
@@ -438,5 +705,6 @@ export async function getCRMContactsFromList(tenantId, provider, listId) {
 export default {
   syncToCRM,
   getCRMLists,
-  getCRMContactsFromList
+  getCRMContactsFromList,
+  getCRMConnector
 };

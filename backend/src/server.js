@@ -1,5 +1,6 @@
 import app from './app.js';
 import dotenv from 'dotenv';
+import queueService from './services/queueService.js';
 
 dotenv.config();
 
@@ -10,4 +11,7 @@ app.listen(PORT, () => {
   console.log(` LEADX Backend Server running on port ${PORT}`);
   console.log(` Frontend Dashboard served at http://localhost:${PORT}`);
   console.log(`==================================================`);
+  
+  // Start queue background worker
+  queueService.startWorker(5000);
 });

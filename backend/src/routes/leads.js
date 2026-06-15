@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import db from '../config/db.js';
 import { validateLead, validateScoringWeights, cleanPhone } from '../utils/validation.js';
 import { computeLeadScore } from '../services/scoringEngine.js';
 import { initSession, normaliseEvent } from '../services/voizAdapter.js';
 import { sendSlackNotification } from '../services/slackService.js';
 import { syncToCRM, getCRMLists, getCRMContactsFromList } from '../services/crmService.js';
+import { enqueueLead, handleCallOutcome, forceRetry, getQueueStats } from '../services/queueService.js';
 
 const router = Router();
 
@@ -117,6 +119,9 @@ router.post('/ingest', async (req, res, next) => {
     // Save lead
     const savedLead = await db.insertLead(processedLead);
 
+    // Enqueue in dialer priority queue
+    await enqueueLead(savedLead.id, score);
+
     // Insert System Audit Log
     await db.insertAuditLog(tenant_id, 'lead_ingested', {
       lead_id: savedLead.id,
@@ -224,6 +229,10 @@ router.post('/batch', async (req, res, next) => {
 
         // Insert
         const saved = await db.insertLead(leadPayload);
+        
+        // Enqueue in dialer priority queue
+        await enqueueLead(saved.id, score);
+
         accepted++;
         details.push({
           index: i,
@@ -500,20 +509,12 @@ router.post('/voiz-webhook', async (req, res, next) => {
         }
       }
     } else if (event_type === 'call_ended') {
-      await db.updateCallSession(session.id, {
-        disposition: rawEvent.payload.disposition,
-        summary: rawEvent.payload.summary
-      });
-
-      await db.updateLeadStatus(lead_id, 'called');
-
-      await db.insertAuditLog(tenant_id, 'call_completed', {
-        lead_id,
-        disposition: rawEvent.payload.disposition,
-        duration: rawEvent.payload.call_duration_seconds
-      });
-
-      await sendSlackNotification(`[Call Completed] Outbound session completed for ${name || 'Unknown'} (${phone}). Status: ${rawEvent.payload.disposition}.`);
+      await handleCallOutcome(
+        voizSessionId,
+        rawEvent.payload.disposition,
+        rawEvent.payload.call_duration_seconds || 0,
+        rawEvent.payload.summary || ''
+      );
     }
 
     res.json({ success: true });
@@ -675,6 +676,155 @@ router.get('/campaigns', async (req, res, next) => {
     });
 
     res.json({ success: true, campaigns });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/queue-status
+ * Returns current metrics of the queue.
+ */
+router.get('/queue-status', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    const stats = await getQueueStats(tenant_id);
+    res.json({ success: true, stats });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/force-retry
+ * Triggers the dialer force retry for failed or called contacts.
+ */
+router.post('/force-retry', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.body;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id is required' });
+    }
+    const count = await forceRetry(tenant_id);
+    res.json({ success: true, message: `Force retry triggered successfully. Re-queued ${count} leads.` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/dnc
+ * Enrolls a lead phone number to the Do Not Call registry.
+ */
+router.post('/dnc', async (req, res, next) => {
+  try {
+    const { tenant_id, phone } = req.body;
+    if (!tenant_id || !phone) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id and phone are required' });
+    }
+    const cleaned = cleanPhone(phone);
+    await db.addDncNumber(tenant_id, cleaned);
+    
+    // Find lead and mark as dnc
+    const lead = await db.findLeadByPhone(tenant_id, cleaned);
+    if (lead) {
+      await db.updateLeadStatus(lead.id, 'dnc');
+    }
+
+    await db.insertAuditLog(tenant_id, 'dnc_block', { phone: cleaned });
+    await sendSlackNotification(`[DNC Block] outbound dial blocked to DNC number: ${cleaned}`);
+    
+    res.json({ success: true, message: `Phone ${cleaned} registered in DNC.` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/webhook/leadsquared
+ * Receives LeadSquared inbound webhooks, validates HMAC-SHA256 signature, and ingests/queues leads.
+ */
+router.post('/webhook/leadsquared', async (req, res, next) => {
+  try {
+    const tenantId = req.query.tenant_id || 'default-tenant';
+    const signature = req.headers['x-ls-signature'] || req.headers['signature'];
+    const config = await db.getOnboardingConfig(tenantId);
+    const secretKey = config.ls_secret_key || process.env.LEADSQUARED_SECRET_KEY || 'mock-secret';
+
+    // Signature Validation
+    if (signature) {
+      const hmac = crypto.createHmac('sha256', secretKey);
+      const computed = hmac.update(JSON.stringify(req.body)).digest('hex');
+      if (computed !== signature) {
+        await sendSlackNotification(`[Security Alert] Invalid LeadSquared HMAC signature received for tenant "${tenantId}".`);
+        return res.status(401).json({ error: 'Unauthorized', message: 'HMAC signature validation failed' });
+      }
+    } else if (process.env.NODE_ENV === 'production') {
+      await sendSlackNotification(`[Security Alert] Missing LeadSquared HMAC signature for tenant "${tenantId}".`);
+      return res.status(401).json({ error: 'Unauthorized', message: 'HMAC signature is required' });
+    }
+
+    const payload = req.body;
+    
+    // Specific error mapping checks
+    if (payload.simulate_error === '429') {
+      return res.status(429).json({ error: 'Too Many Requests', message: 'Rate limit exceeded, please retry later.' });
+    }
+    if (payload.simulate_error === '401') {
+      await sendSlackNotification(`[Slack Alert] LeadSquared integration credentials expired for tenant "${tenantId}".`);
+      return res.status(401).json({ error: 'Unauthorized', message: 'Invalid credentials' });
+    }
+    if (payload.simulate_error === '404') {
+      console.warn(`[LeadSquared Webhook] Lead not found (404) for payload.`);
+      return res.status(200).json({ success: false, message: 'Lead not found, skipped.' });
+    }
+
+    const phone = payload.Phone || payload.Mobile;
+    if (!phone) {
+      return res.status(400).json({ error: 'Validation Error', message: 'Phone number is required' });
+    }
+
+    const cleaned = cleanPhone(phone);
+    const name = payload.FirstName || payload.Name || 'LSQ Inbound Lead';
+    const email = payload.EmailAddress || payload.Email || '';
+
+    // Check for duplicate in database
+    const existingLead = await db.findLeadByPhone(tenantId, cleaned);
+    if (existingLead) {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: 'A lead with this phone number already exists under the specified tenant.'
+      });
+    }
+
+    const weights = await db.getWeights(tenantId);
+    const leadData = {
+      tenant_id: tenantId,
+      name,
+      phone: cleaned,
+      email,
+      source: 'leadsquared',
+      raw_data: payload
+    };
+
+    const score = computeLeadScore(leadData, weights);
+    leadData.score = score;
+    leadData.dataset_id = 'lsq-webhook';
+    leadData.campaign_name = 'LeadSquared Webhooks';
+
+    const saved = await db.insertLead(leadData);
+    await enqueueLead(saved.id, score);
+
+    await db.insertAuditLog(tenantId, 'lead_webhook_ingested', {
+      lead_id: saved.id,
+      phone: cleaned,
+      score
+    });
+
+    res.status(201).json({ success: true, lead: saved });
   } catch (error) {
     next(error);
   }

@@ -463,6 +463,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                     <select id="wizardCrmSelector" class="lx-input">
                       <option value="hubspot">HubSpot CRM Cloud</option>
                       <option value="leadsquared">LeadSquared API Portal</option>
+                      <option value="salesforce">Salesforce CRM Cloud</option>
                     </select>
                   </div>
                 </div>
@@ -1014,36 +1015,49 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               </div>
             </div>
 
-            <!-- Right Panel: Queue table -->
+            <!-- Queue Status Widget -->
             <div class="lx-card" style="align-self: flex-start;">
-              <div class="lx-section-title" style="margin-bottom: 8px;">
-                Ingestion Queue (Pending Dials)
-                <span class="sub">RT FIFO prioritization queue</span>
+              <div class="lx-section-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  Queue Status & Dialer Controls
+                  <span class="sub">Dialer Queue Metrics</span>
+                </div>
+                <button class="lx-btn lx-btn-small primary" id="forceRetryDialerBtn" onclick="triggerForceRetryDialer()" style="margin:0;"><i data-lucide="refresh-cw" style="width:11px; height:11px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>Force Retry</button>
               </div>
-              <div style="overflow-x: auto;">
-                <table class="lx-table" style="font-size: 11.5px;">
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 8px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 10px; color: var(--lx-muted);">QUEUED</div>
+                  <strong style="font-size: 18px; color: var(--lx-text);" id="queue-stat-queued">0</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 8px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 10px; color: var(--lx-muted);">DIALING</div>
+                  <strong style="font-size: 18px; color: var(--lx-green);" id="queue-stat-calling">0</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 8px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 10px; color: var(--lx-muted);">RETRIES</div>
+                  <strong style="font-size: 18px; color: var(--lx-amber);" id="queue-stat-retries">0</strong>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 8px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 10px; color: var(--lx-muted);">DNC BLOCKED</div>
+                  <strong style="font-size: 18px; color: var(--lx-red);" id="queue-stat-dnc">0</strong>
+                </div>
+              </div>
+
+              <!-- Pending Dials Table -->
+              <div style="font-size: 11px; font-weight: 700; color: var(--lx-text); margin-bottom: 6px;">Active Ingestion Queue</div>
+              <div style="overflow-x: auto; max-height: 150px;">
+                <table class="lx-table" style="font-size: 11px; margin: 0;">
                   <thead>
                     <tr>
-                      <th>Source</th>
-                      <th>Wait Time</th>
-                      <th style="text-align: right;">Priority</th>
+                      <th>Name</th>
+                      <th>Phone</th>
+                      <th style="text-align: right;">Score</th>
                     </tr>
                   </thead>
                   <tbody id="monitor-queue-tbody">
-                    <tr>
-                      <td>Referral Ingestion</td>
-                      <td><span style="font-family: var(--lx-mono);">12 seconds</span></td>
-                      <td style="text-align: right;"><span class="lx-badge badge-red">P0 - IMMEDIATE</span></td>
-                    </tr>
-                    <tr>
-                      <td>Paid Ads (Gold Loan)</td>
-                      <td><span style="font-family: var(--lx-mono);">45 seconds</span></td>
-                      <td style="text-align: right;"><span class="lx-badge badge-amber">P1 - HIGH</span></td>
-                    </tr>
-                    <tr>
-                      <td>Re-engagement Trigger</td>
-                      <td><span style="font-family: var(--lx-mono);">2 minutes</span></td>
-                      <td style="text-align: right;"><span class="lx-badge badge-teal">P2 - NORMAL</span></td>
+                    <tr class="lx-empty-row">
+                      <td colspan="3" style="text-align: center; color: var(--lx-muted); padding: 12px;">No leads currently queued.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1209,7 +1223,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </div>
 
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px;">
             <!-- Left Card: HubSpot Integration Panel -->
             <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
               <div>
@@ -1331,6 +1345,64 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               <div style="display: flex; gap: 8px; margin-top: 20px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
                 <button class="lx-btn" style="flex: 1;" id="ls-test-btn">Test Connection</button>
                 <button class="lx-btn primary" style="flex: 1;" id="ls-save-btn">Save Settings</button>
+              </div>
+            </div>
+
+            <!-- Salesforce Integration Panel -->
+            <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div class="crm-card-header">
+                  <div class="crm-card-title">
+                    <div class="crm-brand-logo logo-salesforce" style="background:#00a1e0; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; border-radius:4px; font-size:12px; width:28px; height:28px;">SF</div>
+                    <div>
+                      <h3>Salesforce Integration</h3>
+                      <p>Sync lead details, custom fields, and task activities</p>
+                    </div>
+                  </div>
+                  <label class="lx-toggle">
+                    <input type="checkbox" id="sf-toggle-btn">
+                    <span class="lx-toggle-slider"></span>
+                  </label>
+                </div>
+
+                <div class="crm-status-row" style="margin-bottom: 15px;">
+                  <span style="font-size:11px; color: var(--lx-muted);">STATUS</span>
+                  <span class="lx-badge badge-gray" id="sf-status-badge">DISCONNECTED</span>
+                </div>
+
+                <div class="crm-config-fields" style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="form-group">
+                    <label for="sf-client-id">Consumer Key (Client ID) *</label>
+                    <input type="password" id="sf-client-id" class="lx-input" placeholder="e.g. 3MVG9..." value="mock-salesforce-client-id">
+                  </div>
+                  <div class="form-group">
+                    <label for="sf-client-secret">Consumer Secret (Client Secret) *</label>
+                    <input type="password" id="sf-client-secret" class="lx-input" placeholder="e.g. 842938..." value="mock-salesforce-client-secret">
+                  </div>
+                  <div class="form-group">
+                    <label for="sf-login-url">Salesforce Login URL *</label>
+                    <select id="sf-login-url" class="lx-input">
+                      <option value="https://login.salesforce.com" selected>Production (https://login.salesforce.com)</option>
+                      <option value="https://test.salesforce.com">Sandbox (https://test.salesforce.com)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-top: 4px;">
+                    <label style="margin-bottom: 6px;">Sync Rules</label>
+                    <div class="li-checkbox-group" style="margin-bottom: 6px;">
+                      <input type="checkbox" id="sf-rule-hot" checked>
+                      <label for="sf-rule-hot">Auto-sync Hot Escalated Leads (Score &ge; 80)</label>
+                    </div>
+                    <div class="li-checkbox-group">
+                      <input type="checkbox" id="sf-rule-custom" checked>
+                      <label for="sf-rule-custom">Sync Call Activities (Tasks & Events)</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 20px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+                <button class="lx-btn" style="flex: 1;" id="sf-test-btn" onclick="testCrmConnection('salesforce')">Test Connection</button>
+                <button class="lx-btn primary" style="flex: 1;" id="sf-save-btn" onclick="saveCrmConfig('salesforce')">Save Settings</button>
               </div>
             </div>
           </div>
