@@ -1,0 +1,161 @@
+{
+  "tenant_id": "edtech-tenant",
+  "scoring_weights": {
+    "demographic_fit": 0.30,
+    "source_quality": 0.30,
+    "recency": 0.20,
+    "behavioural_signals": 0.10,
+    "prior_interaction": 0.10
+  },
+  "crm_field_mapping": {
+    "name": "FirstName",
+    "phone": "Phone",
+    "email": "EmailAddress",
+    "score": "mx_LeadX_Score",
+    "status": "mx_LeadX_Status",
+    "disposition": "mx_Call_Disposition",
+    "summary": "mx_Call_Summary"
+  },
+  "calling_schedule": {
+    "start": 10,
+    "end": 19,
+    "timezone": "Asia/Kolkata",
+    "no_sundays": true,
+    "max_attempts": 3,
+    "retry_gaps_ms": [1800000, 14400000, 86400000]
+  },
+  "script": {
+    "script_id": "edtech-admissions-v1",
+    "version": "1.0",
+    "language": "en",
+    "max_duration_seconds": 300,
+    "escalation_triggers": [
+      {
+        "type": "explicit_request",
+        "phrases": [
+          "speak to advisor",
+          "talk to human",
+          "connect me to human",
+          "transfer to specialist",
+          "agent",
+          "representative",
+          "help desk"
+        ]
+      },
+      {
+        "type": "sentiment_low",
+        "threshold": 0.3
+      },
+      {
+        "type": "high_intent",
+        "phrases": [
+          "i want to enroll",
+          "how do i pay",
+          "when does course start",
+          "send syllabus",
+          "can i enroll",
+          "where is the link to pay"
+        ]
+      },
+      {
+        "type": "max_duration",
+        "seconds": 240
+      }
+    ],
+    "nodes": [
+      {
+        "id": "greeting",
+        "prompt": "Hello {lead_name}, I am calling from Predixion AI Academy. I saw you recently showed interest in our Full-Stack AI Engineering program. Am I speaking with the right person?",
+        "expected_intents": ["yes", "no"],
+        "branches": {
+          "yes": "course_interest",
+          "no": "wrong_number"
+        }
+      },
+      {
+        "id": "wrong_number",
+        "prompt": "Oh, my apologies. I will remove this number from our contact list. Have a great day!",
+        "expected_intents": [],
+        "branches": {},
+        "is_terminal": true
+      },
+      {
+        "id": "course_interest",
+        "prompt": "Excellent! The Full-Stack AI program is a 6-month hands-on course covering LLM fine-tuning, agent architectures, and production deployment. Are you looking to upgrade your skills for a career change or to build a specific AI product?",
+        "expected_intents": ["career_change", "build_product", "general_info"],
+        "branches": {
+          "career_change": "background_check",
+          "build_product": "background_check",
+          "general_info": "background_check"
+        }
+      },
+      {
+        "id": "background_check",
+        "prompt": "Understood. Our curriculum is tailored for developers and technical professionals. Do you have some prior coding experience in Python or JavaScript, or are you starting fresh?",
+        "expected_intents": ["experienced", "fresh"],
+        "branches": {
+          "experienced": "timeline_check",
+          "fresh": "timeline_check"
+        }
+      },
+      {
+        "id": "timeline_check",
+        "prompt": "Got it. Our next cohort starts on the first Monday of next month. How soon are you planning to start your learning journey — immediately, or are you looking at later cohorts?",
+        "expected_intents": ["immediately", "later"],
+        "branches": {
+          "immediately": "budget_check",
+          "later": "budget_check"
+        }
+      },
+      {
+        "id": "budget_check",
+        "prompt": "Perfect. The tuition for the cohort is 75,000 Rupees, with monthly installment plans starting at 7,500 Rupees. Does this budget work for you, or would you like to hear about our scholarship options?",
+        "expected_intents": ["budget_ok", "wants_scholarship", "budget_high"],
+        "branches": {
+          "budget_ok": "close_interested",
+          "wants_scholarship": "scholarship_info",
+          "budget_high": "scholarship_info"
+        }
+      },
+      {
+        "id": "scholarship_info",
+        "prompt": "No worries! We offer up to 20% merit-based scholarships for qualified applicants. I can request our admissions advisor to review your profile. Would you like me to schedule a brief profile review call with them?",
+        "expected_intents": ["yes", "no"],
+        "branches": {
+          "yes": "manual_escalation_schedule",
+          "no": "close_not_interested"
+        }
+      },
+      {
+        "id": "manual_escalation_schedule",
+        "prompt": "Wonderful! Let me transfer you directly or schedule a advisor callback right now.",
+        "expected_intents": [],
+        "branches": {},
+        "is_terminal": true
+      },
+      {
+        "id": "close_interested",
+        "prompt": "Fantastic! Since you are ready to proceed, I will email you the registration link and syllabus details. You can complete the payment to secure your seat. Is this email address correct: {email}?",
+        "expected_intents": ["yes", "no"],
+        "branches": {
+          "yes": "terminal_success",
+          "no": "terminal_success"
+        }
+      },
+      {
+        "id": "terminal_success",
+        "prompt": "Awesome, I have sent the details. Looking forward to having you in the program. Goodbye!",
+        "expected_intents": [],
+        "branches": {},
+        "is_terminal": true
+      },
+      {
+        "id": "close_not_interested",
+        "prompt": "Thank you for your time. If you change your mind, you can visit our website at predixion.ai. Have a great day!",
+        "expected_intents": [],
+        "branches": {},
+        "is_terminal": true
+      }
+    ]
+  }
+}

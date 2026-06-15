@@ -92,6 +92,31 @@ CREATE TABLE IF NOT EXISTS dnc_registry (
 -- Unique index to prevent duplicate DNC listings for same tenant
 CREATE UNIQUE INDEX IF NOT EXISTS dnc_tenant_phone_idx ON dnc_registry(tenant_id, phone);
 
+-- Table: scripts
+CREATE TABLE IF NOT EXISTS scripts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(100) NOT NULL,
+    script_id VARCHAR(100) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    language VARCHAR(50) NOT NULL DEFAULT 'en',
+    nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
+    escalation_triggers JSONB NOT NULL DEFAULT '[]'::jsonb,
+    max_duration_seconds INT NOT NULL DEFAULT 300,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS scripts_tenant_script_version_idx ON scripts(tenant_id, script_id, version);
+
+-- Table: agent_briefs
+CREATE TABLE IF NOT EXISTS agent_briefs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(100) NOT NULL,
+    lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE UNIQUE,
+    brief JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Disable Row Level Security (RLS) for demo/local sandbox access via Publishable API Key
 ALTER TABLE leads DISABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_configs DISABLE ROW LEVEL SECURITY;
@@ -100,6 +125,9 @@ ALTER TABLE call_events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE config_audit_log DISABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_trail DISABLE ROW LEVEL SECURITY;
 ALTER TABLE dnc_registry DISABLE ROW LEVEL SECURITY;
+ALTER TABLE scripts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_briefs DISABLE ROW LEVEL SECURITY;
+
 
 
 

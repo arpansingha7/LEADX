@@ -3,7 +3,8 @@
 [![Tech Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20Express%20%7C%20Postgres-blueviolet?style=for-the-badge)](https://nodejs.org)
 [![Database](https://img.shields.io/badge/Database-Supabase%20%7C%20PostgreSQL-3ecf8e?style=for-the-badge&logo=supabase)](https://supabase.com)
 [![Build Status](https://img.shields.io/badge/Build-Passing-2ecc71?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
-[![Version](https://img.shields.io/badge/Version-4.0.0%20(Modules%201--4)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
+[![Version](https://img.shields.io/badge/Version-1.2.0%20(Modules%205--8)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
+
 
 LEADX is a next-generation AI-powered lead qualification and conversion platform built on top of **VOIZ**—Predixion AI's voice agent telephony infrastructure. While VOIZ handles ASR, TTS, and conversational LLM runtimes, **LEADX** owns the orchestration layer: ingestion pipelines, dynamic intent scoring, onboarding configurations, caller scheduling, DNC screening, CRM integrations, and operations alerting.
 
@@ -55,6 +56,21 @@ flowchart TD
 *   **Salesforce Client Credentials OAuth:** Secures enterprise integrations using Consumer Key and Secret token exchanges.
 *   **LeadSquared Webhook Ingestion:** Ingests prospects via signed webhooks secured with HMAC-SHA256 signature verification.
 *   **Status Exception Handling:** Audits API rate limits (`429`) and credentials expiration (`401`) errors, sending operations alerts to Slack.
+
+### 5. Script Authoring & Escalation Detection (Module 5)
+*   **Structured Conversational Script Editor:** A dynamic web editor to load templates (Ed-Tech, B2C Sales), validate JSON schemas, view published history, and preview scripts as interactive conversation graphs.
+*   **Real-time Agent Transcript Screening:** Analyzes live voice transcripts against explicit phrases, intent triggers, sentiment thresholds, and call durations to flag active supervisor escalations.
+
+### 6. Hot Handoffs, Agent Briefs, & Instant Calls (Module 6)
+*   **Operations Handoff Engine:** Generates comprehensive specialist briefs containing contact metadata, lead scores, AI call summaries, key phrases, objection logs, and recommended actions.
+*   **Instant Dial Bypass:** A high-priority bypass API (`POST /leads/calls/instant`) to initiate outbound calls immediately, dynamically fallback-enqueuing at score `999` if concurrency slots are saturated.
+
+### 7. Config UI & Analytics Dashboard (Module 7)
+*   **Interactive Visual Analytics:** Integrated dynamic Chart.js dashboards rendering connect rate trends, disposition distributions, and scoring effectiveness bar charts.
+*   **Co-Branded Operations Banner:** Interactive UI warning alerts that render active supervisor escalations, loading agent briefs dynamically with quick print-card and resolve callbacks.
+
+### 8. Pre-packaged Configurations (Module 8)
+*   **Ed-Tech Admissions Bundle:** A reference bundle featuring an 11-node admissions script, custom demographic weights, custom LeadSquared schema mappings, and IST schedules.
 
 ---
 
@@ -129,3 +145,7 @@ For deeper details, presentation checklists, and study guides:
 *   🎙️ **[Module 2 Guide (docs/module2_documentation.md)](docs/module2_documentation.md)** — Onboarding questionnaire, dynamic CSV mapping, and HubSpot OAuth.
 *   ⚙️ **[Module 3 Guide (docs/module3_documentation.md)](docs/module3_documentation.md)** — Dialer worker loop, calling hours calculations, and exponential backoff retry math.
 *   🔌 **[Module 4 Guide (docs/module4_documentation.md)](docs/module4_documentation.md)** — Unified CRM adapters (HubSpot, LeadSquared, Salesforce), credentials flow, and LeadSquared HMAC webhook security.
+*   🚀 **[Azure Deployment Guide (docs/deployment-guide.md)](docs/deployment-guide.md)** — Production setup, App Services deployment, configuration keys, and database scaling.
+*   🔌 **[CRM Sync Connector Setup (docs/crm-connector-setup.md)](docs/crm-connector-setup.md)** — HubSpot OAuth, LeadSquared webhook HMAC setup, and Salesforce task activity sync.
+*   📄 **[API Contracts Reference (docs/api-contracts.md)](docs/api-contracts.md)** — Complete REST endpoint reference with payload examples.
+

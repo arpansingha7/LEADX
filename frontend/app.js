@@ -12,6 +12,12 @@ let allLeads = [];
 let currentFilter = 'all';
 let tenantOnboardingConfig = {};
 
+// Global Chart.js instances to avoid render glitches on reuse
+let connectRateChartInstance = null;
+let dispositionsChartInstance = null;
+let scoringEffectivenessChartInstance = null;
+
+
 let parsedCsvHeaders = [];
 let parsedCsvRows = [];
 
@@ -96,6 +102,9 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(fetchCallEventsStream, 5000);
   fetchCallEventsStream();
 
+  // Poll leads list every 5 seconds to catch escalations dynamically
+  setInterval(fetchLeadsList, 5000);
+
   // Audit Logs Poller
   setInterval(fetchAuditTrail, 10000);
   fetchAuditTrail();
@@ -125,10 +134,16 @@ function setupNavigation() {
       if (activePage) {
         activePage.classList.add('show');
       }
+
+      // Page specific loaders
       if (pageId === 'crm') {
         loadCrmPageData();
       } else if (pageId === 'campaigns') {
         fetchCampaignsList();
+      } else if (pageId === 'script-editor') {
+        loadScriptEditorData();
+      } else if (pageId === 'home') {
+        loadDashboardAnalytics();
       }
     });
   });
@@ -143,6 +158,7 @@ function setupNavigation() {
     });
   }
 }
+
 
 // 2. Set Up Event Listeners
 function setupEventListeners() {
@@ -469,6 +485,10 @@ async function fetchLeadsList() {
         updateCampaignFilterDropdown(allLeads);
         renderLeads(allLeads);
         updateDashboardKPIs(allLeads);
+
+        // Modules 5-8 additions
+        checkAndShowEscalationsBanner(allLeads);
+        loadDashboardAnalytics();
       }
     }
   } catch (err) {
@@ -476,6 +496,7 @@ async function fetchLeadsList() {
     showToast('Fetch Error', 'Failed to update lead intelligence feed from backend.', 'alert-triangle', 'error');
   }
 }
+
 
 // Update filter badge counts
 function updateFilterCounts(leads) {
@@ -1165,6 +1186,12 @@ async function fetchAuditTrail() {
 }
 
 window.triggerMockHandoff = function(leadId, leadName) {
+  const lead = allLeads.find(l => l.id === leadId);
+  if (lead && lead.status === 'hot_escalated') {
+    viewBriefModal(leadId);
+    return;
+  }
+
   showToast('Warm Handoff', `Routing high-intent lead ${leadName} to Muthoot Finance specialist...`, 'users');
   logActivityFeed(`Warm handoff triggered for <strong>${leadName}</strong>. Routing to specialist queue.`);
 
@@ -1175,6 +1202,7 @@ window.triggerMockHandoff = function(leadId, leadName) {
     }
   }, 1000);
 };
+
 
 window.triggerMockDnc = async function(leadId, leadPhone) {
   // Update status in backend
@@ -3280,3 +3308,890 @@ window.triggerForceRetryDialer = async function() {
     }
   }
 };
+
+// -------------------------------------------------------------
+// MODULES 5-8: SCRIPT EDITOR, ANALYTICS DASHBOARD & HANDOFF BRIEF
+// -------------------------------------------------------------
+
+// Active escalation warning banner controller
+function checkAndShowEscalationsBanner(leads) {
+  const escalatedLead = leads.find(l => l.status === 'hot_escalated');
+  const banner = document.getElementById('escalationWarningBanner');
+  const bannerText = document.getElementById('escalationBannerText');
+  const viewBtn = document.getElementById('viewBriefBannerBtn');
+  
+  if (escalatedLead) {
+    if (banner) {
+      banner.style.display = 'flex';
+    }
+    if (bannerText) {
+      bannerText.textContent = `Lead ${escalatedLead.name || 'Unknown'} requires immediate advisor brief lookup.`;
+    }
+    if (viewBtn) {
+      viewBtn.onclick = null;
+      viewBtn.onclick = () => viewBriefModal(escalatedLead.id);
+    }
+  } else {
+    if (banner) {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+// Close brief modal button setup
+const closeBriefBtn = document.getElementById('closeBriefModal');
+if (closeBriefBtn) {
+  closeBriefBtn.addEventListener('click', () => {
+    document.getElementById('agentBriefModal').style.display = 'none';
+  });
+}
+window.addEventListener('click', (event) => {
+  const briefModal = document.getElementById('agentBriefModal');
+  if (event.target === briefModal) {
+    briefModal.style.display = 'none';
+  }
+});
+
+// Load Script editor view
+async function loadScriptEditorData() {
+  try {
+    const res = await fetch(`${API_BASE}/scripts?tenant_id=${currentTenant}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        const scriptVersionHistory = document.getElementById('scriptVersionHistory');
+        if (scriptVersionHistory) {
+          if (data.scripts.length === 0) {
+            scriptVersionHistory.innerHTML = `
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--lx-muted); padding: 12px;">No versions published.</td>
+              </tr>
+            `;
+          } else {
+            // Sort by created_at descending
+            const sorted = [...data.scripts].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            scriptVersionHistory.innerHTML = sorted.map(s => {
+              const dateStr = new Date(s.created_at).toLocaleString();
+              return `
+                <tr style="cursor: pointer;" onclick="loadSpecificScriptToEditor('${s.id}')">
+                  <td><strong>${s.script_id}</strong></td>
+                  <td>${s.version}</td>
+                  <td><span class="lx-badge badge-gray">${s.language.toUpperCase()}</span></td>
+                  <td style="font-family: var(--lx-mono);">${dateStr}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+        
+        // Populate JSON editor with latest version if textarea is empty or placeholder
+        const jsonArea = document.getElementById('scriptJsonArea');
+        if (jsonArea && (!jsonArea.value.trim() || jsonArea.value.trim() === 'Placeholder...')) {
+          if (data.scripts.length > 0) {
+            const sorted = [...data.scripts].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            const latest = sorted[0];
+            jsonArea.value = JSON.stringify(latest, null, 2);
+            validateScriptJsonUI();
+          } else {
+            loadScriptTemplate('edtech');
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error loading script editor data:', err);
+    showToast('Fetch Error', 'Failed to retrieve conversational scripts.', 'alert-triangle', 'error');
+  }
+}
+
+window.loadSpecificScriptToEditor = async function(id) {
+  try {
+    const res = await fetch(`${API_BASE}/scripts/${id}?tenant_id=${currentTenant}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.script) {
+        const jsonArea = document.getElementById('scriptJsonArea');
+        if (jsonArea) {
+          jsonArea.value = JSON.stringify(data.script, null, 2);
+          validateScriptJsonUI();
+          showToast('Script Loaded', `Loaded version ${data.script.version} of script "${data.script.script_id}" into editor.`, 'file-text');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error loading specific script:', err);
+    showToast('Fetch Error', 'Failed to load script details.', 'alert-triangle', 'error');
+  }
+};
+
+window.loadScriptTemplate = function(type) {
+  let templateObj = null;
+  if (type === 'edtech') {
+    templateObj = {
+      "tenant_id": currentTenant,
+      "script_id": "edtech-admissions-v1",
+      "version": "1.0",
+      "language": "en",
+      "max_duration_seconds": 300,
+      "escalation_triggers": [
+        {
+          "type": "explicit_request",
+          "phrases": ["speak to advisor", "talk to human", "connect me to human", "transfer to specialist", "agent", "representative", "help desk"]
+        },
+        {
+          "type": "sentiment_low",
+          "threshold": 0.3
+        },
+        {
+          "type": "high_intent",
+          "phrases": ["i want to enroll", "how do i pay", "when does course start", "send syllabus", "can i enroll", "where is the link to pay"]
+        },
+        {
+          "type": "max_duration",
+          "seconds": 240
+        }
+      ],
+      "nodes": [
+        {
+          "id": "greeting",
+          "prompt": "Hello {lead_name}, I am calling from Predixion AI Academy. I saw you recently showed interest in our Full-Stack AI Engineering program. Am I speaking with the right person?",
+          "expected_intents": ["yes", "no"],
+          "branches": {
+            "yes": "course_interest",
+            "no": "wrong_number"
+          }
+        },
+        {
+          "id": "wrong_number",
+          "prompt": "Oh, my apologies. I will remove this number from our contact list. Have a great day!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "course_interest",
+          "prompt": "Excellent! The Full-Stack AI program is a 6-month hands-on course covering LLM fine-tuning, agent architectures, and production deployment. Are you looking to upgrade your skills for a career change or to build a specific AI product?",
+          "expected_intents": ["career_change", "build_product", "general_info"],
+          "branches": {
+            "career_change": "background_check",
+            "build_product": "background_check",
+            "general_info": "background_check"
+          }
+        },
+        {
+          "id": "background_check",
+          "prompt": "Understood. Our curriculum is tailored for developers and technical professionals. Do you have some prior coding experience in Python or JavaScript, or are you starting fresh?",
+          "expected_intents": ["experienced", "fresh"],
+          "branches": {
+            "experienced": "timeline_check",
+            "fresh": "timeline_check"
+          }
+        },
+        {
+          "id": "timeline_check",
+          "prompt": "Got it. Our next cohort starts on the first Monday of next month. How soon are you planning to start your learning journey — immediately, or are you looking at later cohorts?",
+          "expected_intents": ["immediately", "later"],
+          "branches": {
+            "immediately": "budget_check",
+            "later": "budget_check"
+          }
+        },
+        {
+          "id": "budget_check",
+          "prompt": "Perfect. The tuition for the cohort is 75,000 Rupees, with monthly installment plans starting at 7,500 Rupees. Does this budget work for you, or would you like to hear about our scholarship options?",
+          "expected_intents": ["budget_ok", "wants_scholarship", "budget_high"],
+          "branches": {
+            "budget_ok": "close_interested",
+            "wants_scholarship": "scholarship_info",
+            "budget_high": "scholarship_info"
+          }
+        },
+        {
+          "id": "scholarship_info",
+          "prompt": "No worries! We offer up to 20% merit-based scholarships for qualified applicants. I can request our admissions advisor to review your profile. Would you like me to schedule a brief profile review call with them?",
+          "expected_intents": ["yes", "no"],
+          "branches": {
+            "yes": "manual_escalation_schedule",
+            "no": "close_not_interested"
+          }
+        },
+        {
+          "id": "manual_escalation_schedule",
+          "prompt": "Wonderful! Let me transfer you directly or schedule a advisor callback right now.",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "close_interested",
+          "prompt": "Fantastic! Since you are ready to proceed, I will email you the registration link and syllabus details. You can complete the payment to secure your seat. Is this email address correct: {email}?",
+          "expected_intents": ["yes", "no"],
+          "branches": {
+            "yes": "terminal_success",
+            "no": "terminal_success"
+          }
+        },
+        {
+          "id": "terminal_success",
+          "prompt": "Awesome, I have sent the details. Looking forward to having you in the program. Goodbye!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "close_not_interested",
+          "prompt": "Thank you for your time. If you change your mind, you can visit our website at predixion.ai. Have a great day!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        }
+      ]
+    };
+  } else if (type === 'sales') {
+    templateObj = {
+      "tenant_id": currentTenant,
+      "script_id": "b2c-sales-v1",
+      "version": "1.0",
+      "language": "en",
+      "max_duration_seconds": 180,
+      "escalation_triggers": [
+        {
+          "type": "explicit_request",
+          "phrases": ["agent", "human", "supervisor", "representative", "manager"]
+        },
+        {
+          "type": "sentiment_low",
+          "threshold": 0.4
+        },
+        {
+          "type": "high_intent",
+          "phrases": ["sign up", "interested", "buy now", "cost", "price"]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "greeting",
+          "prompt": "Hello! I am calling from Muthoot Finance. I saw you recently checked our Gold Loan interest rates online. Are you interested in getting a quick valuation of your gold jewelry today?",
+          "expected_intents": ["yes", "no", "later"],
+          "branches": {
+            "yes": "loan_amount",
+            "no": "not_interested",
+            "later": "callback_schedule"
+          }
+        },
+        {
+          "id": "loan_amount",
+          "prompt": "Great! We offer the highest value per gram and interest rates starting at just 0.99% per month. How much loan amount are you looking for approximately?",
+          "expected_intents": ["under_1_lakh", "above_1_lakh"],
+          "branches": {
+            "under_1_lakh": "verification",
+            "above_1_lakh": "high_value_offer"
+          }
+        },
+        {
+          "id": "high_value_offer",
+          "prompt": "Excellent! For loans above 1 Lakh, we have a doorstep gold evaluation service where our representative comes to your house. Would you like me to book a doorstep evaluation session for you?",
+          "expected_intents": ["yes", "no"],
+          "branches": {
+            "yes": "doorstep_booking",
+            "no": "visit_branch"
+          }
+        },
+        {
+          "id": "verification",
+          "prompt": "Perfect. I can check the nearest branch for you. Can you please confirm your current city and postal code?",
+          "expected_intents": ["provided", "declined"],
+          "branches": {
+            "provided": "branch_schedule",
+            "declined": "branch_schedule"
+          }
+        },
+        {
+          "id": "visit_branch",
+          "prompt": "No problem. You can visit our nearest branch to get the loan disbursed in just 30 minutes. I will send you the location via SMS. Is that okay?",
+          "expected_intents": ["yes", "no"],
+          "branches": {
+            "yes": "close_sms",
+            "no": "not_interested"
+          }
+        },
+        {
+          "id": "doorstep_booking",
+          "prompt": "Fantastic. I am scheduling the doorstep evaluation. Our representative will contact you to confirm the time. Thank you for choosing Muthoot Finance!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "branch_schedule",
+          "prompt": "Awesome. I've noted that down. A branch executive will call you to confirm your visit. Thank you!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "close_sms",
+          "prompt": "Thank you! I have sent the address details via SMS. Have a nice day!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "callback_schedule",
+          "prompt": "No problem. When would be a better time to call you back?",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        },
+        {
+          "id": "not_interested",
+          "prompt": "Thank you for your time. Have a great day!",
+          "expected_intents": [],
+          "branches": {},
+          "is_terminal": true
+        }
+      ]
+    };
+  }
+  
+  if (templateObj) {
+    const jsonArea = document.getElementById('scriptJsonArea');
+    if (jsonArea) {
+      jsonArea.value = JSON.stringify(templateObj, null, 2);
+      validateScriptJsonUI();
+      showToast('Template Loaded', `Loaded ${type === 'edtech' ? 'Ed-Tech' : 'B2C Sales'} script template into workspace.`, 'clipboard');
+    }
+  }
+};
+
+window.validateScriptJsonUI = function() {
+  const jsonArea = document.getElementById('scriptJsonArea');
+  const statusBadge = document.getElementById('scriptValidationStatus');
+  const errorsDiv = document.getElementById('scriptValidationErrors');
+  const visualizer = document.getElementById('scriptFlowVisualizer');
+  
+  if (!jsonArea || !statusBadge || !errorsDiv || !visualizer) return false;
+  
+  const val = jsonArea.value.trim();
+  if (!val) {
+    statusBadge.textContent = 'UNVALIDATED';
+    statusBadge.className = 'lx-badge badge-gray';
+    errorsDiv.style.display = 'none';
+    visualizer.innerHTML = `<div style="text-align: center; color: var(--lx-muted); padding: 30px 0;">No script loaded. Paste/Load a template to view the graph flow.</div>`;
+    return false;
+  }
+  
+  let script = null;
+  try {
+    script = JSON.parse(val);
+  } catch (e) {
+    statusBadge.textContent = 'INVALID JSON';
+    statusBadge.className = 'lx-badge badge-red';
+    errorsDiv.textContent = `JSON Syntax Error: ${e.message}`;
+    errorsDiv.style.display = 'block';
+    visualizer.innerHTML = `<div style="text-align: center; color: var(--lx-red); padding: 30px 0;">JSON Syntax Error. Fix JSON syntax to preview nodes.</div>`;
+    return false;
+  }
+  
+  const errors = [];
+  if (!script.tenant_id || typeof script.tenant_id !== 'string' || script.tenant_id.trim() === '') {
+    errors.push('tenant_id is required and must be a non-empty string');
+  }
+  if (!script.script_id || typeof script.script_id !== 'string' || script.script_id.trim() === '') {
+    errors.push('script_id is required and must be a non-empty string');
+  }
+  if (!script.version || typeof script.version !== 'string' || script.version.trim() === '') {
+    errors.push('version is required and must be a non-empty string');
+  }
+  if (!script.language || typeof script.language !== 'string') {
+    errors.push('language must be a string');
+  }
+  
+  if (!script.nodes || !Array.isArray(script.nodes) || script.nodes.length === 0) {
+    errors.push('nodes must be a non-empty array');
+  } else {
+    const nodeIds = new Set(script.nodes.map(n => n.id).filter(id => typeof id === 'string'));
+    script.nodes.forEach((node, index) => {
+      if (!node.id || typeof node.id !== 'string' || node.id.trim() === '') {
+        errors.push(`Node [index ${index}] lacks a valid string id`);
+      }
+      if (!node.prompt || typeof node.prompt !== 'string') {
+        errors.push(`Node "${node.id || index}" prompt must be a string`);
+      }
+      if (node.expected_intents && !Array.isArray(node.expected_intents)) {
+        errors.push(`Node "${node.id || index}" expected_intents must be an array`);
+      }
+      if (node.branches && (typeof node.branches !== 'object' || Array.isArray(node.branches))) {
+        errors.push(`Node "${node.id || index}" branches must be an object`);
+      } else if (node.branches) {
+        Object.entries(node.branches).forEach(([intent, targetId]) => {
+          if (!nodeIds.has(targetId)) {
+            errors.push(`Node "${node.id}" branches to non-existent node "${targetId}"`);
+          }
+        });
+      }
+    });
+  }
+  
+  if (script.escalation_triggers !== undefined) {
+    if (!Array.isArray(script.escalation_triggers)) {
+      errors.push('escalation_triggers must be an array');
+    } else {
+      const allowedTypes = ['explicit_request', 'sentiment_low', 'high_intent', 'max_duration'];
+      script.escalation_triggers.forEach((trigger, idx) => {
+        if (!trigger.type || !allowedTypes.includes(trigger.type)) {
+          errors.push(`Escalation trigger [index ${idx}] has invalid type: ${trigger.type || 'none'}`);
+        }
+        if (trigger.type === 'explicit_request' || trigger.type === 'high_intent') {
+          if (!trigger.phrases || !Array.isArray(trigger.phrases)) {
+            errors.push(`Escalation trigger [index ${idx}] of type "${trigger.type}" must have a phrases array`);
+          }
+        }
+        if (trigger.type === 'sentiment_low' && typeof trigger.threshold !== 'number') {
+          errors.push(`Escalation trigger [index ${idx}] of type "sentiment_low" must have a numeric threshold`);
+        }
+        if (trigger.type === 'max_duration' && typeof trigger.seconds !== 'number') {
+          errors.push(`Escalation trigger [index ${idx}] of type "max_duration" must have a numeric seconds field`);
+        }
+      });
+    }
+  }
+  
+  if (script.max_duration_seconds !== undefined && typeof script.max_duration_seconds !== 'number') {
+    errors.push('max_duration_seconds must be a number');
+  }
+  
+  if (errors.length > 0) {
+    statusBadge.textContent = 'INVALID';
+    statusBadge.className = 'lx-badge badge-red';
+    errorsDiv.innerHTML = errors.map(err => `• ${err}`).join('<br>');
+    errorsDiv.style.display = 'block';
+    visualizer.innerHTML = `<div style="text-align: center; color: var(--lx-red); padding: 30px 0;">Validation Failed. Fix errors to preview nodes.</div>`;
+    return false;
+  }
+  
+  statusBadge.textContent = 'VALID';
+  statusBadge.className = 'lx-badge badge-green';
+  errorsDiv.style.display = 'none';
+  
+  renderScriptFlowVisualizer(script);
+  return true;
+};
+
+window.saveScriptJsonUI = async function() {
+  const isValid = validateScriptJsonUI();
+  if (!isValid) {
+    showToast('Save Failed', 'Please fix JSON syntax or validation errors before saving.', 'alert-triangle', 'error');
+    return;
+  }
+  
+  const jsonArea = document.getElementById('scriptJsonArea');
+  const script = JSON.parse(jsonArea.value.trim());
+  
+  try {
+    const res = await fetch(`${API_BASE}/scripts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(script)
+    });
+    
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Script Published', `Successfully published version ${script.version} of script "${script.script_id}".`, 'check');
+      logActivityFeed('Script published: <strong>' + script.script_id + ' (v' + script.version + ')</strong>.');
+      await loadScriptEditorData();
+    } else {
+      showToast('Save Failed', data.message || 'Server-side validation failed.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('Error saving script:', err);
+    showToast('Network Error', 'Failed to publish script to backend.', 'alert-triangle', 'error');
+  }
+};
+
+function renderScriptFlowVisualizer(script) {
+  const visualizer = document.getElementById('scriptFlowVisualizer');
+  if (!visualizer || !script.nodes) return;
+  
+  if (script.nodes.length === 0) {
+    visualizer.innerHTML = `<div style="text-align: center; color: var(--lx-muted); padding: 30px 0;">No nodes in script.</div>`;
+    return;
+  }
+  
+  visualizer.innerHTML = script.nodes.map(node => {
+    const isTerminal = node.is_terminal === true || !node.branches || Object.keys(node.branches).length === 0;
+    const terminalBadge = isTerminal ? `<span class="lx-badge badge-red" style="font-size: 9px; padding: 2px 6px;">Terminal</span>` : '';
+    
+    const intents = node.expected_intents || [];
+    const intentsHtml = intents.map(i => `<span class="lx-badge badge-gray" style="font-size: 9px; margin-right: 4px;">${i}</span>`).join('');
+    
+    const branches = node.branches || {};
+    const branchesHtml = Object.entries(branches).map(([intent, target]) => {
+      return `<div style="font-size: 11px; margin-top: 4px; color: var(--lx-muted);">
+        <i data-lucide="corner-down-right" style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>
+        If intent is <strong style="color: var(--lx-text); font-family: var(--lx-mono);">${intent}</strong> &rarr; go to <strong style="color: var(--lx-teal);">${target}</strong>
+      </div>`;
+    }).join('');
+    
+    return `
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--lx-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--lx-border); padding-bottom: 4px;">
+          <strong style="color: var(--lx-teal); font-family: var(--lx-mono); font-size: 12.5px;"># ${node.id}</strong>
+          ${terminalBadge}
+        </div>
+        <div style="font-size: 11.5px; color: var(--lx-text); line-height: 1.4; font-style: italic;">&ldquo;${node.prompt}&rdquo;</div>
+        ${intentsHtml ? `<div style="margin-top: 2px;">${intentsHtml}</div>` : ''}
+        ${branchesHtml ? `<div style="margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.02); padding-top: 4px;">${branchesHtml}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+  
+  if (window.lucide) {
+    window.lucide.createIcons({ attrs: { class: 'lx-icon' }, parent: visualizer });
+  }
+}
+
+window.viewBriefModal = async function(leadId) {
+  try {
+    const res = await fetch(`${API_BASE}/handoff/brief/${leadId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.brief) {
+        const brief = data.brief;
+        const modal = document.getElementById('agentBriefModal');
+        const content = document.getElementById('briefModalContent');
+        const printBtn = document.getElementById('printBriefBtn');
+        const resolveBtn = document.getElementById('resolveBriefBtn');
+        
+        if (modal && content) {
+          modal.style.display = 'flex';
+          
+          const keyPhrases = brief.key_phrases || [];
+          const objections = brief.objections || [];
+          
+          content.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--lx-border);">
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">Lead Name</span>
+                <div style="font-size: 13.5px; font-weight: bold; color: var(--lx-text);">${brief.lead_name}</div>
+              </div>
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">Lead Score</span>
+                <div style="font-size: 13.5px; font-weight: bold; color: var(--lx-green);">${brief.lead_score} / 100</div>
+              </div>
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">Phone Number</span>
+                <div style="font-size: 13.5px; font-family: var(--lx-mono); color: var(--lx-text);">${brief.phone}</div>
+              </div>
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">Call Duration</span>
+                <div style="font-size: 13.5px; font-family: var(--lx-mono); color: var(--lx-text);">${brief.call_duration_seconds} seconds</div>
+              </div>
+            </div>
+            
+            <div>
+              <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">AI Call Summary</span>
+              <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--lx-border); padding: 8px 10px; border-radius: 6px; line-height: 1.4; color: var(--lx-text); font-style: italic;">
+                &ldquo;${brief.call_summary}&rdquo;
+              </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Key Phrases Detected</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                  ${keyPhrases.length > 0 ? keyPhrases.map(p => `<span class="lx-badge badge-teal" style="font-size: 9px; padding: 2px 6px;">${p}</span>`).join('') : '<span style="font-size:11px; color:var(--lx-muted);">None detected</span>'}
+                </div>
+              </div>
+              <div>
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Objections Raised</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                  ${objections.length > 0 ? objections.map(o => `<span class="lx-badge badge-red" style="font-size: 9px; padding: 2px 6px;">${o}</span>`).join('') : '<span style="font-size:11px; color:var(--lx-muted);">None detected</span>'}
+                </div>
+              </div>
+            </div>
+            
+            <div style="background: rgba(30, 201, 183, 0.1); border: 1px solid rgba(30, 201, 183, 0.3); padding: 10px; border-radius: 8px; margin-top: 4px;">
+              <span style="font-size: 10px; color: var(--lx-teal); text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 2px;">Recommended Specialist Action</span>
+              <div style="font-size: 12.5px; font-weight: 600; color: var(--lx-text);">${brief.recommended_action}</div>
+            </div>
+          `;
+          
+          if (printBtn) {
+            printBtn.onclick = () => {
+              const printWindow = window.open('', '_blank');
+              printWindow.document.write(`
+                <html>
+                  <head>
+                    <title>LeadX Agent Brief - ${brief.lead_name || 'Context'}</title>
+                    <style>
+                      body { font-family: 'DM Sans', sans-serif; padding: 40px; color: #1e272e; background: #f5f6fa; }
+                      .card { background: white; border: 1px solid #dcdde1; padding: 24px; border-radius: 12px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+                      h1 { font-size: 20px; font-weight: 700; border-bottom: 2px solid #2f3542; padding-bottom: 12px; margin-top: 0; display: flex; justify-content: space-between; }
+                      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; background: #f8f9fa; padding: 12px; border-radius: 8px; }
+                      .label { font-size: 11px; color: #7f8c8d; text-transform: uppercase; }
+                      .val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+                      .section { margin-top: 20px; }
+                      .section-title { font-size: 11px; font-weight: bold; color: #7f8c8d; text-transform: uppercase; border-bottom: 1px solid #dcdde1; padding-bottom: 4px; margin-bottom: 8px; }
+                      .summary { font-style: italic; line-height: 1.5; color: #2f3542; background: #f1f2f6; padding: 12px; border-radius: 8px; }
+                      .badge { display: inline-block; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-right: 6px; margin-top: 4px; }
+                      .badge-teal { background: #d1f2eb; color: #16a085; }
+                      .badge-red { background: #fadbd8; color: #c0392b; }
+                      .recommendation { background: #e8f8f5; border: 1px solid #a3e4d7; padding: 12px; border-radius: 8px; font-weight: bold; color: #16a085; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="card">
+                      <h1><span>LEADX HANDOFF BRIEF</span> <span style="color: #16a085;">SCORE ${brief.lead_score}</span></h1>
+                      <div class="row">
+                        <div>
+                          <div class="label">Lead Name</div>
+                          <div class="val">${brief.lead_name}</div>
+                        </div>
+                        <div>
+                          <div class="label">Phone Number</div>
+                          <div class="val">${brief.phone}</div>
+                        </div>
+                        <div>
+                          <div class="label">Call Duration</div>
+                          <div class="val">${brief.call_duration_seconds}s</div>
+                        </div>
+                        <div>
+                          <div class="label">Date Generated</div>
+                          <div class="val">${new Date().toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <div class="section">
+                        <div class="section-title">AI Call Summary</div>
+                        <div class="summary">&ldquo;${brief.call_summary}&rdquo;</div>
+                      </div>
+                      <div class="section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                          <div class="section-title">Key Phrases</div>
+                          <div>
+                            ${keyPhrases.map(p => \`<span class="badge badge-teal">\${p}</span>\`).join('') || 'None detected'}
+                          </div>
+                        </div>
+                        <div>
+                          <div class="section-title">Objections</div>
+                          <div>
+                            ${objections.map(o => \`<span class="badge badge-red">\${o}</span>\`).join('') || 'None detected'}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="section">
+                        <div class="section-title">Recommended Specialist Action</div>
+                        <div class="recommendation">${brief.recommended_action}</div>
+                      </div>
+                    </div>
+                    <script>
+                      setTimeout(() => { window.print(); }, 500);
+                    </script>
+                  </body>
+                </html>
+              `);
+              printWindow.document.close();
+            };
+          }
+          
+          if (resolveBtn) {
+            resolveBtn.onclick = async () => {
+              try {
+                const res = await fetch(`${API_BASE}/${leadId}/resolve`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                  showToast('Escalation Resolved', 'Status marked as called. Escalation cleared.', 'check');
+                  modal.style.display = 'none';
+                  await fetchLeadsList();
+                } else {
+                  showToast('Resolution Failed', data.message || 'Could not resolve escalation.', 'alert-triangle', 'error');
+                }
+              } catch (err) {
+                showToast('Network Error', 'Connection failed.', 'alert-triangle', 'error');
+              }
+            };
+          }
+        }
+      } else {
+        showToast('Not Found', 'No agent brief found for this lead.', 'alert-triangle', 'warning');
+      }
+    } else {
+      showToast('Brief Error', 'Failed to retrieve agent brief context.', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    console.error('Error fetching brief details:', err);
+    showToast('Network Error', 'Failed to connect to brief endpoint.', 'alert-triangle', 'error');
+  }
+};
+
+async function loadDashboardAnalytics() {
+  try {
+    const res = await fetch(`${API_BASE}/analytics/summary?tenant_id=${currentTenant}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        // Update KPIs
+        const totalCallsEl = document.getElementById('kpi-total-calls');
+        const connectRateEl = document.getElementById('kpi-connect-rate');
+        const qualifiedLeadsEl = document.getElementById('kpi-qualified-leads');
+        const hotLeadsEl = document.getElementById('kpi-hot-leads');
+        
+        if (totalCallsEl) totalCallsEl.textContent = data.kpis.calls_today.toLocaleString();
+        if (connectRateEl) connectRateEl.textContent = data.kpis.connect_rate.toFixed(1) + '%';
+        if (qualifiedLeadsEl) qualifiedLeadsEl.textContent = data.kpis.qualified_leads.toLocaleString();
+        if (hotLeadsEl) hotLeadsEl.textContent = data.kpis.hot_leads.toLocaleString();
+        
+        // Update Funnel stages
+        const stages = document.querySelectorAll('.lx-funnel .funnel-stage');
+        if (stages.length === 7) {
+          const f = data.funnel;
+          
+          const setStage = (index, label, countText, percent) => {
+            const stage = stages[index];
+            if (stage) {
+              const fill = stage.querySelector('.funnel-fill');
+              const count = stage.querySelector('.funnel-count');
+              if (fill) {
+                fill.textContent = countText;
+                fill.style.width = `${percent}%`;
+              }
+              if (count) {
+                count.textContent = `${percent.toFixed(1)}%`;
+              }
+            }
+          };
+
+          setStage(0, 'Ingested', `${f.ingested} leads`, 100);
+          setStage(1, 'Scrubbed (DNC)', `${f.scrubbed} leads`, f.ingested > 0 ? (f.scrubbed / f.ingested) * 100 : 0);
+          setStage(2, 'Scored', `${f.scored} leads`, f.ingested > 0 ? (f.scored / f.ingested) * 100 : 0);
+          setStage(3, 'Queued', `${f.queued} leads`, f.ingested > 0 ? (f.queued / f.ingested) * 100 : 0);
+          setStage(4, 'Attempted', `${f.attempted} calls`, f.ingested > 0 ? (f.attempted / f.ingested) * 100 : 0);
+          setStage(5, 'Connected', `${f.connected} connects`, f.ingested > 0 ? (f.connected / f.ingested) * 100 : 0);
+          setStage(6, 'Qualified', `${f.qualified} qualified`, f.ingested > 0 ? (f.qualified / f.ingested) * 100 : 0);
+        }
+        
+        // Render Chart.js line/doughnut/bar charts
+        renderAnalyticsCharts(data);
+      }
+    }
+  } catch (err) {
+    console.error('Error loading dashboard analytics:', err);
+  }
+}
+
+function renderAnalyticsCharts(data) {
+  // 1. Connect Rate Trend
+  const crCanvas = document.getElementById('connectRateChart');
+  if (crCanvas) {
+    if (connectRateChartInstance) {
+      connectRateChartInstance.destroy();
+    }
+    const ctx = crCanvas.getContext('2d');
+    connectRateChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.connect_rate_trend.map(t => t.date),
+        datasets: [{
+          label: 'Connect Rate (%)',
+          data: data.connect_rate_trend.map(t => t.connect_rate),
+          borderColor: '#6c72f8',
+          backgroundColor: 'rgba(108, 114, 248, 0.15)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#a4b0be', font: { size: 10 } }
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#a4b0be', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Dispositions Pie Chart
+  const dispCanvas = document.getElementById('dispositionsChart');
+  if (dispCanvas) {
+    if (dispositionsChartInstance) {
+      dispositionsChartInstance.destroy();
+    }
+    const ctx = dispCanvas.getContext('2d');
+    dispositionsChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.dispositions.map(d => d.name),
+        datasets: [{
+          data: data.dispositions.map(d => d.value),
+          backgroundColor: [
+            '#6c72f8', '#2ecc8a', '#1ec9b7', '#ff4757', '#ffa502', '#2f3542', '#a4b0be'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#a4b0be', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  // 3. Scoring Effectiveness
+  const effCanvas = document.getElementById('scoringEffectivenessChart');
+  if (effCanvas) {
+    if (scoringEffectivenessChartInstance) {
+      scoringEffectivenessChartInstance.destroy();
+    }
+    const ctx = effCanvas.getContext('2d');
+    scoringEffectivenessChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.scoring_effectiveness.map(s => s.category),
+        datasets: [{
+          label: 'Conversions',
+          data: data.scoring_effectiveness.map(s => s.converted),
+          backgroundColor: ['#2ecc8a', '#ffa502', '#ff4757'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#a4b0be', font: { size: 10 } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#a4b0be', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+}
+

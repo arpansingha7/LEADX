@@ -120,3 +120,88 @@ export function validateScoringWeights(weights) {
     errors
   };
 }
+
+/**
+ * Validates conversational script schema during creation.
+ * @param {object} script The script object.
+ * @returns {object} { isValid: boolean, errors: string[] }
+ */
+export function validateScript(script) {
+  const errors = [];
+  if (!script || typeof script !== 'object') {
+    return { isValid: false, errors: ['Script must be a JSON object'] };
+  }
+
+  if (!script.tenant_id || typeof script.tenant_id !== 'string' || script.tenant_id.trim() === '') {
+    errors.push('tenant_id is required');
+  }
+
+  if (!script.script_id || typeof script.script_id !== 'string' || script.script_id.trim() === '') {
+    errors.push('script_id is required');
+  }
+
+  if (!script.version || typeof script.version !== 'string' || script.version.trim() === '') {
+    errors.push('version is required');
+  }
+
+  if (!script.language || typeof script.language !== 'string') {
+    errors.push('language must be a string');
+  }
+
+  if (!script.nodes || !Array.isArray(script.nodes) || script.nodes.length === 0) {
+    errors.push('nodes must be a non-empty array');
+  } else {
+    const nodeIds = new Set(script.nodes.map(n => n.id).filter(id => typeof id === 'string'));
+    script.nodes.forEach((node, index) => {
+      if (!node.id || typeof node.id !== 'string' || node.id.trim() === '') {
+        errors.push(`Node [index ${index}] lacks a valid string id`);
+      }
+      if (!node.prompt || typeof node.prompt !== 'string') {
+        errors.push(`Node "${node.id || index}" prompt must be a string`);
+      }
+      if (node.expected_intents && !Array.isArray(node.expected_intents)) {
+        errors.push(`Node "${node.id || index}" expected_intents must be an array`);
+      }
+      if (node.branches && (typeof node.branches !== 'object' || Array.isArray(node.branches))) {
+        errors.push(`Node "${node.id || index}" branches must be an object`);
+      } else if (node.branches) {
+        Object.entries(node.branches).forEach(([intent, targetId]) => {
+          if (!nodeIds.has(targetId)) {
+            errors.push(`Node "${node.id}" branches to non-existent node "${targetId}"`);
+          }
+        });
+      }
+    });
+  }
+
+  if (script.escalation_triggers !== undefined) {
+    if (!Array.isArray(script.escalation_triggers)) {
+      errors.push('escalation_triggers must be an array');
+    } else {
+      const allowedTypes = ['explicit_request', 'sentiment_low', 'high_intent', 'max_duration'];
+      script.escalation_triggers.forEach((trigger, idx) => {
+        if (!trigger.type || !allowedTypes.includes(trigger.type)) {
+          errors.push(`Escalation trigger [index ${idx}] has invalid type: ${trigger.type || 'none'}`);
+        }
+        if (trigger.type === 'explicit_request' || trigger.type === 'high_intent') {
+          if (!trigger.phrases || !Array.isArray(trigger.phrases)) {
+            errors.push(`Escalation trigger [index ${idx}] of type "${trigger.type}" must have a phrases array`);
+          }
+        }
+        if (trigger.type === 'sentiment_low' && typeof trigger.threshold !== 'number') {
+          errors.push(`Escalation trigger [index ${idx}] of type "sentiment_low" must have a numeric threshold`);
+        }
+        if (trigger.type === 'max_duration' && typeof trigger.seconds !== 'number') {
+          errors.push(`Escalation trigger [index ${idx}] of type "max_duration" must have a numeric seconds field`);
+        }
+      });
+    }
+  }
+
+  if (script.max_duration_seconds !== undefined && typeof script.max_duration_seconds !== 'number') {
+    errors.push('max_duration_seconds must be a number');
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+

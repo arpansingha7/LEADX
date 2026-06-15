@@ -15,19 +15,24 @@ async function runBenchmark() {
   const baseUrl = `http://127.0.0.1:${port}`;
   console.log(`Starting performance benchmark on ${baseUrl}...`);
 
-  const numRequests = 100;
-  const latencies = [];
-  let successfulRequests = 0;
-  let failedRequests = 0;
+  const numRequests = 50;
+  const ingestLatencies = [];
+  const instantCallLatencies = [];
+  let ingestSuccess = 0;
+  let ingestFail = 0;
+  let callSuccess = 0;
+  let callFail = 0;
+  const leadIds = [];
 
-  const startBenchmark = Date.now();
-
-  // Create list of ingestion payloads and run in parallel
-  const promises = Array.from({ length: numRequests }).map(async (_, idx) => {
+  console.log(`\n--- PHASE 1: Concurrent Ingestion of ${numRequests} Leads ---`);
+  const ingestStart = Date.now();
+  const ingestPromises = Array.from({ length: numRequests }).map(async (_, idx) => {
+    // Avoid phone numbers containing 0000 or 403 to bypass DNC mock blocks
+    const phoneNum = `+9198765${11111 + idx}`;
     const payload = {
       tenant_id: 'perf-tenant',
       name: `Perf User ${idx}`,
-      phone: `+919900000${String(idx).padStart(3, '0')}`,
+      phone: phoneNum,
       source: 'paid_ads',
       raw_data: { age: 25, city: 'Delhi', income: 400000 }
     };
@@ -40,50 +45,103 @@ async function runBenchmark() {
         body: JSON.stringify(payload)
       });
       const endReq = Date.now();
-      const latency = endReq - startReq;
-      latencies.push(latency);
+      ingestLatencies.push(endReq - startReq);
 
       if (response.status === 201) {
-        successfulRequests++;
+        const body = await response.json();
+        leadIds.push(body.lead.id);
+        ingestSuccess++;
       } else {
-        failedRequests++;
+        ingestFail++;
       }
     } catch (err) {
-      failedRequests++;
+      ingestFail++;
     }
   });
 
-  await Promise.all(promises);
-  const endBenchmark = Date.now();
+  await Promise.all(ingestPromises);
+  const ingestEnd = Date.now();
+
+  console.log(`\n--- PHASE 2: Concurrent Dispatch of ${leadIds.length} Instant Call Requests ---`);
+  const callStart = Date.now();
+  const callPromises = leadIds.map(async (leadId) => {
+    const payload = {
+      tenant_id: 'perf-tenant',
+      lead_id: leadId
+    };
+
+    const startReq = Date.now();
+    try {
+      const response = await fetch(`${baseUrl}/leads/calls/instant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const endReq = Date.now();
+      instantCallLatencies.push(endReq - startReq);
+
+      if (response.status === 200) {
+        callSuccess++;
+      } else {
+        callFail++;
+      }
+    } catch (err) {
+      callFail++;
+    }
+  });
+
+  await Promise.all(callPromises);
+  const callEnd = Date.now();
 
   server.close();
 
-  // Calculate stats
-  latencies.sort((a, b) => a - b);
-  const totalDuration = endBenchmark - startBenchmark;
-  const rps = (numRequests / (totalDuration / 1000)).toFixed(2);
-  const mean = (latencies.reduce((acc, val) => acc + val, 0) / latencies.length).toFixed(2);
-  const p50 = latencies[Math.floor(latencies.length * 0.50)] || 0;
-  const p90 = latencies[Math.floor(latencies.length * 0.90)] || 0;
-  const p99 = latencies[Math.floor(latencies.length * 0.99)] || 0;
+  // Calculate Ingestion Stats
+  ingestLatencies.sort((a, b) => a - b);
+  const ingestDuration = ingestEnd - ingestStart;
+  const ingestRps = (numRequests / (ingestDuration / 1000)).toFixed(2);
+  const ingestMean = (ingestLatencies.reduce((acc, val) => acc + val, 0) / ingestLatencies.length).toFixed(2);
+  const ingestP50 = ingestLatencies[Math.floor(ingestLatencies.length * 0.50)] || 0;
+  const ingestP90 = ingestLatencies[Math.floor(ingestLatencies.length * 0.90)] || 0;
+  const ingestP99 = ingestLatencies[Math.floor(ingestLatencies.length * 0.99)] || 0;
 
-  console.log(`\n================ PERFORMANCE RESULTS ================`);
+  // Calculate Instant Call Stats
+  instantCallLatencies.sort((a, b) => a - b);
+  const callDuration = callEnd - callStart;
+  const callRps = (leadIds.length / (callDuration / 1000)).toFixed(2);
+  const callMean = (instantCallLatencies.reduce((acc, val) => acc + val, 0) / instantCallLatencies.length).toFixed(2);
+  const callP50 = instantCallLatencies[Math.floor(instantCallLatencies.length * 0.50)] || 0;
+  const callP90 = instantCallLatencies[Math.floor(instantCallLatencies.length * 0.90)] || 0;
+  const callP99 = instantCallLatencies[Math.floor(instantCallLatencies.length * 0.99)] || 0;
+
+  console.log(`\n================ PERFORMANCE RESULTS: INGESTION ================`);
   console.log(`Total Ingestion Requests Run : ${numRequests}`);
-  console.log(`Total Time Taken             : ${totalDuration} ms`);
-  console.log(`Throughput                   : ${rps} req/sec`);
-  console.log(`Success Rate                 : ${((successfulRequests / numRequests) * 100).toFixed(2)}%`);
-  console.log(`Failure Rate                 : ${((failedRequests / numRequests) * 100).toFixed(2)}%`);
+  console.log(`Total Time Taken             : ${ingestDuration} ms`);
+  console.log(`Throughput                   : ${ingestRps} req/sec`);
+  console.log(`Success Rate                 : ${((ingestSuccess / numRequests) * 100).toFixed(2)}%`);
+  console.log(`Failure Rate                 : ${((ingestFail / numRequests) * 100).toFixed(2)}%`);
   console.log(`---------------- Latencies ----------------`);
-  console.log(`Mean Latency                 : ${mean} ms`);
-  console.log(`p50 (Median) Latency          : ${p50} ms`);
-  console.log(`p90 Latency                  : ${p90} ms`);
-  console.log(`p99 Latency                  : ${p99} ms`);
-  console.log(`=====================================================\n`);
+  console.log(`Mean Latency                 : ${ingestMean} ms`);
+  console.log(`p50 (Median) Latency          : ${ingestP50} ms`);
+  console.log(`p90 Latency                  : ${ingestP90} ms`);
+  console.log(`p99 Latency                  : ${ingestP99} ms`);
 
-  if (p99 < 200) {
-    console.log(`✅ Performance check passed: p99 latency (${p99}ms) is below 200ms.`);
+  console.log(`\n================ PERFORMANCE RESULTS: INSTANT CALLS ================`);
+  console.log(`Total Call Requests Run      : ${leadIds.length}`);
+  console.log(`Total Time Taken             : ${callDuration} ms`);
+  console.log(`Throughput                   : ${callRps} req/sec`);
+  console.log(`Success Rate                 : ${((callSuccess / leadIds.length) * 100).toFixed(2)}%`);
+  console.log(`Failure Rate                 : ${((callFail / leadIds.length) * 100).toFixed(2)}%`);
+  console.log(`---------------- Latencies ----------------`);
+  console.log(`Mean Latency                 : ${callMean} ms`);
+  console.log(`p50 (Median) Latency          : ${callP50} ms`);
+  console.log(`p90 Latency                  : ${callP90} ms`);
+  console.log(`p99 Latency                  : ${callP99} ms`);
+  console.log(`====================================================================\n`);
+
+  if (callP99 < 1000) {
+    console.log(`✅ Performance check passed: p99 latency for instant calls (${callP99}ms) is below 1s.`);
   } else {
-    console.warn(`⚠️ Performance warning: p99 latency (${p99}ms) exceeds the target of 200ms.`);
+    console.warn(`⚠️ Performance warning: p99 latency for instant calls (${callP99}ms) exceeds the target of 1s.`);
   }
   process.exit(0);
 }

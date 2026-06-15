@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import db from '../config/db.js';
-import { validateLead, validateScoringWeights, cleanPhone } from '../utils/validation.js';
+import { validateLead, validateScoringWeights, cleanPhone, validateScript } from '../utils/validation.js';
 import { computeLeadScore } from '../services/scoringEngine.js';
 import { initSession, normaliseEvent } from '../services/voizAdapter.js';
 import { sendSlackNotification } from '../services/slackService.js';
 import { syncToCRM, getCRMLists, getCRMContactsFromList } from '../services/crmService.js';
-import { enqueueLead, handleCallOutcome, forceRetry, getQueueStats } from '../services/queueService.js';
+import { enqueueLead, handleCallOutcome, forceRetry, getQueueStats, isCallable } from '../services/queueService.js';
+import { checkEscalation } from '../services/escalationService.js';
+import { handleEscalation } from '../services/handoffService.js';
+
 
 const router = Router();
 
@@ -312,6 +315,25 @@ router.post('/:id/rescore', async (req, res, next) => {
 });
 
 /**
+ * POST /leads/:id/resolve
+ * Marks a hot escalation as resolved by transitioning status to called.
+ */
+router.post('/:id/resolve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lead = await db.findLeadById(id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${id} does not exist.` });
+    }
+    const updated = await db.updateLeadStatus(id, 'called');
+    await db.insertAuditLog(lead.tenant_id, 'escalation_resolved', { lead_id: id });
+    res.json({ success: true, lead: updated, message: 'Escalation resolved successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /leads/onboard
  * Saves client discovery questionnaire configurations.
  */
@@ -487,28 +509,35 @@ router.post('/voiz-webhook', async (req, res, next) => {
     await db.insertCallEvent(normalized);
 
     // Stream handlers
-    if (event_type === 'escalation_triggered') {
-      await db.updateLeadStatus(lead_id, 'hot_escalated');
+    let activeEventType = event_type;
 
-      await db.insertAuditLog(tenant_id, 'escalation_triggered', {
-        lead_id,
-        phone,
-        reason: rawEvent.payload.reason
-      });
-
-      // Slack dispatch
-      await sendSlackNotification(`[Escalation Alert] Active session "${voizSessionId}" escalated. Reason: ${rawEvent.payload.reason}.`);
-
-      // CRM sync
-      const lead = await db.findLeadById(lead_id);
-      if (lead) {
-        try {
-          await syncToCRM(tenant_id, { ...lead, status: 'hot_escalated' }, 'hubspot');
-        } catch (crmErr) {
-          console.error('CRM escalation push skipped or failed:', crmErr.message);
+    if (activeEventType !== 'escalation_triggered' && activeEventType !== 'call_ended' && activeEventType !== 'call_started') {
+      try {
+        const onboarding = await db.getOnboardingConfig(tenant_id);
+        const scriptId = onboarding.active_script_id || 'default-script';
+        const scriptConfig = await db.getLatestScript(tenant_id, scriptId);
+        if (scriptConfig) {
+          const transcript = rawEvent.payload?.transcript || '';
+          const duration = rawEvent.payload?.call_duration_seconds || rawEvent.payload?.duration || 0;
+          const sentiment = rawEvent.payload?.sentiment || 'neutral';
+          const escResult = checkEscalation(transcript, duration, sentiment, scriptConfig);
+          if (escResult.shouldEscalate) {
+            activeEventType = 'escalation_triggered';
+            rawEvent.payload = {
+              ...(rawEvent.payload || {}),
+              reason: escResult.reason,
+              detail: escResult.detail
+            };
+          }
         }
+      } catch (err) {
+        console.error('Error running checkEscalation inside webhook:', err.message);
       }
-    } else if (event_type === 'call_ended') {
+    }
+
+    if (activeEventType === 'escalation_triggered') {
+      await handleEscalation(voizSessionId, rawEvent);
+    } else if (activeEventType === 'call_ended') {
       await handleCallOutcome(
         voizSessionId,
         rawEvent.payload.disposition,
@@ -825,6 +854,333 @@ router.post('/webhook/leadsquared', async (req, res, next) => {
     });
 
     res.status(201).json({ success: true, lead: saved });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/scripts
+ * Retrieves all scripts for a tenant.
+ */
+router.get('/scripts', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id is required' });
+    }
+    const scripts = await db.getAllScripts(tenant_id);
+    res.json({ success: true, scripts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/scripts/:id
+ * Retrieves a script by ID (UUID or script_id).
+ */
+router.get('/scripts/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isUuid) {
+      const scripts = await db.getAllScripts(req.query.tenant_id || 'default-tenant');
+      const script = scripts.find(s => s.id === id);
+      if (!script) {
+        return res.status(404).json({ error: 'Not Found', message: `Script with ID ${id} not found.` });
+      }
+      return res.json({ success: true, script });
+    } else {
+      const { tenant_id, version } = req.query;
+      if (!tenant_id) {
+        return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required when searching by script_id' });
+      }
+      let script = null;
+      if (version) {
+        script = await db.getScript(tenant_id, id, version);
+      } else {
+        script = await db.getLatestScript(tenant_id, id);
+      }
+      if (!script) {
+        return res.status(404).json({ error: 'Not Found', message: `Script with script_id ${id} not found.` });
+      }
+      return res.json({ success: true, script });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/scripts
+ * Validates and saves a script configuration.
+ */
+router.post('/scripts', async (req, res, next) => {
+  try {
+    const scriptData = req.body;
+    const valResult = validateScript(scriptData);
+    if (!valResult.isValid) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Invalid script configuration',
+        errors: valResult.errors
+      });
+    }
+
+    const savedScript = await db.insertScript(scriptData);
+    
+    await db.insertAuditLog(scriptData.tenant_id, 'script_created', {
+      script_id: savedScript.script_id,
+      version: savedScript.version
+    });
+
+    res.status(201).json({ success: true, script: savedScript });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/handoff/brief/:lead_id
+ * Serves agent brief context for the lead.
+ */
+router.get('/handoff/brief/:lead_id', async (req, res, next) => {
+  try {
+    const { lead_id } = req.params;
+    const brief = await db.getAgentBrief(lead_id);
+    if (!brief) {
+      return res.status(404).json({ error: 'Not Found', message: `No agent brief found for lead ID ${lead_id}.` });
+    }
+    res.json({ success: true, brief: brief.brief });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/handoff/escalate
+ * Manually escalates a call session.
+ */
+router.post('/handoff/escalate', async (req, res, next) => {
+  try {
+    const { tenant_id, lead_id, voiz_session_id, reason } = req.body;
+    if (!tenant_id || !lead_id || !voiz_session_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id, lead_id, and voiz_session_id are required' });
+    }
+
+    const brief = await handleEscalation(voiz_session_id, {
+      payload: { reason: reason || 'Manual Handoff' }
+    });
+
+    res.json({ success: true, message: 'Session manually escalated.', brief });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/calls/instant
+ * Immediately initiates a simulated call session, bypassing the queue capacity.
+ * If at concurrent capacity, enqueues the lead with highest priority.
+ */
+router.post('/calls/instant', async (req, res, next) => {
+  try {
+    const { tenant_id, lead_id } = req.body;
+    if (!tenant_id || !lead_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id and lead_id are required' });
+    }
+
+    const lead = await db.findLeadById(lead_id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${lead_id} does not exist.` });
+    }
+
+    // DNC check
+    const onboarding = await db.getOnboardingConfig(tenant_id);
+    const usePlatformDnc = onboarding.dnc_validation_ownership !== 'client';
+    const isDnc = await db.isDncNumber(tenant_id, lead.phone);
+    const isDncMockPattern = lead.phone.includes('403') || lead.phone.includes('0000');
+
+    if (usePlatformDnc && (isDnc || isDncMockPattern)) {
+      await db.updateLeadStatus(lead_id, 'dnc');
+      await db.insertAuditLog(tenant_id, 'dnc_block', { lead_id: lead.id, phone: lead.phone });
+      await sendSlackNotification(`[DNC Block] Instant call blocked to DNC number: ${lead.phone}`);
+      return res.status(400).json({ error: 'DNC Block', message: 'The number is registered on the national DNC database.' });
+    }
+
+    if (!isCallable(lead, onboarding)) {
+      return res.status(400).json({ error: 'Outside Calling Hours', message: 'Calls are only permitted between 9 AM and 8 PM IST.' });
+    }
+
+    // Concurrency check
+    const limit = onboarding.concurrent_call_limit || 5;
+    const activeCalls = await db.getActiveCallsCount(tenant_id);
+
+    if (activeCalls >= limit) {
+      // Concurrency full, enqueue at highest priority
+      await db.updateLeadStatusAndData(lead_id, 'queued', {
+        ...(lead.raw_data || {}),
+        instant_requested_at: new Date().toISOString()
+      });
+      await db.updateLeadScore(lead_id, 999);
+      
+      await db.insertAuditLog(tenant_id, 'instant_call_queued', { lead_id, message: 'Concurrency limit reached, enqueued at highest priority.' });
+      return res.json({ success: true, dial_mode: 'queued_high_priority', message: 'Concurrency limit reached. Enqueued at highest priority.' });
+    }
+
+    // Direct dialing
+    await db.updateLeadStatus(lead_id, 'calling');
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const webhookUrl = `${protocol}://${host}/leads/voiz-webhook`;
+
+    const result = await initSession(lead, onboarding, webhookUrl);
+
+    const session = await db.insertCallSession({
+      tenant_id,
+      lead_id,
+      voiz_session_id: result.voiz_session_id,
+      disposition: 'calling'
+    });
+
+    await db.insertAuditLog(tenant_id, 'call_initiated_instant', {
+      lead_id,
+      voiz_session_id: result.voiz_session_id,
+      phone: lead.phone
+    });
+
+    res.json({ success: true, dial_mode: 'instant', voiz_session_id: result.voiz_session_id, session_id: session.id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/analytics/summary
+ * Aggregates dashboard analytics KPI cards and funnel metrics.
+ */
+router.get('/analytics/summary', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+
+    const leads = await db.getLeads(tenant_id);
+    const sessions = await db.getCallSessions(tenant_id);
+
+    const totalLeads = leads.length;
+    const hotLeads = leads.filter(l => l.score >= 80).length;
+    const qualifiedLeads = leads.filter(l => l.score >= 65 && l.status !== 'dnc').length;
+
+    // local today range
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const callsToday = sessions.filter(s => s.started_at.substring(0, 10) === todayStr).length;
+
+    // Connect rate
+    const totalCalls = sessions.length;
+    const connectedDispositions = ['called', 'qualified', 'interested', 'callback', 'qualified_escalated', 'converted', 'hot_escalated'];
+    const connectedCalls = sessions.filter(s => s.disposition && connectedDispositions.includes(s.disposition.toLowerCase())).length;
+    const connectRate = totalCalls > 0 ? parseFloat(((connectedCalls / totalCalls) * 100).toFixed(1)) : 0.0;
+
+    // Funnel breakdown
+    const funnel = {
+      ingested: totalLeads,
+      scrubbed: totalLeads - leads.filter(l => l.status === 'dnc').length,
+      scored: totalLeads,
+      queued: leads.filter(l => ['queued', 're-queued', 'calling', 'called', 'closed', 'hot_escalated'].includes(l.status)).length,
+      attempted: totalCalls,
+      connected: connectedCalls,
+      qualified: qualifiedLeads
+    };
+
+    // Dispositions pie chart
+    const dispositionsMap = {};
+    sessions.forEach(s => {
+      if (s.disposition) {
+        const d = s.disposition.toUpperCase();
+        dispositionsMap[d] = (dispositionsMap[d] || 0) + 1;
+      }
+    });
+    const dispositions = Object.entries(dispositionsMap).map(([name, value]) => ({ name, value }));
+
+    // Connect rate trend (last 7 days)
+    const trendMap = {};
+    sessions.forEach(s => {
+      const date = s.started_at.substring(0, 10);
+      if (!trendMap[date]) {
+        trendMap[date] = { date, total: 0, connected: 0 };
+      }
+      trendMap[date].total++;
+      if (s.disposition && connectedDispositions.includes(s.disposition.toLowerCase())) {
+        trendMap[date].connected++;
+      }
+    });
+
+    const connectRateTrend = Object.values(trendMap)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-7)
+      .map(t => ({
+        date: t.date,
+        connect_rate: parseFloat(((t.connected / t.total) * 100).toFixed(1))
+      }));
+
+    // Scoring effectiveness
+    const hotLeadsConverted = leads.filter(l => l.score >= 80 && ['called', 'hot_escalated', 'converted'].includes(l.status)).length;
+    const warmLeadsConverted = leads.filter(l => l.score >= 50 && l.score < 80 && ['called', 'hot_escalated', 'converted'].includes(l.status)).length;
+    const coldLeadsConverted = leads.filter(l => l.score < 50 && ['called', 'hot_escalated', 'converted'].includes(l.status)).length;
+
+    const scoringEffectiveness = [
+      { category: 'Hot (>=80)', converted: hotLeadsConverted },
+      { category: 'Warm (50-79)', converted: warmLeadsConverted },
+      { category: 'Cold (<50)', converted: coldLeadsConverted }
+    ];
+
+    res.json({
+      success: true,
+      kpis: {
+        calls_today: callsToday,
+        connect_rate: connectRate,
+        qualified_leads: qualifiedLeads,
+        hot_leads: hotLeads
+      },
+      funnel,
+      dispositions,
+      connect_rate_trend: connectRateTrend,
+      scoring_effectiveness: scoringEffectiveness
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/scoring-config/:tenant_id
+ */
+router.get('/scoring-config/:tenant_id', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.params;
+    const weights = await db.getWeights(tenant_id);
+    res.json({ success: true, tenant_id, weights });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/scoring-config/:tenant_id
+ */
+router.post('/scoring-config/:tenant_id', async (req, res, next) => {
+  try {
+    const { tenant_id } = req.params;
+    const { weights, changed_by } = req.body;
+    const valResult = validateScoringWeights(weights);
+    if (!valResult.isValid) {
+      return res.status(400).json({ error: 'Validation Error', message: 'Invalid scoring weights', errors: valResult.errors });
+    }
+    await db.upsertWeights(tenant_id, weights, changed_by || 'system');
+    res.json({ success: true, tenant_id, weights });
   } catch (error) {
     next(error);
   }

@@ -30,7 +30,9 @@ const mockDb = {
   callSessions: [],
   callEvents: [],
   auditTrail: [],
-  dncRegistry: []
+  dncRegistry: [],
+  scripts: [],
+  agentBriefs: []
 };
 
 // Seed default configs for tenant 'default-tenant' and 'test-tenant'
@@ -450,6 +452,22 @@ const db = {
     }
   },
 
+  async getCallSessions(tenantId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('started_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.callSessions
+        .filter(s => s.tenant_id === tenantId)
+        .sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+    }
+  },
+
   async insertCallEvent(event) {
     const eventVal = {
       id: event.id || uuidv4(),
@@ -567,8 +585,154 @@ const db = {
     }
   },
 
+  async insertScript(script) {
+    const scriptVal = {
+      id: script.id || uuidv4(),
+      tenant_id: script.tenant_id,
+      script_id: script.script_id,
+      version: script.version || '1.0',
+      language: script.language || 'en',
+      nodes: script.nodes || [],
+      escalation_triggers: script.escalation_triggers || [],
+      max_duration_seconds: script.max_duration_seconds || 300,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('scripts')
+        .insert(scriptVal)
+        .select()
+        .single();
+      if (error) {
+        if (error.code === '23505' || error.message?.includes('duplicate key value violates unique constraint')) {
+          const err = new Error('Duplicate script version found');
+          err.code = '23505';
+          throw err;
+        }
+        throw error;
+      }
+      return data;
+    } else {
+      const exists = mockDb.scripts.some(
+        s => s.tenant_id === scriptVal.tenant_id && s.script_id === scriptVal.script_id && s.version === scriptVal.version
+      );
+      if (exists) {
+        const err = new Error('Duplicate script version found');
+        err.code = '23505';
+        throw err;
+      }
+      mockDb.scripts.push(scriptVal);
+      return scriptVal;
+    }
+  },
+
+  async getScript(tenantId, scriptId, version) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('script_id', scriptId)
+        .eq('version', version)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.scripts.find(
+        s => s.tenant_id === tenantId && s.script_id === scriptId && s.version === version
+      ) || null;
+    }
+  },
+
+  async getLatestScript(tenantId, scriptId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('script_id', scriptId)
+        .order('version', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } else {
+      const tenantScripts = mockDb.scripts.filter(s => s.tenant_id === tenantId && s.script_id === scriptId);
+      if (tenantScripts.length === 0) return null;
+      tenantScripts.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
+      return tenantScripts[0];
+    }
+  },
+
+  async getAllScripts(tenantId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('scripts')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.scripts
+        .filter(s => s.tenant_id === tenantId)
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    }
+  },
+
+  async upsertAgentBrief(tenantId, leadId, brief) {
+    const briefVal = {
+      tenant_id: tenantId,
+      lead_id: leadId,
+      brief: brief || {},
+      updated_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('agent_briefs')
+        .upsert(briefVal, { onConflict: 'lead_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      let existing = mockDb.agentBriefs.find(b => b.lead_id === leadId);
+      if (existing) {
+        existing.brief = brief;
+        existing.updated_at = new Date().toISOString();
+        return existing;
+      } else {
+        const newBrief = {
+          id: uuidv4(),
+          ...briefVal,
+          created_at: new Date().toISOString()
+        };
+        mockDb.agentBriefs.push(newBrief);
+        return newBrief;
+      }
+    }
+  },
+
+  async getAgentBrief(leadId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('agent_briefs')
+        .select('*')
+        .eq('lead_id', leadId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } else {
+      return mockDb.agentBriefs.find(b => b.lead_id === leadId) || null;
+    }
+  },
+
+
   async clearDb() {
     if (supabase) {
+      await supabase.from('agent_briefs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('scripts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('dnc_registry').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('call_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await supabase.from('call_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -583,6 +747,8 @@ const db = {
       mockDb.callEvents = [];
       mockDb.auditTrail = [];
       mockDb.dncRegistry = [];
+      mockDb.scripts = [];
+      mockDb.agentBriefs = [];
       // Re-seed defaults
       mockDb.tenantConfigs = {};
       mockDb.tenantConfigs['default-tenant'] = {

@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -51,6 +53,9 @@
         <div class="lx-sidebar-item" data-page="onboarding">
           <i data-lucide="clipboard-list" class="lx-icon"></i> Onboarding
         </div>
+        <div class="lx-sidebar-item" data-page="script-editor">
+          <i data-lucide="file-text" class="lx-icon"></i> Script Editor
+        </div>
         <div class="lx-sidebar-item" data-page="campaigns">
           <i data-lucide="target" class="lx-icon"></i> Campaigns
         </div>
@@ -77,6 +82,17 @@
 
       <!-- Main Pages Area -->
       <main class="lx-main">
+        <!-- Escalation warning banner -->
+        <div id="escalationWarningBanner" class="lx-banner warning" style="display: none; background: rgba(255, 71, 87, 0.15); border: 1px solid rgba(255, 71, 87, 0.4); border-radius: 8px; padding: 12px; margin-bottom: 12px; align-items: center; justify-content: space-between; gap: 12px; display: none;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="alert-circle" style="color: var(--lx-red); width: 20px; height: 20px;"></i>
+            <div>
+              <strong style="color: var(--lx-red); font-size: 13px;">ACTIVE ESCALATION DETECTED</strong>
+              <div style="font-size: 11.5px; color: var(--lx-text); margin-top: 2px;" id="escalationBannerText">Lead Raman Iyer requires immediate advisor brief lookup.</div>
+            </div>
+          </div>
+          <button class="lx-btn lx-btn-small" style="background: var(--lx-red); color: white; border-color: var(--lx-red);" id="viewBriefBannerBtn">View Agent Brief</button>
+        </div>
         
         <!-- 1. DASHBOARD PAGE -->
         <section class="lx-page show" id="page-home">
@@ -274,6 +290,37 @@
                     <span class="tl-text">VOIZ agent <strong>V-05</strong> switched state to <strong>Idle</strong>.</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analytics Charts Row -->
+          <div class="lx-row" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
+            <div class="lx-card" style="display: flex; flex-direction: column;">
+              <div class="lx-section-title" style="margin-bottom: 8px;">
+                Connect Rate Trend
+                <span class="sub">7-Day Outbound Call Success</span>
+              </div>
+              <div style="flex: 1; min-height: 180px; position: relative;">
+                <canvas id="connectRateChart" style="width: 100%; height: 100%; max-height: 180px;"></canvas>
+              </div>
+            </div>
+            <div class="lx-card" style="display: flex; flex-direction: column;">
+              <div class="lx-section-title" style="margin-bottom: 8px;">
+                Disposition Breakdown
+                <span class="sub">Outbound Call Outcomes Distribution</span>
+              </div>
+              <div style="flex: 1; min-height: 180px; position: relative;">
+                <canvas id="dispositionsChart" style="width: 100%; height: 100%; max-height: 180px;"></canvas>
+              </div>
+            </div>
+            <div class="lx-card" style="display: flex; flex-direction: column;">
+              <div class="lx-section-title" style="margin-bottom: 8px;">
+                Scoring Effectiveness
+                <span class="sub">Conversions by Score Category</span>
+              </div>
+              <div style="flex: 1; min-height: 180px; position: relative;">
+                <canvas id="scoringEffectivenessChart" style="width: 100%; height: 100%; max-height: 180px;"></canvas>
               </div>
             </div>
           </div>
@@ -482,6 +529,82 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
                 <button class="lx-btn" onclick="goToStep(3)">Back</button>
                 <button class="lx-btn primary" id="wizardFinishBtn" onclick="commitWizardData()">Finalize and Trigger Handoff</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2b. SCRIPT EDITOR PAGE -->
+        <section class="lx-page" id="page-script-editor">
+          <div class="lx-section-title">
+            Conversational Script Editor
+            <span class="sub">Author scripts, configure escalation triggers, and validate graph flow</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
+            <!-- Left Side: JSON Editor & Meta -->
+            <div class="lx-card" style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--lx-border); padding-bottom: 8px;">
+                <span style="font-size: 13px; font-weight: 700;">Script JSON Editor</span>
+                <span id="scriptValidationStatus" class="lx-badge badge-gray">UNVALIDATED</span>
+              </div>
+
+              <!-- Quick Template Selectors -->
+              <div style="display: flex; gap: 8px;">
+                <button class="lx-btn lx-btn-small" onclick="loadScriptTemplate('edtech')">Load Ed-Tech Admissions</button>
+                <button class="lx-btn lx-btn-small" onclick="loadScriptTemplate('sales')">Load B2C Sales</button>
+              </div>
+
+              <div class="form-group">
+                <label for="scriptJsonArea">Script Configuration (JSON)</label>
+                <textarea id="scriptJsonArea" class="lx-input" style="height: 400px; font-family: var(--lx-mono); font-size: 11px; line-height: 1.4; color: #a4b0be; background: #2f3542;" placeholder="Paste script JSON here..."></textarea>
+              </div>
+
+              <div id="scriptValidationErrors" style="display: none; background: rgba(255, 71, 87, 0.1); border: 1px solid rgba(255, 71, 87, 0.3); border-radius: 6px; padding: 10px; font-size: 11.5px; color: var(--lx-red); font-family: var(--lx-mono); max-height: 120px; overflow-y: auto;">
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+                <button class="lx-btn" onclick="validateScriptJsonUI()">Validate Schema</button>
+                <button class="lx-btn primary" onclick="saveScriptJsonUI()">Save & Publish</button>
+              </div>
+            </div>
+
+            <!-- Right Side: Flow Visualizer & Version History -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Flow Visualizer -->
+              <div class="lx-card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="lx-section-title" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 6px; margin-bottom: 10px;">
+                  Active Nodes Visualizer
+                  <span class="sub">Conversational Graph Preview</span>
+                </div>
+                <div id="scriptFlowVisualizer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; max-height: 300px;">
+                  <div style="text-align: center; color: var(--lx-muted); padding: 30px 0;">No script loaded. Paste/Load a template to view the graph flow.</div>
+                </div>
+              </div>
+
+              <!-- Version History -->
+              <div class="lx-card" style="max-height: 250px; display: flex; flex-direction: column;">
+                <div class="lx-section-title" style="border-bottom: 1px solid var(--lx-border); padding-bottom: 6px; margin-bottom: 10px;">
+                  Script Version History
+                  <span class="sub">Published script versions</span>
+                </div>
+                <div style="flex: 1; overflow-y: auto;">
+                  <table class="lx-table" style="font-size: 11.5px; margin: 0;">
+                    <thead>
+                      <tr>
+                        <th>Script ID</th>
+                        <th>Version</th>
+                        <th>Language</th>
+                        <th>Date Published</th>
+                      </tr>
+                    </thead>
+                    <tbody id="scriptVersionHistory">
+                      <tr>
+                        <td colspan="4" style="text-align: center; color: var(--lx-muted); padding: 12px;">No versions published.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1490,6 +1613,23 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
       </div>
     </div>
     <button class="toast-close" id="toastCloseBtn">&times;</button>
+  </div>
+
+  <!-- Agent Brief Modal -->
+  <div id="agentBriefModal" class="lx-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="lx-modal-content" style="background: var(--lx-card); border: 1px solid var(--lx-border); padding: 20px; border-radius: 12px; width: 500px; max-width: 90%; display: flex; flex-direction: column; gap: 16px; margin: 10% auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--lx-border); padding-bottom: 10px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--lx-text); display: flex; align-items: center; gap: 6px;"><i data-lucide="shield-alert" style="color: var(--lx-teal); width:18px; height:18px;"></i> Handoff Agent Brief</h3>
+        <button id="closeBriefModal" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer;">&times;</button>
+      </div>
+      <div id="briefModalContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 12.5px;">
+        <!-- Filled dynamically -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+        <button class="lx-btn" id="printBriefBtn"><i data-lucide="printer" style="width: 12px; height: 12px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i> Print Card</button>
+        <button class="lx-btn primary" id="resolveBriefBtn">Mark as Resolved</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
