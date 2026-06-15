@@ -141,6 +141,7 @@ npm run perf
 ## 📚 Study Guides & Presentation Documentation
 
 For deeper details, presentation checklists, and study guides:
+*   🧭 **[LEADX Platform User Guide (docs/platform-user-guide.md)](docs/platform-user-guide.md)** — Complete step-by-step user manual from onboarding questionnaire and scoring configurations to call simulations and conversion analytics.
 *   📖 **[Module 1 Guide (docs/module1_documentation.md)](docs/module1_documentation.md)** — Ingestion, E.164 phone normalization, weight configurations, and delta validations.
 *   🎙️ **[Module 2 Guide (docs/module2_documentation.md)](docs/module2_documentation.md)** — Onboarding questionnaire, dynamic CSV mapping, and HubSpot OAuth.
 *   ⚙️ **[Module 3 Guide (docs/module3_documentation.md)](docs/module3_documentation.md)** — Dialer worker loop, calling hours calculations, and exponential backoff retry math.

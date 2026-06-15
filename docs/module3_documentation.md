@@ -71,3 +71,11 @@ Check out these files to see the implementation:
 4.  Trigger a call manually. Notice the lead moves to the active table and is marked as `calling`.
 5.  Simulate a failed call outcome from the telephony simulator (busy or no answer). Notice the lead moves to `re-queued` status and increments the **RETRIES** count.
 6.  Click **Force Retry** and verify that the metrics reset and enqueued leads return to the active pool.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how to configure dialer script versions and validation rules, refer to the [Module 5 Script Authoring & Escalation Detection Guide (docs/module5_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module5_documentation.md).
+*   To understand how call outcomes can trigger instant operations notifications and agent context cards, refer to the [Module 6 Handoffs, Briefs, & Instant Calls Guide (docs/module6_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module6_documentation.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

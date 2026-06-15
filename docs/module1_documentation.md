@@ -86,3 +86,11 @@ To explore the code behind this module, check out these files:
 3.  Verify that the lead appears in the table with the phone number normalized to `+919876543210`.
 4.  Try to submit the same phone number again. Verify that the system pops up a warning toast stating that a duplicate lead conflict occurred (HTTP 409).
 5.  Move the weights sliders on the right. Notice how the configuration sum indicator updates. Try saving with a sum of `1.10` to see the validation error in action.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how to onboard clients and map headers from custom CSV sheets, refer to the [Module 2 Onboarding & Column Mapper Guide (docs/module2_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module2_documentation.md).
+*   To see the complete list of endpoint definitions and ingest payload schemas, refer to the [API Contracts Reference (docs/api-contracts.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/api-contracts.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

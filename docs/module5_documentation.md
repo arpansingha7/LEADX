@@ -73,3 +73,11 @@ To explore the code behind this module, check out these files:
 6.  Click the **Call** button for the ingested lead. This initiates a simulated call session.
 7.  Go to the **Live Monitor** or event logs. Check how the webhook registers caller transcription events.
 8.  Simulate a transcription event containing the phrase *"I want to speak to advisor"*. Verify that the warning banner *"ACTIVE ESCALATION DETECTED"* immediately flashes at the top of the dashboard page.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how call session escalations generate context briefings and trigger queue bypass logic, refer to the [Module 6 Handoffs, Briefs, & Instant Calls Guide (docs/module6_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module6_documentation.md).
+*   To examine the turnkey admissions configurations (script nodes, custom weights, retry intervals) pre-bundled for Ed-Tech, refer to the [Module 8 Ed-Tech Admissions Bundle Guide (docs/module8_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module8_documentation.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

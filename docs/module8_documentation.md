@@ -84,3 +84,11 @@ Explore these core resources in the repository:
 8.  Trigger a manual call.
 9.  Trace the call conversation steps in the Telephony Simulator logs. Step through: Greeting $\rightarrow$ Yes $\rightarrow$ Upgraders $\rightarrow$ Coding experience $\rightarrow$ Enrollment budget.
 10. Click **Mark Converted** at the final step, and verify the lead status updates to `converted` in the dashboard list.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how caller scripts are validated and monitored for real-time human escalation triggers, check out the [Module 5 Script Authoring & Escalation Detection Guide (docs/module5_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module5_documentation.md).
+*   To read details on how to set up, connect, and sync fields with HubSpot, Salesforce, and LeadSquared CRMs, refer to the [CRM Sync Connector Setup Guide (docs/crm-connector-setup.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/crm-connector-setup.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

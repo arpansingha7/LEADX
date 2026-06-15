@@ -84,3 +84,11 @@ Check out these files to see the implementation:
     npm test
     ```
     Confirm that the tests `Valid HMAC signature` and `Invalid HMAC signature` pass successfully, demonstrating that unauthorized webhook payloads are rejected.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how to configure client onboarding configurations and map column mappings, refer to the [Module 2 Onboarding & Column Mapper Guide (docs/module2_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module2_documentation.md).
+*   For the technical setup parameters, redirect URLs, and webhooks configuration keys, check the [CRM Sync Connector Setup Guide (docs/crm-connector-setup.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/crm-connector-setup.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

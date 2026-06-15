@@ -86,3 +86,11 @@ Check out these files to explore the code:
     *   Objections list containing `Price`.
     *   Recommended Action: *"Offer the 15% early-bird discount/scholarship and review monthly EMI plans."*
 8.  Close the modal and verify that clicking **Instant Call** on the lead card overrides any normal queue scheduling and begins dialing immediately.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how escalation criteria (explicit words, low sentiment, duration bounds) are configured and validated, refer to the [Module 5 Script Authoring & Escalation Detection Guide (docs/module5_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module5_documentation.md).
+*   To see how the active handoff banners, print-cards templates, and brief modals are configured in the frontend dashboard view, check the [Module 7 Config UI & Analytics Dashboard Guide (docs/module7_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module7_documentation.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

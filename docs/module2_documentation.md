@@ -75,3 +75,11 @@ Check out these files to see the implementation:
 5.  Go to the **CRM Sync** page. Click **Connect HubSpot CRM**.
 6.  Click **Approve Connection** in the mock popup window. Notice the HubSpot node status updates to `CONNECTED`.
 7.  Open the **Manual Sync** drawer at the bottom, select leads, and click **Bulk Sync** to push them to the mock HubSpot database. Check the CRM log below to confirm success.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To understand the core E.164 lead normalizer and lead scoring calculations, refer to the [Module 1 Ingestion & Scoring Engine Guide (docs/module1_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module1_documentation.md).
+*   To learn how to manage and authenticate external systems (such as HubSpot OAuth or LeadSquared webhook integrations), refer to the [Module 4 CRM Connectors Guide (docs/module4_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module4_documentation.md) and the [CRM Sync Connector Setup Guide (docs/crm-connector-setup.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/crm-connector-setup.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+

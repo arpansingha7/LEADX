@@ -83,3 +83,11 @@ Check out these files to see the implementation details:
 5.  Launch a call, and click **Simulate Escalation Request** inside the Telephony Simulator.
 6.  Look at the top of the page: verify the red **ACTIVE ESCALATION DETECTED** banner flashes.
 7.  Check the Analytics page: notice the **Hot Prospects** KPI increments and the **Scoring Effectiveness** chart reflects the updated count for the Hot ($\ge 80$) tier.
+
+---
+
+## 🔗 Related Documentation & Navigation
+*   To learn how active call session escalations generate context briefings and briefs modals, refer to the [Module 6 Handoffs, Briefs, & Instant Calls Guide (docs/module6_documentation.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module6_documentation.md).
+*   To check out all backend API response contracts feeding these Chart.js data models, check the [API Contracts Reference Guide (docs/api-contracts.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/api-contracts.md).
+*   For a complete end-to-end platform usage walkthrough, refer to the [LEADX Platform User Guide (docs/platform-user-guide.md)](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/platform-user-guide.md).
+
