@@ -13,5 +13,5 @@ app.listen(PORT, () => {
   console.log(`==================================================`);
   
   // Start queue background worker
-  queueService.startWorker(5000);
+  queueService.startQueueWorker(5000);
 });
