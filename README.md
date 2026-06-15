@@ -3,7 +3,7 @@
 [![Tech Stack](https://img.shields.io/badge/Stack-Node.js%20%7C%20Express%20%7C%20Postgres-blueviolet?style=for-the-badge)](https://nodejs.org)
 [![Database](https://img.shields.io/badge/Database-Supabase%20%7C%20PostgreSQL-3ecf8e?style=for-the-badge&logo=supabase)](https://supabase.com)
 [![Build Status](https://img.shields.io/badge/Build-Passing-2ecc71?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
-[![Version](https://img.shields.io/badge/Version-2.0.0%20(Week%202)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
+[![Version](https://img.shields.io/badge/Version-4.0.0%20(Modules%201--4)-ff6b6b?style=for-the-badge)](https://github.com/arpansingha7/LEADX)
 
 LEADX is a next-generation AI-powered lead qualification and conversion platform built on top of **VOIZ**—Predixion AI's voice agent telephony infrastructure. While VOIZ handles ASR, TTS, and conversational LLM runtimes, **LEADX** owns the orchestration layer: ingestion pipelines, dynamic intent scoring, onboarding configurations, caller scheduling, DNC screening, CRM integrations, and operations alerting.
 
@@ -15,7 +15,7 @@ Developed by engineering interns **Arpan & Vedika** as part of the engineering p
 
 ```mermaid
 flowchart TD
-    A[External Lead Sources / CSVs] -->|POST /leads/ingest or /batch| B(Ingestion API)
+    A[External Lead Sources / CSVs / LeadSquared Webhooks] -->|POST /leads/ingest or /batch or /webhook/leadsquared| B(Ingestion API)
     CRM[CRM Contacts Inbound] -->|Pull List Segments| B
     B -->|1. Normalize Phone| C{Duplicate Check}
     C -->|Duplicate Found| D[409 Conflict Response]
@@ -28,41 +28,33 @@ flowchart TD
     I & J -->|3. Live Refresh| K[Glassmorphic Control Center UI]
     K -->|4. Trigger Outbound Call| L[VOIZ Dialer Adapter]
     L -->|5. Webhook callbacks| B
-    B -->|6. Sync Outcomes| M[CRM Sync Adapter HubSpot/LS]
+    B -->|6. Sync Outcomes| M[CRM Sync Adapter HubSpot/LS/Salesforce]
     B -->|7. Slack webhook| N[Slack Notifications]
 ```
 
 ---
 
-## 🚀 Key Features Implemented (Modules 1 & 2)
+## 🚀 Key Features Implemented (Modules 1 - 4)
 
-### 1. Client Onboarding & Questionnaire Wizard
-*   **Domain-Specific Questionnaire:** New clients select industry templates (**BFSI**, **Real Estate**, or **Education**) and customize campaign goals and instructions.
-*   **Self-Serve Column Mapper:** Parses uploaded CSV sheets, maps custom spreadsheet headers (e.g. *Customer Name*, *Mobile Number*) to internal schema fields, and previews the mapped grid live.
-*   **DNC Compliance Registry:** Prevents calls to Do Not Call (DNC) numbers at the platform layer.
+### 1. Ingestion, Phone Normalization, & Lead Scoring (Module 1)
+*   **Highly Validated Ingestion:** REST APIs for single (`POST /leads/ingest`) and batch uploads (`POST /leads/batch`) up to 500 leads with automatic E.164 phone normalization.
+*   **Dual-Defense Concurrency:** Unique postgres index constraints protect against duplicate records in high-concurrency race conditions.
+*   **Multi-Factor Scoring (v2):** Config-driven scoring rules with dynamic delta validations protecting against floating-point math errors.
 
-### 2. Config-Driven Scoring Engine (v2)
-*   **Domain-Specific Multipliers:** Scores leads dynamically from `0-100` based on industry profiles:
-    *   **BFSI:** Credit scores, monthly income tiers, and requested loan ranges.
-    *   **Real Estate:** Budgets, BHK preferences (e.g. 2BHK/3BHK), and center/city locations.
-    *   **Education:** Academic qualifications and course interests.
-*   **General Fallback:** Evaluates age, city tiers, and standard income fields.
-*   **IEEE-754 Safety:** Employs delta checks (`Math.abs(sum - 1.0) <= 0.001`) to protect weights configuration from decimal rounding issues.
+### 2. Client Onboarding & Spreadsheet Mapper (Module 2)
+*   **Domain-Specific Questionnaire:** Clients select templates (**BFSI**, **Real Estate**, or **Education**) mapping custom configurations and guidelines.
+*   **Self-Serve Column Mapper:** Ingests raw CSV sheets in the browser, allowing users to map their headers dynamically to internal schema keys.
 
-### 3. Dual-Mode CRM Integration Hub
-*   **HubSpot OAuth 2.0 & Auto-Refresh:** Supports token-based HubSpot authorization with automatic background access token refreshes when expired.
-*   **Private Key Support:** Connects securely to HubSpot Private Apps or LeadSquared regional APIs.
-*   **Bulk & Manual Push Queues:** Push qualified leads in bulk or individually. Includes a full audit logbook tracking sync statuses.
-*   **Direct Inbound Pulling:** Sync lists/segments directly from CRM contacts into the LEADX dialer.
+### 3. Dialer Queue & Priority Call Orchestrator (Module 3)
+*   **Asynchronous Priority Worker:** Background worker checks the queue, sorts active leads by score descending, and dispatches them to dialers.
+*   **Calling Hours & DNC Compliance:** Restricts dials to **9:00 AM – 8:00 PM IST** (Monday-Saturday) and screens numbers against the platform DNC registry before dialing.
+*   **Exponential Backoff Retries:** Automatically reschedules failed calls (e.g. no-answer, busy) with backoff intervals. Gaps are short-circuited to seconds during tests.
 
-### 4. Glassmorphic Control Dashboard
-*   **Visual KPIs & Conversion Funnels:** Displays WoW trends, SLA response times, connect rates, and funnel logs.
-*   **Active Waveform Simulator:** Runs simulated active stream call timers and animated speech waveforms in the UI.
-*   **Lead Feed & SVG Intent Rings:** Rows animate customized SVG score rings dynamically colored by priority (Hot $\ge$ 80, Qualified $\ge$ 65).
-
-### 5. Central Logbook & Slack Webhook Alerts
-*   **Slack Operations Channel:** Sends instant Slack webhook notifications for hot lead ingests, configuration changes, dialing outcomes, and CRM failures.
-*   **Audit Trail:** Centralized database audit log mapping all ingestion metrics, manual updates, and CRM sync results.
+### 4. CRM Connectors & LeadSquared Webhooks (Module 4)
+*   **Unified CRM Adapter Interface:** HubSpot, LeadSquared, and Salesforce connectors implement a single JavaScript Adapter interface (`readLeads`, `writeActivity`, `updateLeadStatus`).
+*   **Salesforce Client Credentials OAuth:** Secures enterprise integrations using Consumer Key and Secret token exchanges.
+*   **LeadSquared Webhook Ingestion:** Ingests prospects via signed webhooks secured with HMAC-SHA256 signature verification.
+*   **Status Exception Handling:** Audits API rate limits (`429`) and credentials expiration (`401`) errors, sending operations alerts to Slack.
 
 ---
 
@@ -133,5 +125,7 @@ npm run perf
 ## 📚 Study Guides & Presentation Documentation
 
 For deeper details, presentation checklists, and study guides:
-*   📖 **[LEADX Technical Guide (docs/module1_documentation.md)](docs/module1_documentation.md)** — Core architectures, validations, and Saturday demo scripts.
-*   🎙️ **[LEADX Onboarding & CRM Reference (docs/module2_documentation.md)](docs/module2_documentation.md)** — Integration guides, OAuth, DNC registry, and CRM workflows.
+*   📖 **[Module 1 Guide (docs/module1_documentation.md)](docs/module1_documentation.md)** — Ingestion, E.164 phone normalization, weight configurations, and delta validations.
+*   🎙️ **[Module 2 Guide (docs/module2_documentation.md)](docs/module2_documentation.md)** — Onboarding questionnaire, dynamic CSV mapping, and HubSpot OAuth.
+*   ⚙️ **[Module 3 Guide (docs/module3_documentation.md)](docs/module3_documentation.md)** — Dialer worker loop, calling hours calculations, and exponential backoff retry math.
+*   🔌 **[Module 4 Guide (docs/module4_documentation.md)](docs/module4_documentation.md)** — Unified CRM adapters (HubSpot, LeadSquared, Salesforce), credentials flow, and LeadSquared HMAC webhook security.
