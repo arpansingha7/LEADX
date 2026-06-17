@@ -94,8 +94,8 @@ window.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
   setupEventListeners();
   loadTenantData();
-  startActivitySimulator();
-  seedInitialDataIfEmpty();
+  // startActivitySimulator();
+  // seedInitialDataIfEmpty();
   fetchCampaignsList();
 
   // Poll call events stream every 5 seconds

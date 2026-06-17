@@ -105,23 +105,23 @@
           <div class="lx-row" style="grid-template-columns: repeat(5, 1fr);">
             <div class="lx-stat">
               <div class="lx-stat-label">TOTAL CALLS TODAY</div>
-              <div class="lx-stat-val" id="kpi-total-calls">14,892</div>
-              <div class="lx-stat-delta badge-green">12.4% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-val" id="kpi-total-calls">0</div>
+              <div class="lx-stat-delta badge-green" style="visibility: hidden;">12.4% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">CONNECT RATE</div>
-              <div class="lx-stat-val" id="kpi-connect-rate">68.4%</div>
-              <div class="lx-stat-delta badge-green">3.1% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-val" id="kpi-connect-rate">0.0%</div>
+              <div class="lx-stat-delta badge-green" style="visibility: hidden;">3.1% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">QUALIFIED LEADS</div>
-              <div class="lx-stat-val" id="kpi-qualified-leads">3,128</div>
-              <div class="lx-stat-delta badge-green">8.7% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-val" id="kpi-qualified-leads">0</div>
+              <div class="lx-stat-delta badge-green" style="visibility: hidden;">8.7% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">HOT LEADS (SCORE ≥ 80)</div>
-              <div class="lx-stat-val" id="kpi-hot-leads">942</div>
-              <div class="lx-stat-delta badge-green">14.2% <span style="color: var(--lx-muted)">vs yesterday</span></div>
+              <div class="lx-stat-val" id="kpi-hot-leads">0</div>
+              <div class="lx-stat-delta badge-green" style="visibility: hidden;">14.2% <span style="color: var(--lx-muted)">vs yesterday</span></div>
             </div>
             <div class="lx-stat">
               <div class="lx-stat-label">ACTIVE VOIZ AGENTS</div>
@@ -219,46 +219,7 @@
                   <span class="sub">Dynamic intent signals</span>
                 </div>
                 <div id="hot-leads-ring-list">
-                  <!-- JS will dynamically populate or show mockup -->
-                  <div class="hotlead-row">
-                    <div class="hlr-name">
-                      <strong>Arjun Mehta</strong>
-                      <div class="hlr-meta">Phone: +91 98124 ***55 | Mumbai</div>
-                    </div>
-                    <div class="score-ring">
-                      <svg width="52" height="52" viewBox="0 0 52 52">
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="2.6" transform="rotate(-90 26 26)"></circle>
-                      </svg>
-                      <div class="score-num" style="color: var(--lx-green)">98</div>
-                    </div>
-                  </div>
-                  <div class="hotlead-row">
-                    <div class="hlr-name">
-                      <strong>Priya Sharma</strong>
-                      <div class="hlr-meta">Phone: +91 77382 ***12 | Delhi</div>
-                    </div>
-                    <div class="score-ring">
-                      <svg width="52" height="52" viewBox="0 0 52 52">
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="6.6" transform="rotate(-90 26 26)"></circle>
-                      </svg>
-                      <div class="score-num" style="color: var(--lx-green)">95</div>
-                    </div>
-                  </div>
-                  <div class="hotlead-row">
-                    <div class="hlr-name">
-                      <strong>Rohit Nair</strong>
-                      <div class="hlr-meta">Phone: +91 99870 ***67 | Bangalore</div>
-                    </div>
-                    <div class="score-ring">
-                      <svg width="52" height="52" viewBox="0 0 52 52">
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="4"></circle>
-                        <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-accent)" stroke-width="4" stroke-dasharray="131.9" stroke-dashoffset="14.5" transform="rotate(-90 26 26)"></circle>
-                      </svg>
-                      <div class="score-num" style="color: var(--lx-accent)">89</div>
-                    </div>
-                  </div>
+                  <div style="text-align: center; padding: 20px; color: var(--lx-muted); font-size: 12px;">No hot leads available</div>
                 </div>
               </div>
 
@@ -269,26 +230,7 @@
                   <span class="sub">Live orchestrations</span>
                 </div>
                 <div class="lx-timeline" id="system-activity-timeline">
-                  <div class="tl-item">
-                    <span class="tl-dot sd-green"></span>
-                    <span class="tl-time">23:09</span>
-                    <span class="tl-text">VOIZ agent <strong>V-02</strong> qualified lead <strong>Arjun Mehta</strong> (Gold Loan interest confirmed).</span>
-                  </div>
-                  <div class="tl-item">
-                    <span class="tl-dot sd-amber"></span>
-                    <span class="tl-time">23:07</span>
-                    <span class="tl-text">CRM write-back succeeded for tenant: <strong>default-tenant</strong> (Muthoot Lead Sync).</span>
-                  </div>
-                  <div class="tl-item">
-                    <span class="tl-dot sd-green"></span>
-                    <span class="tl-time">23:04</span>
-                    <span class="tl-text">Batch ingestion completed: <strong>140 leads</strong> ingested. 2 duplicates auto-filtered.</span>
-                  </div>
-                  <div class="tl-item">
-                    <span class="tl-dot sd-gray"></span>
-                    <span class="tl-time">22:58</span>
-                    <span class="tl-text">VOIZ agent <strong>V-05</strong> switched state to <strong>Idle</strong>.</span>
-                  </div>
+                  <div style="text-align: center; padding: 20px; color: var(--lx-muted); font-size: 12px;">No recent activity</div>
                 </div>
               </div>
             </div>
@@ -768,70 +710,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
 
           <!-- Roster Cards Grid -->
           <div class="lx-row" style="grid-template-columns: repeat(4, 1fr);" id="agents-roster-grid">
-            <!-- Card 1 -->
-            <div class="agent-card online">
-              <div class="agent-status-row">
-                <span class="lx-badge badge-green">ON CALL</span>
-                <span class="status-dot sd-green"></span>
-              </div>
-              <div class="agent-name">VOIZ-01 (Kavita)</div>
-              <div class="agent-meta">Hindi / English | Female-1</div>
-              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
-                <span>Calls today: <strong>148</strong></span>
-                <span>Qual rate: <strong style="color:var(--lx-green)">42%</strong></span>
-              </div>
-              <div class="lx-progress-bar">
-                <div class="lx-progress-fill" style="width: 42%; background: var(--lx-green);"></div>
-              </div>
-            </div>
-            <!-- Card 2 -->
-            <div class="agent-card busy">
-              <div class="agent-status-row">
-                <span class="lx-badge badge-accent">ON CALL (TRANSFER)</span>
-                <span class="status-dot sd-green"></span>
-              </div>
-              <div class="agent-name">VOIZ-02 (Rohan)</div>
-              <div class="agent-meta">English / Tamil | Male-1</div>
-              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
-                <span>Calls today: <strong>112</strong></span>
-                <span>Qual rate: <strong style="color:var(--lx-accent)">35%</strong></span>
-              </div>
-              <div class="lx-progress-bar">
-                <div class="lx-progress-fill" style="width: 35%; background: var(--lx-accent);"></div>
-              </div>
-            </div>
-            <!-- Card 3 -->
-            <div class="agent-card idle">
-              <div class="agent-status-row">
-                <span class="lx-badge badge-amber">IDLE</span>
-                <span class="status-dot sd-amber"></span>
-              </div>
-              <div class="agent-name">VOIZ-03 (Meera)</div>
-              <div class="agent-meta">Telugu / English | Female-2</div>
-              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
-                <span>Calls today: <strong>98</strong></span>
-                <span>Qual rate: <strong style="color:var(--lx-amber)">28%</strong></span>
-              </div>
-              <div class="lx-progress-bar">
-                <div class="lx-progress-fill" style="width: 28%; background: var(--lx-amber);"></div>
-              </div>
-            </div>
-            <!-- Card 4 -->
-            <div class="agent-card offline">
-              <div class="agent-status-row">
-                <span class="lx-badge badge-gray">OFFLINE</span>
-                <span class="status-dot sd-gray"></span>
-              </div>
-              <div class="agent-name">VOIZ-04 (Vikram)</div>
-              <div class="agent-meta">Kannada / English | Male-2</div>
-              <div class="agent-meta" style="margin-top: auto; display: flex; justify-content: space-between;">
-                <span>Calls today: <strong>0</strong></span>
-                <span>Qual rate: <strong>0%</strong></span>
-              </div>
-              <div class="lx-progress-bar">
-                <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
-              </div>
-            </div>
+            <div style="grid-column: span 4; text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13px;">No agents active</div>
           </div>
 
           <!-- Performance Comparison Table -->
@@ -854,42 +733,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   </tr>
                 </thead>
                 <tbody id="agents-performance-tbody">
-                  <tr>
-                    <td><strong>VOIZ-01 (Kavita)</strong></td>
-                    <td><span class="lx-badge badge-green">ON CALL</span></td>
-                    <td>Hindi, English</td>
-                    <td>148</td>
-                    <td>105</td>
-                    <td>62</td>
-                    <td><strong style="color: var(--lx-green)">41.9%</strong></td>
-                  </tr>
-                  <tr>
-                    <td><strong>VOIZ-02 (Rohan)</strong></td>
-                    <td><span class="lx-badge badge-accent">ON CALL (TRANSFER)</span></td>
-                    <td>English, Tamil</td>
-                    <td>112</td>
-                    <td>82</td>
-                    <td>39</td>
-                    <td><strong style="color: var(--lx-accent)">34.8%</strong></td>
-                  </tr>
-                  <tr>
-                    <td><strong>VOIZ-03 (Meera)</strong></td>
-                    <td><span class="lx-badge badge-amber">IDLE</span></td>
-                    <td>Telugu, English</td>
-                    <td>98</td>
-                    <td>68</td>
-                    <td>27</td>
-                    <td><strong style="color: var(--lx-amber)">27.5%</strong></td>
-                  </tr>
-                  <tr>
-                    <td><strong>VOIZ-04 (Vikram)</strong></td>
-                    <td><span class="lx-badge badge-gray">OFFLINE</span></td>
-                    <td>Kannada, English</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td>0</td>
-                    <td><strong>0%</strong></td>
-                  </tr>
+                  <tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--lx-muted); font-size: 13px;">No agents active</td></tr>
                 </tbody>
               </table>
             </div>
