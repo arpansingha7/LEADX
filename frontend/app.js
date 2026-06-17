@@ -669,12 +669,7 @@ function renderLeads(leads) {
 // 6. Update KPIs based on leads
 function updateDashboardKPIs(leads) {
   const hotLeads = leads.filter(l => l.score >= 80);
-  const totalCallsCount = 14800 + leads.length * 3;
-  const qualifiedLeads = 3100 + hotLeads.length;
 
-  document.getElementById('kpi-total-calls').textContent = totalCallsCount.toLocaleString();
-  document.getElementById('kpi-qualified-leads').textContent = qualifiedLeads.toLocaleString();
-  document.getElementById('kpi-hot-leads').textContent = (930 + hotLeads.length).toLocaleString();
 
   // Render Hot Leads rings strip on Home page
   const ringList = document.getElementById('hot-leads-ring-list');
