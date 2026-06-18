@@ -19,9 +19,10 @@ export function validateLead(lead) {
   if (!lead.phone || typeof lead.phone !== 'string' || lead.phone.trim() === '') {
     errors.push('phone is required and must be a non-empty string');
   } else {
-    const cleanedPhone = cleanPhone(lead.phone);
-    if (cleanedPhone.length < 8 || cleanedPhone.length > 15) {
-      errors.push('phone must contain between 8 and 15 digits');
+    // MVP scope requires 10 digits, optionally starting with +91 or 91 country code prefix
+    const phoneTrimmed = lead.phone.trim();
+    if (!/^(?:\+?91)?\d{10}$/.test(phoneTrimmed)) {
+      errors.push('phone must be exactly 10 digits or start with +91 country code prefix');
     }
   }
 
@@ -42,14 +43,18 @@ export function validateLead(lead) {
     }
   }
 
-  // name validation (optional)
-  if (lead.name !== undefined && lead.name !== null && typeof lead.name !== 'string') {
-    errors.push('name must be a string');
+  // name validation (mandatory)
+  if (!lead.name || typeof lead.name !== 'string' || lead.name.trim() === '') {
+    errors.push('name is required and must be a non-empty string');
   }
 
   // raw_data validation (optional)
   if (lead.raw_data !== undefined && lead.raw_data !== null && (typeof lead.raw_data !== 'object' || Array.isArray(lead.raw_data))) {
     errors.push('raw_data must be a JSON object');
+  } else if (lead.raw_data && lead.raw_data.budget !== undefined) {
+    if (isNaN(Number(lead.raw_data.budget))) {
+      errors.push('budget must be a numeric value');
+    }
   }
 
   return {

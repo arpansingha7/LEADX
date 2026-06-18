@@ -144,6 +144,10 @@ function setupNavigation() {
         loadScriptEditorData();
       } else if (pageId === 'home') {
         loadDashboardAnalytics();
+      } else if (pageId === 'onboarding') {
+        if (typeof onWizardCrmProviderChange === 'function') {
+          onWizardCrmProviderChange();
+        }
       }
     });
   });
@@ -564,7 +568,12 @@ function renderLeads(leads) {
 
   let campaignFilteredLeads = leads;
   if (selectedCampaign && selectedCampaign !== 'all') {
-    campaignFilteredLeads = leads.filter(l => (l.campaign_name || 'Manual Ingests') === selectedCampaign);
+    campaignFilteredLeads = leads.filter(l => {
+      const campaigns = l.campaign_name
+        ? l.campaign_name.split(',').map(c => c.trim()).filter(Boolean)
+        : ['Manual Ingests'];
+      return campaigns.includes(selectedCampaign);
+    });
   }
 
   // Render Dynamic weights sliders based on the active campaign industry
@@ -642,7 +651,7 @@ function renderLeads(leads) {
     const dncDisabled = lead.status === 'dnc' ? 'disabled' : '';
 
     return `
-      <tr id="lead-tr-${lead.id}" class="${tierClass}">
+      <tr id="lead-tr-${lead.id}" class="${tierClass}" style="cursor: pointer;" onclick="if(event.target.tagName !== 'BUTTON' && !event.target.closest('.lx-action-row')) viewLeadDetails('${lead.id}')">
         <td>
           <div class="lead-name-strong">${lead.name || 'Anonymous'}</div>
           <div class="lead-meta-sub">Location: ${city} | Age: ${age}</div>
@@ -1293,6 +1302,7 @@ Neha Malhotra,+919999955555,neha.malhotra@example.com,29,52000,680`;
 
 const targetFieldsMap = {
   bfsi: [
+    { key: 'client_id', label: 'Client CRM ID', importance: 'compulsory', desc: 'Required unique ID from client CRM' },
     { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
     { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
     { key: 'monthly_income', label: 'Monthly Income', importance: 'important', desc: 'Used for credit & loan scoring' },
@@ -1301,6 +1311,7 @@ const targetFieldsMap = {
     { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
   ],
   realestate: [
+    { key: 'client_id', label: 'Client CRM ID', importance: 'compulsory', desc: 'Required unique ID from client CRM' },
     { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
     { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
     { key: 'budget', label: 'Max Budget (INR)', importance: 'important', desc: 'Used for property affordability score' },
@@ -1309,6 +1320,7 @@ const targetFieldsMap = {
     { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
   ],
   education: [
+    { key: 'client_id', label: 'Client CRM ID', importance: 'compulsory', desc: 'Required unique ID from client CRM' },
     { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
     { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
     { key: 'course_interest', label: 'Course Interest', importance: 'important', desc: 'Used for enrollment match score' },
@@ -1317,6 +1329,7 @@ const targetFieldsMap = {
     { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' }
   ],
   default: [
+    { key: 'client_id', label: 'Client CRM ID', importance: 'compulsory', desc: 'Required unique ID from client CRM' },
     { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
     { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
     { key: 'email', label: 'Email Address', importance: 'optional', desc: 'Used for fallback communications' },
@@ -1334,6 +1347,7 @@ function getActiveTargetFields() {
 
 function findBestHeaderMatch(targetKey, targetLabel, headers) {
   const synonyms = {
+    client_id: ['client_id', 'client id', 'crm id', 'prospect id', 'id', 'hubspot id', 'hubspot_id', 'ls id', 'record id', 'contact id'],
     phone: ['phone', 'mobile', 'contact', 'ph', 'cell', 'tel', 'telephone', 'mobile number', 'contact number'],
     name: ['name', 'full name', 'fname', 'first name', 'customer', 'prospect', 'customer name', 'lead name'],
     email: ['email', 'mail', 'email address', 'email_address', 'mail address'],
@@ -1378,6 +1392,79 @@ function findBestHeaderMatch(targetKey, targetLabel, headers) {
   return bestMatch;
 }
 
+function buildMappingOptionsHtml(targetKey, targetLabel, isCrm, isSyncBack, bestMatch) {
+  const optionsHtml = ['<option value="">-- Skip --</option>'];
+
+  if (!isCrm || !window.crmPropertiesSchema || window.crmPropertiesSchema.length === 0) {
+    // CSV mode or fallback: simple flat list of parsedCsvHeaders
+    parsedCsvHeaders.forEach(h => {
+      const selectedAttr = h === bestMatch ? 'selected' : '';
+      optionsHtml.push(`<option value="${h}" ${selectedAttr}>${h}</option>`);
+    });
+    return optionsHtml.join('');
+  }
+
+  // CRM mode: Group properties
+  const commonKeys = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'city', 'state', 'zip'];
+  const commonLabels = ['Customer Name', 'Contact Phone', 'Email Address', 'hubspot_id'];
+
+  const commonGroup = [];
+  const customGroup = [];
+  const otherGroup = [];
+
+  // Special fields added in getCRMContactsFromList
+  const specialFields = [
+    { name: 'hubspot_id', label: 'hubspot_id', hubspotDefined: true },
+    { name: 'Customer Name', label: 'Customer Name', hubspotDefined: true },
+    { name: 'Contact Phone', label: 'Contact Phone', hubspotDefined: true },
+    { name: 'Email Address', label: 'Email Address', hubspotDefined: true }
+  ];
+
+  const allProps = [...specialFields];
+  const seenNames = new Set(allProps.map(p => p.name));
+
+  window.crmPropertiesSchema.forEach(p => {
+    if (!seenNames.has(p.name)) {
+      seenNames.add(p.name);
+      allProps.push(p);
+    }
+  });
+
+  allProps.forEach(p => {
+    const isCommon = commonKeys.includes(p.name) || commonLabels.includes(p.label) || commonLabels.includes(p.name);
+    const isCustom = p.hubspotDefined === false || p.hubspotDefined === 'false';
+
+    const optVal = isSyncBack ? p.name : (p.label || p.name);
+    const optLabel = p.label || p.name;
+
+    // Check if selected (match against name or label or value)
+    const isSelected = (p.name === bestMatch || p.label === bestMatch || optVal === bestMatch);
+    const selectedAttr = isSelected ? 'selected' : '';
+
+    const optionStr = `<option value="${optVal}" ${selectedAttr}>${optLabel}</option>`;
+
+    if (isCommon) {
+      commonGroup.push(optionStr);
+    } else if (isCustom) {
+      customGroup.push(optionStr);
+    } else {
+      otherGroup.push(optionStr);
+    }
+  });
+
+  if (commonGroup.length > 0) {
+    optionsHtml.push(`<optgroup label="Common CRM Fields">${commonGroup.join('')}</optgroup>`);
+  }
+  if (customGroup.length > 0) {
+    optionsHtml.push(`<optgroup label="Custom CRM Fields">${customGroup.join('')}</optgroup>`);
+  }
+  if (otherGroup.length > 0) {
+    optionsHtml.push(`<optgroup label="Other CRM Fields">${otherGroup.join('')}</optgroup>`);
+  }
+
+  return optionsHtml.join('');
+}
+
 window.parseAndPrepareMapping = function(isCrm = false) {
   if (!isCrm) {
     const uploadVal = document.getElementById('wizardUploadArea').value.trim();
@@ -1407,26 +1494,26 @@ window.parseAndPrepareMapping = function(isCrm = false) {
 
   const fieldsContainer = document.getElementById('mappingFieldsContainer');
   const targetFields = getActiveTargetFields();
+  
+  // Generate sample IDs for preview
+  const sampleCampaignId = 'cmp_' + Math.random().toString(36).substr(2, 9);
+  parsedCsvRows.forEach((row, idx) => {
+    row['_leadx_id'] = 'ldx_' + Math.random().toString(36).substr(2, 9);
+    row['_campaign_id'] = sampleCampaignId;
+  });
 
   fieldsContainer.innerHTML = targetFields.map(tf => {
     const bestMatch = findBestHeaderMatch(tf.key, tf.label, parsedCsvHeaders);
-
-    const optionsHtml = ['<option value="">-- Skip --</option>']
-      .concat(parsedCsvHeaders.map(h => {
-        const selectedAttr = h === bestMatch ? 'selected' : '';
-        return `<option value="${h}" ${selectedAttr}>${h}</option>`;
-      }))
-      .join('');
-
+    const optionsHtml = buildMappingOptionsHtml(tf.key, tf.label, isCrm, false, bestMatch);
     const badgeClass = tf.importance === 'compulsory' ? 'badge-red' : tf.importance === 'important' ? 'badge-amber' : 'badge-gray';
 
     return `
-      <div class="mapping-field-row" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px;">
-        <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="font-weight: 600; font-size: 12.5px; color: var(--lx-text);">${tf.label}${tf.importance === 'compulsory' ? ' <span style="color:var(--lx-red);">*</span>' : ''}</div>
-          <div style="font-size: 10px; color: var(--lx-muted);">${tf.desc}</div>
+      <div class="mapping-field-row" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; width: 100%; box-sizing: border-box;">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; padding-right: 15px;">
+          <div style="font-weight: 600; font-size: 12.5px; color: var(--lx-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tf.label}${tf.importance === 'compulsory' ? ' <span style="color:var(--lx-red);">*</span>' : ''}</div>
+          <div style="font-size: 10px; color: var(--lx-muted); word-wrap: break-word; white-space: normal;">${tf.desc}</div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
           <span class="lx-badge ${badgeClass}" style="font-size: 9px; padding: 2px 6px;">${tf.importance.toUpperCase()}</span>
           <select class="lx-input" id="map-target-${tf.key}" style="width: 150px; padding: 4px 8px; font-size: 12px; margin: 0;">
             ${optionsHtml}
@@ -1435,6 +1522,43 @@ window.parseAndPrepareMapping = function(isCrm = false) {
       </div>
     `;
   }).join('');
+
+  // Handle Sync-Back UI
+  const syncBackSection = document.getElementById('syncBackSection');
+  const syncBackFieldsContainer = document.getElementById('syncBackFieldsContainer');
+  syncBackSection.style.display = 'block';
+
+  if (isCrm) {
+    const syncBackFields = [
+      { key: 'leadx_id', label: 'LeadX ID', desc: 'Generated unique ID per lead', importance: 'compulsory' },
+      { key: 'campaign_id', label: 'Campaign ID', desc: 'Campaign ingestion identifier', importance: 'compulsory' }
+    ];
+
+    syncBackFieldsContainer.innerHTML = syncBackFields.map(tf => {
+      const bestMatch = findBestHeaderMatch(tf.key, tf.label, parsedCsvHeaders);
+      const optionsHtml = buildMappingOptionsHtml(tf.key, tf.label, isCrm, true, bestMatch);
+
+      return `
+        <div class="mapping-field-row" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; width: 100%; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; padding-right: 15px;">
+            <div style="font-weight: 600; font-size: 12.5px; color: var(--lx-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tf.label}${tf.importance === 'compulsory' ? ' <span style="color:var(--lx-red);">*</span>' : ''}</div>
+            <div style="font-size: 10px; color: var(--lx-muted); word-wrap: break-word; white-space: normal;">${tf.desc}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <select class="lx-input" id="map-sync-${tf.key}" style="width: 150px; padding: 4px 8px; font-size: 12px; margin: 0;">
+              ${optionsHtml}
+            </select>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    syncBackFieldsContainer.innerHTML = `
+      <div style="font-size:11.5px; color:var(--lx-muted); padding:10px; background:rgba(255,255,255,0.02); border:1px solid var(--lx-border); border-radius:6px; text-align:center;">
+        CSV mode selected. When the campaign starts, an updated CSV containing generated <b>LeadX IDs</b> and <b>Campaign IDs</b> will be available for download in the Client Portal.
+      </div>
+    `;
+  }
 
   targetFields.forEach(tf => {
     const selectEl = document.getElementById(`map-target-${tf.key}`);
@@ -1445,7 +1569,7 @@ window.parseAndPrepareMapping = function(isCrm = false) {
 
   renderMappingPreview();
   goToStep(3);
-};
+}
 
 function renderMappingPreview() {
   const targetFields = getActiveTargetFields();
@@ -1461,26 +1585,151 @@ function renderMappingPreview() {
   previewHead.innerHTML = `
     <tr>
       ${targetFields.map(tf => `<th>${tf.label.toUpperCase()}</th>`).join('')}
+      <th>LEADX ID <span style="font-size:9px; color:var(--lx-green);">(Generated)</span></th>
+      <th>CAMPAIGN ID <span style="font-size:9px; color:var(--lx-green);">(Generated)</span></th>
     </tr>
   `;
 
-  const previewRows = parsedCsvRows.slice(0, 3);
+  const previewRows = parsedCsvRows.slice(0, 100);
   if (previewRows.length === 0) {
     previewBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No data rows found</td></tr>';
     return;
   }
 
-  previewBody.innerHTML = previewRows.map(row => {
-    return `
+  let previewErrorsHtml = '';
+  let hasErrors = false;
+
+  // 1. Run validation over the ENTIRE dataset to aggregate errors
+  const aggregatedErrors = {};
+  parsedCsvRows.forEach((row, idx) => {
+    const rowNum = idx + 1;
+    targetFields.forEach(tf => {
+      const rawHeader = mappingConfig[tf.key];
+      if (!rawHeader) return;
+      const val = row[rawHeader] || '';
+      let errMsg = null;
+      if (tf.key === 'phone' && !/^(?:\+?91)?\d{10}$/.test(val)) {
+        errMsg = 'Phone: Must be exactly 10 digits or start with +91 country code prefix';
+      } else if (tf.key === 'name' && tf.importance === 'compulsory' && !val.trim()) {
+        errMsg = 'Name: Required';
+      } else if ((tf.key === 'budget' || tf.key === 'monthly_income' || tf.key === 'loan_amount') && val && isNaN(parseFloat(val.replace(/[^0-9.-]/g, '')))) {
+        errMsg = tf.label + ': Must be numeric';
+      }
+      
+      if (errMsg) {
+        hasErrors = true;
+        if (!aggregatedErrors[errMsg]) aggregatedErrors[errMsg] = [];
+        aggregatedErrors[errMsg].push(rowNum);
+      }
+    });
+  });
+
+  // 2. Format the aggregated errors for display
+  for (const [errMsg, rows] of Object.entries(aggregatedErrors)) {
+    const rowCount = rows.length;
+    let rowText = '';
+    if (rowCount <= 8) {
+      rowText = `(Affects row${rowCount > 1 ? 's' : ''}: ${rows.join(', ')})`;
+    } else {
+      rowText = `(Affects ${rowCount} rows: ${rows.slice(0, 5).join(', ')}... and ${rowCount - 5} more)`;
+    }
+    previewErrorsHtml += `<div style="font-size:12px; color:var(--lx-red); margin-top:4px;">&bull; <strong>${errMsg}</strong> <span style="opacity:0.8">${rowText}</span></div>`;
+  }
+
+  // 3. Render the preview table (only top rows)
+  previewBody.innerHTML = previewRows.map((row, index) => {
+    const rowHtml = `
       <tr>
         ${targetFields.map(tf => {
           const rawHeader = mappingConfig[tf.key];
-          return `<td>${rawHeader ? row[rawHeader] || 'N/A' : '<span style="color:var(--lx-hint);">Skipped</span>'}</td>`;
+          let val = rawHeader ? row[rawHeader] || '' : '';
+          let isInvalid = false;
+          let cellErrMsg = '';
+
+          if (rawHeader) {
+            if (tf.key === 'phone' && !/^(?:\+?91)?\d{10}$/.test(val)) { isInvalid = true; cellErrMsg = 'Must be exactly 10 digits or start with +91 country code prefix'; }
+            else if (tf.key === 'name' && tf.importance === 'compulsory' && !val.trim()) { isInvalid = true; cellErrMsg = 'Required'; }
+            else if ((tf.key === 'budget' || tf.key === 'monthly_income' || tf.key === 'loan_amount') && val && isNaN(parseFloat(val.replace(/[^0-9.-]/g, '')))) { isInvalid = true; cellErrMsg = 'Must be numeric'; }
+          }
+
+          const displayVal = val ? val : '<span style="color:var(--lx-hint);">N/A</span>';
+          const errorBadge = isInvalid ? `<br><span style="color:var(--lx-red); font-size: 10px;">${cellErrMsg}</span>` : '';
+          const finalVal = rawHeader ? displayVal + errorBadge : '<span style="color:var(--lx-hint);">Skipped</span>';
+          
+          return `<td ${isInvalid ? 'style="box-shadow: inset 0 0 0 1px var(--lx-red); background: rgba(255,0,0,0.05);"' : ''}>${finalVal}</td>`;
         }).join('')}
+        <td><span style="color:var(--lx-text);">${row['_leadx_id'] || '-'}</span></td>
+        <td><span style="color:var(--lx-text);">${row['_campaign_id'] || '-'}</span></td>
       </tr>
     `;
+    return rowHtml;
   }).join('');
+
+  // Add error summary below the grid
+  const wcontent3 = document.getElementById('wcontent-3');
+  const wizardActions = wcontent3.querySelector('.wizard-actions');
+  let errorSummary = document.getElementById('mappingPreviewErrors');
+  if (!errorSummary) {
+    errorSummary = document.createElement('div');
+    errorSummary.id = 'mappingPreviewErrors';
+    errorSummary.style.marginTop = '20px';
+    errorSummary.style.padding = '15px';
+    errorSummary.style.backgroundColor = 'rgba(255,0,0,0.05)';
+    errorSummary.style.border = '1px solid var(--lx-red)';
+    errorSummary.style.borderRadius = '8px';
+    wcontent3.insertBefore(errorSummary, wizardActions);
+  }
+  
+  if (previewErrorsHtml) {
+    errorSummary.style.display = 'block';
+    errorSummary.innerHTML = '<strong style="color:var(--lx-red); font-size:13px; display:block; margin-bottom:8px;">Validation Errors:</strong>' + previewErrorsHtml;
+  } else {
+    errorSummary.style.display = 'none';
+    errorSummary.innerHTML = '';
+  }
 }
+
+window.validateMappingAndProceed = function() {
+  const targetFields = getActiveTargetFields();
+  const mappingConfig = {};
+  targetFields.forEach(tf => {
+    const el = document.getElementById(`map-target-${tf.key}`);
+    mappingConfig[tf.key] = el ? el.value : '';
+  });
+
+  if (!mappingConfig.phone) {
+    showToast('Mapping Error', 'You must map the Phone Number field before ingestion.', 'alert-triangle', 'error');
+    return;
+  }
+
+  const compulsoryMissing = targetFields.filter(tf => tf.importance === 'compulsory' && !mappingConfig[tf.key]);
+  if (compulsoryMissing.length > 0) {
+    showToast('Mapping Error', `Compulsory fields missing mapping: ${compulsoryMissing.map(m => m.label).join(', ')}`, 'alert-triangle', 'error');
+    return;
+  }
+
+  const errorSummary = document.getElementById('mappingPreviewErrors');
+  if (errorSummary && errorSummary.innerHTML.trim() !== '') {
+    showToast('Validation Error', 'Please fix the data errors highlighted in the preview before proceeding.', 'alert-triangle', 'error');
+    return;
+  }
+
+  const syncBackSection = document.getElementById('syncBackSection');
+  if (syncBackSection && syncBackSection.style.display === 'block') {
+    const syncBackFields = ['leadx_id', 'campaign_id'];
+    const missingSync = syncBackFields.filter(key => {
+      const el = document.getElementById(`map-sync-${key}`);
+      return el && !el.value;
+    });
+
+    if (missingSync.length > 0) {
+      showToast('Mapping Error', 'Please map all Sync-Back fields (LeadX ID, Campaign ID) before proceeding.', 'alert-triangle', 'error');
+      return;
+    }
+  }
+
+  goToStep(4);
+};
 
 window.commitWizardData = function() {
   const targetFields = getActiveTargetFields();
@@ -1499,6 +1748,15 @@ window.commitWizardData = function() {
   if (compulsoryMissing.length > 0) {
     showToast('Mapping Error', `Compulsory fields missing mapping: ${compulsoryMissing.map(m => m.label).join(', ')}`, 'alert-triangle', 'error');
     return;
+  }
+
+  const syncBackSection = document.getElementById('syncBackSection');
+  const syncBackConfig = {};
+  if (syncBackSection && syncBackSection.style.display === 'block') {
+    ['leadx_id', 'campaign_id'].forEach(key => {
+      const el = document.getElementById(`map-sync-${key}`);
+      if (el) syncBackConfig[key] = el.value;
+    });
   }
 
   const datasetId = document.getElementById('wizardDatasetId').value.trim() || 'ds-mapped-upload';
@@ -1522,6 +1780,8 @@ window.commitWizardData = function() {
         const val = row[mappedHeader];
         if (tf.key === 'phone') {
           lead.phone = val;
+        } else if (tf.key === 'client_id') {
+          lead.client_id = val;
         } else if (tf.key === 'name') {
           lead.name = val;
         } else if (tf.key === 'email') {
@@ -1540,6 +1800,12 @@ window.commitWizardData = function() {
     if (row.hubspot_id) {
       lead.raw_data.hubspot_id = row.hubspot_id;
     }
+    if (row._leadx_id) {
+      lead.raw_data.leadx_id = row._leadx_id;
+    }
+    if (row._campaign_id) {
+      lead.raw_data.campaign_id = row._campaign_id;
+    }
 
     return lead;
   }).filter(l => l.phone);
@@ -1556,7 +1822,8 @@ window.commitWizardData = function() {
       agent_focus: agentFocus,
       handoff_rules: handoffRules,
       dnc_validation_ownership: dncCheck ? 'platform' : 'client',
-      target_crm: crmTarget
+      target_crm: crmTarget,
+      sync_back_config: syncBackConfig
     }
   };
 
@@ -1597,7 +1864,16 @@ window.commitWizardData = function() {
       await fetchCampaignsList();
       fetchAuditTrail();
     } else {
-      showToast('Ingest Failed', batchData.message || 'Error processing batch upload.', 'alert-triangle', 'error');
+      let errMsg = batchData.message || 'Error processing batch upload.';
+      if (batchData.details && batchData.details.length > 0) {
+        errMsg += '\n\nValidation Details:\n';
+        batchData.details.forEach(d => {
+          errMsg += `- Row ${d.index + 1}: ${d.error || (d.errors ? d.errors.join(', ') : 'Invalid data')}\n`;
+        });
+        alert('Batch Rejected:\n\n' + errMsg);
+      } else {
+        showToast('Ingest Failed', errMsg, 'alert-triangle', 'error');
+      }
     }
   })
   .catch(err => {
@@ -2512,6 +2788,7 @@ window.onWizardCrmProviderChange = async function() {
   const listSelect = document.getElementById('wizardCrmListSelect');
   const statusText = document.getElementById('wizard-crm-status-text');
   const statusBadge = document.getElementById('wizard-crm-status-badge');
+  const connectBtn = document.getElementById('wizard-crm-connect-btn');
 
   if (!listSelect) return;
 
@@ -2539,10 +2816,12 @@ window.onWizardCrmProviderChange = async function() {
     statusText.textContent = `${provider === 'hubspot' ? 'HubSpot Cloud' : 'LeadSquared Regional API'} Connected`;
     statusBadge.textContent = 'CONNECTED';
     statusBadge.className = 'lx-badge badge-green';
+    if (connectBtn) connectBtn.style.display = 'none';
   } else {
     statusText.textContent = `${provider === 'hubspot' ? 'HubSpot' : 'LeadSquared'} Disconnected`;
     statusBadge.textContent = 'NOT CONFIGURED';
     statusBadge.className = 'lx-badge badge-gray';
+    if (connectBtn) connectBtn.style.display = 'inline-block';
   }
 };
 
@@ -2574,11 +2853,22 @@ window.fetchCrmContactsForWizard = async function() {
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.contacts && data.contacts.length > 0) {
+        // Store the CRM properties schema globally
+        window.crmPropertiesSchema = data.properties || [];
+
         // Populate wizard data fields by taking the union of all keys across all contacts
         const allKeys = new Set(['firstname', 'lastname', 'email', 'phone', 'Customer Name', 'Contact Phone', 'Email Address']);
         data.contacts.forEach(c => {
           Object.keys(c).forEach(k => allKeys.add(k));
         });
+
+        // Also add keys from crmPropertiesSchema labels to ensure they are available
+        if (window.crmPropertiesSchema.length > 0) {
+          window.crmPropertiesSchema.forEach(p => {
+            if (p.label) allKeys.add(p.label);
+          });
+        }
+
         parsedCsvHeaders = Array.from(allKeys);
         parsedCsvRows = data.contacts;
 
@@ -2741,7 +3031,10 @@ function updateCampaignFilterDropdown(leads) {
   // Extract unique campaigns
   const campaigns = new Set();
   leads.forEach(l => {
-    if (l.campaign_name) campaigns.add(l.campaign_name);
+    if (l.campaign_name) {
+      const campNames = l.campaign_name.split(',').map(c => c.trim()).filter(Boolean);
+      campNames.forEach(c => campaigns.add(c));
+    }
   });
 
   dropdown.innerHTML = '<option value="all">All Campaigns</option>';
@@ -2778,7 +3071,12 @@ function getActiveIndustry() {
   }
 
   // Scan leads of this specific campaign to see if we can find a dominant category
-  const campaignLeads = allLeads.filter(l => (l.campaign_name || 'Manual Ingests') === selectedCampaign);
+  const campaignLeads = allLeads.filter(l => {
+    const campaigns = l.campaign_name
+      ? l.campaign_name.split(',').map(c => c.trim()).filter(Boolean)
+      : ['Manual Ingests'];
+    return campaigns.includes(selectedCampaign);
+  });
   let hasRealEstate = false;
   let hasBFSI = false;
   let hasEducation = false;
@@ -3147,6 +3445,7 @@ function renderCampaignCardHtml(camp) {
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <button class="lx-btn primary" onclick="viewCampaignScores('${camp.name}')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+          <button class="lx-btn" onclick="deleteCampaignPrompt('${camp.name}')" style="padding: 4px 10px; font-size: 11px; margin: 0; background: var(--lx-red); border-color: var(--lx-red); color: white;"><i data-lucide="trash-2" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Delete</button>
           <span class="lx-badge badge-green">ACTIVE</span>
         </div>
       </div>
@@ -3204,6 +3503,32 @@ window.viewCampaignScores = function(campaignName) {
     }
     filterDropdown.value = campaignName;
     filterDropdown.dispatchEvent(new Event('change'));
+  }
+};
+
+window.deleteCampaignPrompt = async function(campaignName) {
+  if (confirm(`Are you sure you want to delete campaign "${campaignName}"? This will delete all leads associated with this campaign.`)) {
+    try {
+      const res = await fetch(`${API_BASE}/campaigns`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: currentTenant,
+          campaign_name: campaignName
+        })
+      });
+      if (!res.ok) throw new Error('Failed to delete campaign');
+      const data = await res.json();
+      if (data.success) {
+        showToast('Campaign Deleted', `Campaign "${campaignName}" has been successfully deleted.`, 'check');
+        fetchCampaignsList(); // Refresh campaign list!
+      } else {
+        showToast('Delete Failed', data.message || 'Could not delete campaign.', 'alert-triangle', 'error');
+      }
+    } catch (err) {
+      console.error('Error deleting campaign:', err);
+      showToast('Error', 'Unexpected connection error during delete.', 'alert-triangle', 'error');
+    }
   }
 };
 
@@ -3316,8 +3641,15 @@ function checkAndShowEscalationsBanner(leads) {
   const viewBtn = document.getElementById('viewBriefBannerBtn');
   
   if (escalatedLead) {
+    if (window.dismissedEscalationLeadId === escalatedLead.id) {
+      if (banner) {
+        banner.style.display = 'none';
+      }
+      return;
+    }
     if (banner) {
       banner.style.display = 'flex';
+      banner.setAttribute('data-lead-id', escalatedLead.id);
     }
     if (bannerText) {
       bannerText.textContent = `Lead ${escalatedLead.name || 'Unknown'} requires immediate advisor brief lookup.`;
@@ -3327,6 +3659,7 @@ function checkAndShowEscalationsBanner(leads) {
       viewBtn.onclick = () => viewBriefModal(escalatedLead.id);
     }
   } else {
+    window.dismissedEscalationLeadId = null;
     if (banner) {
       banner.style.display = 'none';
     }
@@ -3340,10 +3673,35 @@ if (closeBriefBtn) {
     document.getElementById('agentBriefModal').style.display = 'none';
   });
 }
+// Close lead details modal button setup
+const closeLeadDetailsBtn = document.getElementById('closeLeadDetailsModal');
+if (closeLeadDetailsBtn) {
+  closeLeadDetailsBtn.addEventListener('click', () => {
+    document.getElementById('leadDetailsModal').style.display = 'none';
+  });
+}
+// Close escalation banner setup
+const closeEscalationBtn = document.getElementById('closeEscalationBannerBtn');
+if (closeEscalationBtn) {
+  closeEscalationBtn.addEventListener('click', () => {
+    const banner = document.getElementById('escalationWarningBanner');
+    if (banner) {
+      banner.style.display = 'none';
+      const leadId = banner.getAttribute('data-lead-id');
+      if (leadId) {
+        window.dismissedEscalationLeadId = leadId;
+      }
+    }
+  });
+}
 window.addEventListener('click', (event) => {
   const briefModal = document.getElementById('agentBriefModal');
   if (event.target === briefModal) {
     briefModal.style.display = 'none';
+  }
+  const leadDetailsModal = document.getElementById('leadDetailsModal');
+  if (event.target === leadDetailsModal) {
+    leadDetailsModal.style.display = 'none';
   }
 });
 
@@ -3849,8 +4207,11 @@ function renderScriptFlowVisualizer(script) {
 window.viewBriefModal = async function(leadId) {
   try {
     const res = await fetch(`${API_BASE}/handoff/brief/${leadId}`);
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (e) {}
     if (res.ok) {
-      const data = await res.json();
       if (data.success && data.brief) {
         const brief = data.brief;
         const modal = document.getElementById('agentBriefModal');
@@ -4008,10 +4369,10 @@ window.viewBriefModal = async function(leadId) {
           }
         }
       } else {
-        showToast('Not Found', 'No agent brief found for this lead.', 'alert-triangle', 'warning');
+        showToast('Not Found', data.message || 'No agent brief found for this lead.', 'alert-triangle', 'warning');
       }
     } else {
-      showToast('Brief Error', 'Failed to retrieve agent brief context.', 'alert-triangle', 'error');
+      showToast('Brief Error', data.message || 'Failed to retrieve agent brief context.', 'alert-triangle', 'error');
     }
   } catch (err) {
     console.error('Error fetching brief details:', err);
@@ -4189,4 +4550,173 @@ function renderAnalyticsCharts(data) {
     });
   }
 }
+
+window.viewLeadDetails = async function(leadId) {
+  // Find lead in allLeads
+  const lead = allLeads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  const modal = document.getElementById('leadDetailsModal');
+  const content = document.getElementById('leadDetailsModalContent');
+  if (!modal || !content) return;
+
+  // Render modal loading state
+  content.innerHTML = `
+    <div style="text-align: center; padding: 40px 0;">
+      <div style="font-size: 14px; color: var(--lx-muted);">Loading lead intelligence data...</div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+
+  try {
+    // Fetch call sessions for this lead
+    const res = await fetch(`${API_BASE}/${leadId}/sessions?tenant_id=${currentTenant}`);
+    let sessions = [];
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        sessions = data.sessions || [];
+      }
+    }
+
+    // Render lead details
+    const score = lead.score || 0;
+    let tierText, tierClass, scoreColor;
+    if (lead.status === 'dnc') {
+      tierText = 'DNC BLOCK'; tierClass = 'badge-red'; scoreColor = 'var(--lx-red)';
+    } else if (lead.status === 'hot_escalated') {
+      tierText = 'HOT ESCALATED'; tierClass = 'badge-teal'; scoreColor = 'var(--lx-green)';
+    } else if (score >= 80) {
+      tierText = 'HOT'; tierClass = 'badge-green'; scoreColor = 'var(--lx-green)';
+    } else if (score >= 65) {
+      tierText = 'QUALIFIED'; tierClass = 'badge-accent'; scoreColor = 'var(--lx-accent)';
+    } else if (score >= 50) {
+      tierText = 'WARM'; tierClass = 'badge-amber'; scoreColor = 'var(--lx-amber)';
+    } else {
+      tierText = 'COLD'; tierClass = 'badge-gray'; scoreColor = 'var(--lx-red)';
+    }
+
+    // Build lead info key-value list
+    const rawData = lead.raw_data || {};
+    
+    // Format preferences section dynamically
+    let prefHtml = '';
+    const ignoreKeys = ['leadx_id', 'campaign_id', 'hubspot_id', 'email', 'phone', 'firstname', 'lastname', 'name'];
+    const prefFields = Object.entries(rawData).filter(([k]) => !ignoreKeys.includes(k));
+    if (prefFields.length > 0) {
+      prefHtml = `
+        <div style="margin-top: 12px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Lead Preferences & Attributes</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px;">
+            ${prefFields.map(([k, v]) => `
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">${k.replace(/_/g, ' ')}</span>
+                <span style="font-weight: 500; font-size: 12px; color: var(--lx-text);">${v}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // Build ID elements with copy-to-clipboard trigger
+    const ldxId = rawData.leadx_id || 'Not Generated';
+    const campId = rawData.campaign_id || 'Not Generated';
+    const hsId = rawData.hubspot_id || 'N/A';
+
+    const idsHtml = `
+      <div style="margin-top: 12px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">System Mappings & Integration IDs</h4>
+        <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px; font-family: var(--lx-mono); font-size: 11px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--lx-muted);">LeadX ID:</span>
+            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${ldxId}'); showToast('Copied', 'LeadX ID copied to clipboard', 'copy')">${ldxId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--lx-muted);">Campaign ID:</span>
+            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${campId}'); showToast('Copied', 'Campaign ID copied to clipboard', 'copy')">${campId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--lx-muted);">HubSpot ID:</span>
+            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${hsId}'); showToast('Copied', 'HubSpot ID copied to clipboard', 'copy')">${hsId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Format Call History / Sessions list
+    let historyHtml = `
+      <div style="margin-top: 12px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Call History & Outreach Logs</h4>
+        <div style="font-size: 11.5px; color: var(--lx-muted); padding: 16px 0; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;">
+          No outbound dialing logs found for this lead.
+        </div>
+      </div>
+    `;
+    if (sessions.length > 0) {
+      historyHtml = `
+        <div style="margin-top: 12px;">
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Call History & Outreach Logs</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding-right: 4px;">
+            ${sessions.map(s => {
+              const start = new Date(s.started_at).toLocaleString();
+              const durationText = s.duration ? `${s.duration}s` : 'Ongoing/No Connect';
+              const disp = s.disposition ? s.disposition.toUpperCase() : 'NO ANSWER';
+              const badgeType = ['called', 'qualified', 'converted'].includes(s.disposition?.toLowerCase()) ? 'badge-green' : 'badge-amber';
+              return `
+                <div style="display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--lx-border); padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.01);">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 11px;" class="lx-badge ${badgeType}">${disp}</span>
+                    <span style="font-size: 11px; color: var(--lx-muted); font-family: var(--lx-mono);">${start}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px;">
+                    <span>Duration: <strong>${durationText}</strong></span>
+                    ${s.transcript ? `<span style="font-style: italic; color: var(--lx-hint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;" title="${s.transcript}">"${s.transcript}"</span>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    content.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 16px; border-radius: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 18px; font-weight: 700; color: var(--lx-text);">${lead.name || 'Anonymous'}</div>
+          <div style="font-size: 12px; color: var(--lx-muted);">Phone: <strong>${lead.phone}</strong> | Email: <strong>${lead.email || 'N/A'}</strong></div>
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <span class="lx-badge ${tierClass}">${tierText}</span>
+            <span class="lx-badge badge-gray">Source: ${lead.source ? lead.source.toUpperCase() : 'OTHER'}</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+          <div style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">LeadX Score</div>
+          <div style="font-size: 28px; font-weight: 800; color: ${scoreColor}; font-family: var(--lx-mono);">${score}</div>
+        </div>
+      </div>
+
+      ${idsHtml}
+      ${prefHtml}
+      ${historyHtml}
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 8px;">
+        <button class="lx-btn" onclick="document.getElementById('leadDetailsModal').style.display = 'none'">Close</button>
+        <button class="lx-btn primary" onclick="document.getElementById('leadDetailsModal').style.display = 'none'; triggerMockCall('${lead.id}','${lead.name}','${lead.phone}',${score})">Call Lead</button>
+      </div>
+    `;
+
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  } catch (err) {
+    console.error('Error opening lead details modal:', err);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 40px 0; color: var(--lx-red);">
+        Failed to load lead details. Close and try again.
+      </div>
+    `;
+  }
+};
 

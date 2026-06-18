@@ -6,7 +6,7 @@ let workerInterval = null;
 let isProcessing = false;
 
 /**
- * Enforces Indian Standard Time (IST) calling hours (9 AM - 8 PM) and Monday-Saturday allowed calling days.
+ * Enforces Indian Standard Time (IST) calling hours (9 AM - 6 PM) and Monday-Saturday allowed calling days.
  * @param {object} lead The lead object.
  * @param {object} config Onboarding/tenant config.
  * @returns {boolean} True if within calling hours, false otherwise.
@@ -17,7 +17,7 @@ export function isCallable(lead, config = {}) {
   }
 
   const startHour = config.calling_hours?.start ?? 9;
-  const endHour = config.calling_hours?.end ?? 20;
+  const endHour = config.calling_hours?.end ?? 18;
   const timezone = config.calling_hours?.timezone || 'Asia/Kolkata';
 
   const now = new Date();

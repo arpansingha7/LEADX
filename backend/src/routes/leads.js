@@ -101,11 +101,27 @@ router.post('/ingest', async (req, res, next) => {
       const newCampaign = leadData.campaign_name || 'Manual Campaigns';
       const currentCampaigns = existingLead.campaign_name ? existingLead.campaign_name.split(',').map(c => c.trim()) : [];
       
+      existingLead.raw_data = existingLead.raw_data || {};
+      if (!existingLead.raw_data.leadx_id) {
+        existingLead.raw_data.leadx_id = leadData.raw_data?.leadx_id || 'ldx_' + Math.random().toString(36).substr(2, 9);
+      }
+      
+      // Update with the most recent campaign_id
+      const mostRecentCampaignId = leadData.raw_data?.campaign_id || 'cmp_' + Math.random().toString(36).substr(2, 9);
+      existingLead.raw_data.campaign_id = mostRecentCampaignId;
+
       if (!currentCampaigns.includes(newCampaign)) {
         currentCampaigns.push(newCampaign);
-        const updatedCampaignString = currentCampaigns.join(', ');
-        await db.updateLeadCampaign(existingLead.id, updatedCampaignString);
-        existingLead.campaign_name = updatedCampaignString;
+      }
+      const updatedCampaignString = currentCampaigns.join(', ');
+      await db.updateLeadCampaignAndData(existingLead.id, updatedCampaignString, existingLead.raw_data);
+      existingLead.campaign_name = updatedCampaignString;
+
+      // Sync duplicate lead back to CRM
+      if (existingLead.raw_data?.hubspot_id || existingLead.email) {
+        syncToCRM(tenant_id, existingLead, 'hubspot').catch(err => {
+          console.error('[Ingestion Sync-Back] Failed to sync duplicate lead to HubSpot:', existingLead.id, err);
+        });
       }
       
       return res.status(200).json({
@@ -123,8 +139,16 @@ router.post('/ingest', async (req, res, next) => {
       ...leadData,
       phone: cleaned,
       dataset_id: leadData.dataset_id || 'manual-entry',
-      campaign_name: leadData.campaign_name || 'Manual Campaigns'
+      campaign_name: leadData.campaign_name || 'Manual Campaigns',
+      raw_data: leadData.raw_data || {}
     };
+
+    if (!processedLead.raw_data.leadx_id) {
+      processedLead.raw_data.leadx_id = 'ldx_' + Math.random().toString(36).substr(2, 9);
+    }
+    if (!processedLead.raw_data.campaign_id) {
+      processedLead.raw_data.campaign_id = 'cmp_' + Math.random().toString(36).substr(2, 9);
+    }
 
     // Calculate score
     const score = computeLeadScore(processedLead, weights);
@@ -135,6 +159,13 @@ router.post('/ingest', async (req, res, next) => {
 
     // Enqueue in dialer priority queue
     await enqueueLead(savedLead.id, score);
+
+    // Asynchronously sync back to CRM
+    if (savedLead.raw_data?.hubspot_id || savedLead.email) {
+      syncToCRM(tenant_id, savedLead, 'hubspot').catch(err => {
+        console.error('[Ingestion Sync-Back] Failed to sync new lead to HubSpot:', savedLead.id, err);
+      });
+    }
 
     // Insert System Audit Log
     await db.insertAuditLog(tenant_id, 'lead_ingested', {
@@ -179,107 +210,119 @@ router.post('/batch', async (req, res, next) => {
 
     const weights = await db.getWeights(tenant_id);
 
-    let accepted = 0;
-    let rejected = 0;
-    let duplicates = 0;
-    let appended = 0;
-    const details = [];
-
-    // Track phones inside the batch itself to prevent batch self-duplication
+    // Pre-validation pass (All-or-nothing)
+    const validationErrors = [];
     const batchPhones = new Set();
+    const leadsToProcess = [];
 
     for (let i = 0; i < leads.length; i++) {
       const item = leads[i];
       const leadPayload = { ...item, tenant_id };
 
-      // Validate
+      // Column validation: client_id is required for MVP
+      if (!item.client_id) {
+        validationErrors.push({ index: i, errors: ["Missing required column/mapping: client_id"] });
+        continue;
+      }
+
       const val = validateLead(leadPayload);
       if (!val.isValid) {
-        rejected++;
-        details.push({
-          index: i,
-          phone: item.phone || 'unknown',
-          status: 'rejected',
-          errors: val.errors
-        });
+        validationErrors.push({ index: i, errors: val.errors });
         continue;
       }
 
       const cleaned = cleanPhone(item.phone);
-
-      // Check self-duplication within the batch
       if (batchPhones.has(cleaned)) {
-        duplicates++;
-        details.push({
-          index: i,
-          phone: cleaned,
-          status: 'duplicate',
-          errors: ['Duplicate phone number within the batch']
-        });
+        validationErrors.push({ index: i, errors: ["Duplicate phone number within the batch"] });
         continue;
       }
       batchPhones.add(cleaned);
 
-      // Check database duplication
+      leadPayload.phone = cleaned;
+      leadPayload.dataset_id = dataset_id || 'batch-upload';
+      leadPayload.campaign_name = campaign_name || 'Batch Campaigns';
+      leadPayload.client_id = item.client_id;
+      
+      leadsToProcess.push({ index: i, payload: leadPayload });
+    }
+
+    // If any validation errors exist, reject the entire batch
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Batch Validation Failed',
+        message: 'One or more leads failed validation or had missing columns. The entire batch has been rejected.',
+        details: validationErrors
+      });
+    }
+
+    let accepted = 0;
+    let appended = 0;
+    const details = [];
+
+    // Processing pass (only if validation passed)
+    for (const { index, payload } of leadsToProcess) {
       try {
-        const existing = await db.findLeadByPhone(tenant_id, cleaned);
+        const existing = await db.findLeadByPhone(tenant_id, payload.phone);
         if (existing) {
           const newCampaign = campaign_name || 'Batch Campaigns';
           const currentCampaigns = existing.campaign_name ? existing.campaign_name.split(',').map(c => c.trim()) : [];
+          
+          existing.raw_data = existing.raw_data || {};
+          if (!existing.raw_data.leadx_id) {
+            existing.raw_data.leadx_id = payload.raw_data?.leadx_id || 'ldx_' + Math.random().toString(36).substr(2, 9);
+          }
+          
+          // Update to the most recent campaign_id
+          const mostRecentCampaignId = payload.raw_data?.campaign_id || 'cmp_' + Math.random().toString(36).substr(2, 9);
+          existing.raw_data.campaign_id = mostRecentCampaignId;
+
           if (!currentCampaigns.includes(newCampaign)) {
             currentCampaigns.push(newCampaign);
-            const updatedCampaignString = currentCampaigns.join(', ');
-            await db.updateLeadCampaign(existing.id, updatedCampaignString);
+            await db.updateLeadCampaignAndData(existing.id, currentCampaigns.join(', '), existing.raw_data);
             appended++;
-            details.push({
-              index: i,
-              phone: cleaned,
-              status: 'appended',
-              lead_id: existing.id
-            });
+            details.push({ index, phone: payload.phone, status: 'appended', lead_id: existing.id });
           } else {
-            duplicates++;
-            details.push({
-              index: i,
-              phone: cleaned,
-              status: 'duplicate',
-              errors: ['Lead already exists in database and campaign']
+            await db.updateLeadCampaignAndData(existing.id, currentCampaigns.join(', '), existing.raw_data);
+            details.push({ index, phone: payload.phone, status: 'duplicate_skipped' });
+          }
+
+          // Sync duplicate/appended lead back to HubSpot
+          if (existing.raw_data?.hubspot_id || existing.email) {
+            syncToCRM(tenant_id, existing, 'hubspot').catch(err => {
+              console.error('[Ingestion Sync-Back] Failed to sync duplicate lead to HubSpot:', existing.id, err);
             });
           }
           continue;
         }
 
-        // Calculate score
-        leadPayload.phone = cleaned;
-        leadPayload.dataset_id = dataset_id || 'batch-upload';
-        leadPayload.campaign_name = campaign_name || 'Batch Campaigns';
-        
-        const score = computeLeadScore(leadPayload, weights);
-        leadPayload.score = score;
+        const score = computeLeadScore(payload, weights);
+        payload.score = score;
 
-        // Insert
-        const saved = await db.insertLead(leadPayload);
+        // Ensure leadx_id and campaign_id exist
+        payload.raw_data = payload.raw_data || {};
+        if (!payload.raw_data.leadx_id) {
+          payload.raw_data.leadx_id = 'ldx_' + Math.random().toString(36).substr(2, 9);
+        }
+        if (!payload.raw_data.campaign_id) {
+          payload.raw_data.campaign_id = 'cmp_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        const saved = await db.insertLead(payload);
         
         // Enqueue in dialer priority queue
         await enqueueLead(saved.id, score);
 
+        // Asynchronously sync back to CRM if the lead has a HubSpot ID or email
+        if (saved.raw_data?.hubspot_id || saved.email) {
+          syncToCRM(tenant_id, saved, 'hubspot').catch(err => {
+            console.error('[Ingestion Sync-Back] Failed to sync to HubSpot for lead', saved.id, err);
+          });
+        }
+
         accepted++;
-        details.push({
-          index: i,
-          phone: cleaned,
-          status: 'accepted',
-          lead_id: saved.id,
-          score: saved.score
-        });
+        details.push({ index, phone: payload.phone, status: 'accepted', lead_id: saved.id, score: saved.score });
       } catch (dbError) {
         console.error('Database error in batch processing:', dbError);
-        rejected++;
-        details.push({
-          index: i,
-          phone: cleaned,
-          status: 'rejected',
-          errors: [dbError.message || 'Database write error']
-        });
       }
     }
 
@@ -287,20 +330,16 @@ router.post('/batch', async (req, res, next) => {
       dataset_id: dataset_id || 'batch-upload',
       campaign_name: campaign_name || 'Batch Campaigns',
       accepted,
-      rejected,
-      duplicates,
       appended
     });
 
-    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${appended} appended, ${duplicates} duplicates filtered, ${rejected} rejected for campaign "${campaign_name || 'Batch Campaigns'}".`);
+    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${appended} appended for campaign "${campaign_name || 'Batch Campaigns'}".`);
 
     res.status(200).json({
       success: true,
       summary: {
         accepted,
         appended,
-        rejected,
-        duplicates,
         total: leads.length
       },
       details
@@ -679,7 +718,11 @@ router.get('/crm-contacts', async (req, res, next) => {
     }
 
     const contacts = await getCRMContactsFromList(tenant_id, provider, list_id);
-    res.json({ success: true, contacts });
+    res.json({
+      success: true,
+      contacts,
+      properties: contacts.propertiesSchema || []
+    });
   } catch (error) {
     next(error);
   }
@@ -700,26 +743,31 @@ router.get('/campaigns', async (req, res, next) => {
     const campaignsMap = {};
 
     leads.forEach(lead => {
-      const campName = lead.campaign_name || 'Manual Ingests';
-      if (!campaignsMap[campName]) {
-        campaignsMap[campName] = {
-          name: campName,
-          ingested: 0,
-          attempted: 0,
-          connected: 0
-        };
-      }
-      const camp = campaignsMap[campName];
-      camp.ingested += 1;
-      
-      // attempted means status is not pending
-      if (lead.status && lead.status !== 'pending') {
-        camp.attempted += 1;
-      }
-      // connected means status is connected
-      if (lead.status === 'connected') {
-        camp.connected += 1;
-      }
+      const campNames = lead.campaign_name
+        ? lead.campaign_name.split(',').map(c => c.trim()).filter(Boolean)
+        : ['Manual Ingests'];
+
+      campNames.forEach(campName => {
+        if (!campaignsMap[campName]) {
+          campaignsMap[campName] = {
+            name: campName,
+            ingested: 0,
+            attempted: 0,
+            connected: 0
+          };
+        }
+        const camp = campaignsMap[campName];
+        camp.ingested += 1;
+        
+        // attempted means status is not pending
+        if (lead.status && lead.status !== 'pending') {
+          camp.attempted += 1;
+        }
+        // connected means status is connected
+        if (lead.status === 'connected') {
+          camp.connected += 1;
+        }
+      });
     });
 
     const campaigns = Object.values(campaignsMap).map(camp => {
@@ -734,6 +782,31 @@ router.get('/campaigns', async (req, res, next) => {
     });
 
     res.json({ success: true, campaigns });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /leads/campaigns
+ * Deletes all leads associated with a campaign name (or removes the campaign reference).
+ */
+router.delete('/campaigns', async (req, res, next) => {
+  try {
+    const { tenant_id, campaign_name } = req.body;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id is required' });
+    }
+    if (!campaign_name) {
+      return res.status(400).json({ error: 'Validation Error', message: 'campaign_name is required' });
+    }
+
+    await db.deleteCampaign(tenant_id, campaign_name);
+
+    // Audit log
+    await db.insertAuditLog(tenant_id, 'campaign_deleted', { campaign_name });
+
+    res.json({ success: true, message: `Campaign "${campaign_name}" successfully deleted.` });
   } catch (error) {
     next(error);
   }
@@ -977,9 +1050,36 @@ router.post('/scripts', async (req, res, next) => {
 router.get('/handoff/brief/:lead_id', async (req, res, next) => {
   try {
     const { lead_id } = req.params;
-    const brief = await db.getAgentBrief(lead_id);
+    let brief = await db.getAgentBrief(lead_id);
     if (!brief) {
-      return res.status(404).json({ error: 'Not Found', message: `No agent brief found for lead ID ${lead_id}.` });
+      // Auto-heal missing briefs for escalated leads
+      const lead = await db.findLeadById(lead_id);
+      if (!lead) {
+        return res.status(404).json({ error: 'Not Found', message: `No lead found for ID ${lead_id}.` });
+      }
+      
+      if (lead.status === 'hot_escalated') {
+        const allSessions = await db.getCallSessions(lead.tenant_id);
+        const sessions = allSessions.filter(s => s.lead_id === lead_id);
+        const latestSession = sessions[0];
+        
+        const briefData = {
+          lead_name: lead.name || 'Anonymous Prospect',
+          phone: lead.phone,
+          score: lead.score,
+          call_summary: latestSession?.summary || 'Lead was marked escalated.',
+          key_phrases: latestSession?.summary ? [latestSession.summary] : ['Handoff requested.'],
+          objections: [],
+          recommended_action: 'Contact the lead immediately by phone.',
+          escalation_reason: latestSession?.disposition || 'Manual Handoff',
+          timestamp: new Date().toISOString()
+        };
+        
+        await db.upsertAgentBrief(lead.tenant_id, lead_id, briefData);
+        brief = { brief: briefData };
+      } else {
+        return res.status(404).json({ error: 'Not Found', message: `No agent brief found for lead ID ${lead_id}.` });
+      }
     }
     res.json({ success: true, brief: brief.brief });
   } catch (error) {
@@ -1210,6 +1310,25 @@ router.post('/scoring-config/:tenant_id', async (req, res, next) => {
     }
     await db.upsertWeights(tenant_id, weights, changed_by || 'system');
     res.json({ success: true, tenant_id, weights });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /leads/:id/sessions
+ * Retrieves call sessions for a specific lead.
+ */
+router.get('/:id/sessions', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { tenant_id } = req.query;
+    if (!tenant_id) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
+    }
+    const allSessions = await db.getCallSessions(tenant_id);
+    const sessions = allSessions.filter(s => s.lead_id === id);
+    res.json({ success: true, sessions });
   } catch (error) {
     next(error);
   }

@@ -83,7 +83,7 @@
       <!-- Main Pages Area -->
       <main class="lx-main">
         <!-- Escalation warning banner -->
-        <div id="escalationWarningBanner" class="lx-banner warning" style="display: none; background: rgba(255, 71, 87, 0.15); border: 1px solid rgba(255, 71, 87, 0.4); border-radius: 8px; padding: 12px; margin-bottom: 12px; align-items: center; justify-content: space-between; gap: 12px; display: none;">
+        <div id="escalationWarningBanner" class="lx-banner warning" style="display: none; background: rgba(255, 71, 87, 0.15); border: 1px solid rgba(255, 71, 87, 0.4); border-radius: 8px; padding: 12px; margin-bottom: 12px; align-items: center; justify-content: space-between; gap: 12px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <i data-lucide="alert-circle" style="color: var(--lx-red); width: 20px; height: 20px;"></i>
             <div>
@@ -91,7 +91,10 @@
               <div style="font-size: 11.5px; color: var(--lx-text); margin-top: 2px;" id="escalationBannerText">Lead Raman Iyer requires immediate advisor brief lookup.</div>
             </div>
           </div>
-          <button class="lx-btn lx-btn-small" style="background: var(--lx-red); color: white; border-color: var(--lx-red);" id="viewBriefBannerBtn">View Agent Brief</button>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="lx-btn lx-btn-small" style="background: var(--lx-red); color: white; border-color: var(--lx-red);" id="viewBriefBannerBtn">View Agent Brief</button>
+            <button id="closeEscalationBannerBtn" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer; padding: 4px; line-height: 1;" title="Dismiss notification">&times;</button>
+          </div>
         </div>
         
         <!-- 1. DASHBOARD PAGE -->
@@ -384,13 +387,16 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                     </select>
                   </div>
                   <div class="form-group" style="grid-column: span 2;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:6px; border:1px solid var(--lx-border);">
-                      <div>
-                        <span style="font-size:11px; color:var(--lx-muted); text-transform:uppercase; font-weight:700;">Integration Status</span>
-                        <div style="font-size:13px; font-weight:700; margin-top:2px;" id="wizard-crm-status-text">DISCONNECTED</div>
+                      <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:6px; border:1px solid var(--lx-border);">
+                        <div>
+                          <span style="font-size:11px; color:var(--lx-muted); text-transform:uppercase; font-weight:700;">Integration Status</span>
+                          <div style="font-size:13px; font-weight:700; margin-top:2px;" id="wizard-crm-status-text">DISCONNECTED</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <button id="wizard-crm-connect-btn" class="lx-btn" style="padding: 4px 10px; font-size: 11px; display: none;" onclick="document.querySelector('.lx-sidebar-item[data-page=\'crm\']').click()">Connect CRM</button>
+                          <span class="lx-badge badge-gray" id="wizard-crm-status-badge">NOT CONFIGURED</span>
+                        </div>
                       </div>
-                      <span class="lx-badge badge-gray" id="wizard-crm-status-badge">NOT CONFIGURED</span>
-                    </div>
                   </div>
                 </div>
 
@@ -406,17 +412,28 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               <div class="form-section-title" style="margin-top:0;">Column Mapping Engine</div>
               <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1.5fr; gap:20px;">
                 <div>
-                  <p style="font-size:12px; color:var(--lx-muted); margin-bottom:10px;">
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px;">Ingestion Mapping (CRM -> LeadX)</div>
+                  <p style="font-size:11.5px; color:var(--lx-muted); margin-bottom:12px; line-height:1.4;">
                     Associate the detected columns from your file with the target system fields.
                   </p>
-                  <div id="mappingFieldsContainer" style="display:flex; flex-direction:column; gap:12px;">
+                  <div id="mappingFieldsContainer" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
                     <!-- Javascript will dynamically inject selectors for system columns -->
                   </div>
+
+                  <div id="syncBackSection" style="display:none;">
+                    <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px; border-top:1px solid var(--lx-border); padding-top:20px;">Sync-Back Mapping (LeadX -> CRM)</div>
+                    <p style="font-size:11.5px; color:var(--lx-muted); margin-bottom:12px; line-height:1.4;">
+                      Select the custom columns in your CRM where LeadX should write internally generated data.
+                    </p>
+                    <div id="syncBackFieldsContainer" style="display:flex; flex-direction:column; gap:12px;">
+                      <!-- Javascript will dynamically inject selectors for system columns -->
+                    </div>
+                  </div>
                 </div>
-                <div>
+                <div style="min-width: 0;">
                   <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">User Mapping Verification Preview</div>
-                  <div style="overflow-x:auto; max-height: 220px; border:1px solid var(--lx-border); border-radius:6px;">
-                    <table class="lx-table" style="font-size:11px; margin:0;">
+                  <div style="overflow: auto; max-height: 500px; max-width: 100%; border:1px solid var(--lx-border); border-radius:6px;">
+                    <table class="lx-table" style="font-size:11px; margin:0; width: 100%; table-layout: auto;">
                       <thead id="mappingPreviewHead"></thead>
                       <tbody id="mappingPreviewBody"></tbody>
                     </table>
@@ -425,7 +442,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               </div>
               <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
                 <button class="lx-btn" onclick="goToStep(2)">Back</button>
-                <button class="lx-btn primary" onclick="goToStep(4)">Verify & Set Handoff</button>
+                <button class="lx-btn primary" onclick="validateMappingAndProceed()">Verify & Set Handoff</button>
               </div>
             </div>
 
@@ -454,6 +471,11 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                       <option value="leadsquared">LeadSquared API Portal</option>
                       <option value="salesforce">Salesforce CRM Cloud</option>
                     </select>
+                  </div>
+                  <div class="form-group" style="margin-top: 10px;">
+                    <label for="wizardLeadxStatusField">CRM Status Property ID</label>
+                    <input type="text" id="wizardLeadxStatusField" class="lx-input" value="leadx_status" placeholder="e.g. leadx_status">
+                    <div style="font-size:10px; color:var(--lx-muted); margin-top:4px;">The exact internal property name in HubSpot to sync LeadX statuses (e.g. Ingested, Called)</div>
                   </div>
                 </div>
                 <div>
@@ -554,9 +576,15 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
 
         <!-- 3. CAMPAIGNS PAGE -->
         <section class="lx-page" id="page-campaigns">
-          <div class="lx-section-title">
-            Campaign Manager
-            <span class="sub">Orchestrate dials, schedules, and configurations</span>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+            <div class="lx-section-title" style="margin-bottom: 0;">
+              Campaign Manager
+              <span class="sub">Orchestrate dials, schedules, and configurations</span>
+            </div>
+            <button class="lx-btn primary" onclick="document.querySelector('.lx-sidebar-item[data-page=\'onboarding\']').click()" style="display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 14px;">
+              <svg class="lx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Add Campaign
+            </button>
           </div>
 
           <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
@@ -1472,6 +1500,19 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
       <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--lx-border); padding-top: 12px;">
         <button class="lx-btn" id="printBriefBtn"><i data-lucide="printer" style="width: 12px; height: 12px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i> Print Card</button>
         <button class="lx-btn primary" id="resolveBriefBtn">Mark as Resolved</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lead Details Modal -->
+  <div id="leadDetailsModal" class="lx-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="lx-modal-content" style="background: var(--lx-card); border: 1px solid var(--lx-border); padding: 20px; border-radius: 12px; width: 600px; max-width: 90%; display: flex; flex-direction: column; gap: 16px; margin: 5% auto; max-height: 85vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--lx-border); padding-bottom: 10px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--lx-text); display: flex; align-items: center; gap: 6px;"><i data-lucide="user" style="color: var(--lx-accent); width:18px; height:18px;"></i> Lead Intelligence Card</h3>
+        <button id="closeLeadDetailsModal" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer;">&times;</button>
+      </div>
+      <div id="leadDetailsModalContent" style="display: flex; flex-direction: column; gap: 16px; font-size: 13px;">
+        <!-- Filled dynamically -->
       </div>
     </div>
   </div>

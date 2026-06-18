@@ -165,6 +165,7 @@ const db = {
       status: lead.status || 'pending',
       dataset_id: lead.dataset_id || null,
       campaign_name: lead.campaign_name || null,
+      client_id: lead.client_id || null,
       created_at: lead.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -271,6 +272,26 @@ const db = {
       const lead = mockDb.leads.find(l => l.id === id);
       if (!lead) throw new Error('Lead not found');
       lead.campaign_name = campaign_name;
+      lead.updated_at = new Date().toISOString();
+      return lead;
+    }
+  },
+
+  async updateLeadCampaignAndData(id, campaign_name, raw_data) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ campaign_name, raw_data, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const lead = mockDb.leads.find(l => l.id === id);
+      if (!lead) throw new Error('Lead not found');
+      lead.campaign_name = campaign_name;
+      lead.raw_data = raw_data;
       lead.updated_at = new Date().toISOString();
       return lead;
     }
@@ -742,6 +763,85 @@ const db = {
       return data;
     } else {
       return mockDb.agentBriefs.find(b => b.lead_id === leadId) || null;
+    }
+  },
+
+  async deleteCampaign(tenantId, campaignName) {
+    if (supabase) {
+      // Find all leads for this tenant
+      const { data: allLeads, error: fetchErr } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('tenant_id', tenantId);
+      if (fetchErr) throw fetchErr;
+
+      const leadsToDelete = [];
+      const leadsToUpdate = [];
+
+      (allLeads || []).forEach(lead => {
+        const campaigns = lead.campaign_name ? lead.campaign_name.split(',').map(c => c.trim()) : [];
+        if (campaigns.includes(campaignName)) {
+          if (campaigns.length === 1) {
+            leadsToDelete.push(lead.id);
+          } else {
+            const updatedCampaigns = campaigns.filter(c => c !== campaignName).join(', ');
+            leadsToUpdate.push({ id: lead.id, campaign_name: updatedCampaigns });
+          }
+        }
+      });
+
+      if (leadsToDelete.length > 0) {
+        await supabase.from('agent_briefs').delete().in('lead_id', leadsToDelete);
+        await supabase.from('call_events').delete().in('lead_id', leadsToDelete);
+        await supabase.from('call_sessions').delete().in('lead_id', leadsToDelete);
+        const { error: deleteErr } = await supabase
+          .from('leads')
+          .delete()
+          .in('id', leadsToDelete);
+        if (deleteErr) throw deleteErr;
+      }
+
+      for (const leadUpdate of leadsToUpdate) {
+        await supabase
+          .from('leads')
+          .update({ campaign_name: leadUpdate.campaign_name, updated_at: new Date().toISOString() })
+          .eq('id', leadUpdate.id);
+      }
+    } else {
+      const leadsToDelete = [];
+      const leadsToUpdate = [];
+
+      mockDb.leads.forEach(lead => {
+        if (lead.tenant_id === tenantId) {
+          const campaigns = lead.campaign_name ? lead.campaign_name.split(',').map(c => c.trim()) : [];
+          if (campaigns.includes(campaignName)) {
+            if (campaigns.length === 1) {
+              leadsToDelete.push(lead.id);
+            } else {
+              const updatedCampaigns = campaigns.filter(c => c !== campaignName).join(', ');
+              leadsToUpdate.push({ id: lead.id, campaign_name: updatedCampaigns });
+            }
+          }
+        }
+      });
+
+      if (leadsToDelete.length > 0) {
+        mockDb.leads = mockDb.leads.filter(l => !leadsToDelete.includes(l.id));
+        mockDb.agentBriefs = mockDb.agentBriefs.filter(b => !leadsToDelete.includes(b.lead_id));
+        
+        // Find sessions to delete and their event references
+        const sessionIds = mockDb.callSessions.filter(s => leadsToDelete.includes(s.lead_id)).map(s => s.id);
+        mockDb.callSessions = mockDb.callSessions.filter(s => !leadsToDelete.includes(s.lead_id));
+        mockDb.callEvents = mockDb.callEvents.filter(e => !sessionIds.includes(e.session_id) && !leadsToDelete.includes(e.lead_id));
+      }
+
+      leadsToUpdate.forEach(u => {
+        const lead = mockDb.leads.find(l => l.id === u.id);
+        if (lead) {
+          lead.campaign_name = u.campaign_name;
+          lead.updated_at = new Date().toISOString();
+        }
+      });
     }
   },
 

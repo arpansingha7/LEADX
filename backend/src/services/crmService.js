@@ -170,8 +170,8 @@ export class HubSpotAdapter {
       return { id: lead.raw_data?.hubspot_id || 'mock-hs-id-' + Math.floor(Math.random() * 100000) };
     }
 
-    const contactId = lead.raw_data?.hubspot_id;
-    if (!contactId) throw new Error('HubSpot Contact ID is missing');
+    const contactId = lead.client_id || lead.raw_data?.hubspot_id;
+    if (!contactId) throw new Error('Client ID (HubSpot Contact ID) is missing');
 
     const response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
       method: 'PATCH',
@@ -435,6 +435,22 @@ export async function syncToCRM(tenantId, lead, provider) {
           }
         }
 
+        const propertiesPayload = {
+          firstname: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          leadx_score: String(lead.score),
+          leadx_status: lead.status
+        };
+
+        const syncBackConfig = config?.sync_back_config || {};
+        if (syncBackConfig.leadx_id && lead.raw_data?.leadx_id) {
+          propertiesPayload[syncBackConfig.leadx_id] = lead.raw_data.leadx_id;
+        }
+        if (syncBackConfig.campaign_id && lead.raw_data?.campaign_id) {
+          propertiesPayload[syncBackConfig.campaign_id] = lead.raw_data.campaign_id;
+        }
+
         let response;
         if (contactId) {
           response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
@@ -443,15 +459,7 @@ export async function syncToCRM(tenantId, lead, provider) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`
             },
-            body: JSON.stringify({
-              properties: {
-                firstname: lead.name,
-                phone: lead.phone,
-                email: lead.email,
-                leadx_score: String(lead.score),
-                leadx_status: lead.status
-              }
-            })
+            body: JSON.stringify({ properties: propertiesPayload })
           });
         } else {
           response = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
@@ -460,15 +468,7 @@ export async function syncToCRM(tenantId, lead, provider) {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`
             },
-            body: JSON.stringify({
-              properties: {
-                firstname: lead.name,
-                phone: lead.phone,
-                email: lead.email,
-                leadx_score: String(lead.score),
-                leadx_status: lead.status
-              }
-            })
+            body: JSON.stringify({ properties: propertiesPayload })
           });
         }
 
@@ -661,31 +661,83 @@ export async function getCRMContactsFromList(tenantId, provider, listId) {
     }
 
     if (!isMock) {
-      const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100`, {
+      // 1. Dynamically fetch all property definitions to support custom fields
+      let propertyQuery = '';
+      let propMap = {};
+      let allProperties = [];
+      try {
+        const propsRes = await fetch('https://api.hubapi.com/properties/v1/contacts/properties', {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (propsRes.ok) {
+          const propsData = await propsRes.json();
+          // Map internal names to labels for friendly UI
+          propsData.forEach(p => {
+            propMap[p.name] = p.label || p.name;
+            allProperties.push({
+              name: p.name,
+              label: p.label || p.name,
+              hubspotDefined: p.hubspotDefined === true || p.hubspotDefined === 'true',
+              groupName: p.groupName,
+              type: p.type
+            });
+          });
+          
+          // Exclude internal 'hs_' properties to avoid URL too long error, but keep the ones we need
+          const required = ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'city', 'state', 'zip'];
+          const propNames = propsData.map(p => p.name).filter(name => required.includes(name) || !name.startsWith('hs_')).slice(0, 200);
+          propertyQuery = propNames.map(p => `&property=${encodeURIComponent(p)}`).join('');
+        }
+      } catch (err) {
+        console.error('Failed to fetch properties, falling back to defaults', err);
+      }
+      
+      // Fallback to basic properties if dynamic fetch failed or returned nothing
+      if (!propertyQuery) {
+        propertyQuery = '&property=firstname&property=lastname&property=email&property=phone&property=mobilephone&property=company&property=city&property=state&property=zip';
+      }
+
+      // 2. Fetch contacts with all dynamic properties appended
+      const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100${propertyQuery}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
       if (!response.ok) {
         throw new Error(`HubSpot list contacts fetch failed: status ${response.status}`);
       }
       const data = await response.json();
-      return (data.contacts || []).map(c => {
+      const contactsArray = (data.contacts || []).map(c => {
         const props = c.properties || {};
         const flat = {};
         Object.keys(props).forEach(k => {
-          flat[k] = props[k]?.value || '';
+          const label = propMap[k] || k;
+          flat[label] = props[k]?.value || '';
         });
-        flat["Customer Name"] = `${flat.firstname || ''} ${flat.lastname || ''}`.trim();
-        flat["Contact Phone"] = flat.phone;
-        flat["Email Address"] = flat.email;
+        flat["Customer Name"] = `${props.firstname?.value || ''} ${props.lastname?.value || ''}`.trim();
+        flat["Contact Phone"] = props.phone?.value || '';
+        flat["Email Address"] = props.email?.value || '';
         flat.hubspot_id = String(c.vid || c.id || '');
+        flat["Record ID"] = flat.hubspot_id;
         return flat;
       });
+      contactsArray.propertiesSchema = allProperties;
+      return contactsArray;
     } else {
-      return [
-        { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi", "hubspot_id": "mock-hs-id-10001" },
-        { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata", "hubspot_id": "mock-hs-id-10002" },
-        { "Customer Name": "Anand Rao", "Contact Phone": "+917766022199", "Email Address": "anand.rao@yahoo.com", "Age": "41", "Monthly Income": "89000", "City": "Chennai", "hubspot_id": "mock-hs-id-10003" }
+      const mockContacts = [
+        { "Customer Name": "Vikram Seth", "Contact Phone": "+919934311029", "Email Address": "vikram.seth@outlook.com", "Age": "34", "Monthly Income": "62000", "City": "Delhi", "hubspot_id": "mock-hs-id-10001", "Record ID": "mock-hs-id-10001" },
+        { "Customer Name": "Preeti Sen", "Contact Phone": "+918822399120", "Email Address": "preeti.sen@gmail.com", "Age": "28", "Monthly Income": "45000", "City": "Kolkata", "hubspot_id": "mock-hs-id-10002", "Record ID": "mock-hs-id-10002" },
+        { "Customer Name": "Anand Rao", "Contact Phone": "+917766022199", "Email Address": "anand.rao@yahoo.com", "Age": "41", "Monthly Income": "89000", "City": "Chennai", "hubspot_id": "mock-hs-id-10003", "Record ID": "mock-hs-id-10003" }
       ];
+      mockContacts.propertiesSchema = [
+        { name: "firstname", label: "First Name", hubspotDefined: true, groupName: "contactinformation", type: "string" },
+        { name: "lastname", label: "Last Name", hubspotDefined: true, groupName: "contactinformation", type: "string" },
+        { name: "email", label: "Email Address", hubspotDefined: true, groupName: "contactinformation", type: "string" },
+        { name: "phone", label: "Phone Number", hubspotDefined: true, groupName: "contactinformation", type: "string" },
+        { name: "budget", label: "budget", hubspotDefined: false, groupName: "contactinformation", type: "string" },
+        { name: "leadx_id", label: "LeadX ID", hubspotDefined: false, groupName: "contactinformation", type: "string" },
+        { name: "leadx_campaign_id", label: "LeadX Campaign ID", hubspotDefined: false, groupName: "contactinformation", type: "string" },
+        { name: "location_preference", label: "location_preference", hubspotDefined: false, groupName: "contactinformation", type: "string" }
+      ];
+      return mockContacts;
     }
   } else if (norm === 'leadsquared') {
     return [

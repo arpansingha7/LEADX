@@ -182,16 +182,17 @@ test('POST & GET /leads/scripts - Save and retrieve script', async () => {
 
 test('Handoff & Agent Brief & Instant Call APIs', async () => {
   // Ingest Lead first
-  const leadPayload = {
+  const payload = {
     tenant_id: 'test-tenant',
-    name: 'Escalation Prospect',
-    phone: '+919999912345',
-    source: 'referral'
+    client_id: 'handoff-test-1',
+    name: 'Handoff Test User',
+    phone: '9988771122',
+    source: 'referral',
   };
   const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(leadPayload)
+    body: JSON.stringify(payload)
   });
   const ingestData = await ingestRes.json();
   const leadId = ingestData.lead.id;
@@ -245,7 +246,7 @@ test('Handoff & Agent Brief & Instant Call APIs', async () => {
   assert.strictEqual(briefRes.status, 200);
   const briefData = await briefRes.json();
   assert.strictEqual(briefData.success, true);
-  assert.strictEqual(briefData.brief.lead_name, 'Escalation Prospect');
+  assert.strictEqual(briefData.brief.lead_name, 'Handoff Test User');
   assert.strictEqual(briefData.brief.escalation_reason, 'explicit_request');
 
   // Test Instant Call
@@ -275,3 +276,163 @@ test('GET /leads/analytics/summary - Retrieve funnel and KPI metrics', async () 
   assert.ok(Array.isArray(data.dispositions));
   assert.ok(Array.isArray(data.connect_rate_trend));
 });
+
+// ============================================================
+// MODULE 9: CAMPAIGN DELETION
+// ============================================================
+
+test('DELETE /leads/campaigns - Delete all leads associated with a campaign', async () => {
+  // Ingest a mock lead with campaign name "DeleteMeCampaign"
+  const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Delete Target Lead',
+      phone: '9988772299',
+      email: 'delete.target@example.com',
+      source: 'hubspot',
+      client_id: 'hs-del-901',
+      campaign_name: 'DeleteMeCampaign'
+    })
+  });
+  assert.strictEqual(ingestRes.status, 201);
+
+  // Verify it exists in campaigns list
+  const listRes = await fetch(`${baseUrl}/leads/campaigns?tenant_id=test-tenant`);
+  const listData = await listRes.json();
+  const names = listData.campaigns.map(c => c.name);
+  assert.ok(names.includes('DeleteMeCampaign'));
+
+  // Delete the campaign
+  const deleteRes = await fetch(`${baseUrl}/leads/campaigns`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      campaign_name: 'DeleteMeCampaign'
+    })
+  });
+  assert.strictEqual(deleteRes.status, 200);
+  const deleteData = await deleteRes.json();
+  assert.strictEqual(deleteData.success, true);
+
+  // Verify it is gone from campaigns list
+  const listRes2 = await fetch(`${baseUrl}/leads/campaigns?tenant_id=test-tenant`);
+  const listData2 = await listRes2.json();
+  const names2 = listData2.campaigns.map(c => c.name);
+  assert.ok(!names2.includes('DeleteMeCampaign'));
+});
+
+test('DELETE /leads/campaigns - Split multiple campaigns deletion', async () => {
+  // Ingest a mock lead with campaign name "CampaignAlpha, CampaignBeta"
+  const ingestRes = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Multi Campaign Lead',
+      phone: '9988771133',
+      email: 'multi.camp@example.com',
+      source: 'hubspot',
+      client_id: 'hs-multi-101',
+      campaign_name: 'CampaignAlpha, CampaignBeta'
+    })
+  });
+  assert.strictEqual(ingestRes.status, 201);
+
+  // Retrieve campaigns list - should contain both CampaignAlpha and CampaignBeta as separate campaigns
+  const listRes = await fetch(`${baseUrl}/leads/campaigns?tenant_id=test-tenant`);
+  const listData = await listRes.json();
+  const names = listData.campaigns.map(c => c.name);
+  
+  assert.ok(names.includes('CampaignAlpha'));
+  assert.ok(names.includes('CampaignBeta'));
+  assert.ok(!names.includes('CampaignAlpha, CampaignBeta'));
+
+  // Delete CampaignAlpha
+  const deleteRes = await fetch(`${baseUrl}/leads/campaigns`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      campaign_name: 'CampaignAlpha'
+    })
+  });
+  assert.strictEqual(deleteRes.status, 200);
+
+  // Retrieve campaigns list - CampaignAlpha should be gone, CampaignBeta should remain
+  const listRes2 = await fetch(`${baseUrl}/leads/campaigns?tenant_id=test-tenant`);
+  const listData2 = await listRes2.json();
+  const names2 = listData2.campaigns.map(c => c.name);
+  
+  assert.ok(!names2.includes('CampaignAlpha'));
+  assert.ok(names2.includes('CampaignBeta'));
+
+  // Retrieve leads and verify the lead is now only in CampaignBeta
+  const leadsRes = await fetch(`${baseUrl}/leads?tenant_id=test-tenant`);
+  const leadsData = await leadsRes.json();
+  const targetLead = leadsData.leads.find(l => l.phone === '9988771133');
+  
+  assert.ok(targetLead);
+  assert.strictEqual(targetLead.campaign_name, 'CampaignBeta');
+});
+
+test('POST /leads/ingest - Keep lead updated with its most recent campaign_id on duplicate append', async () => {
+  // Ingest lead for the first campaign
+  const ingestRes1 = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Most Recent Campaign ID Test User',
+      phone: '9999955555',
+      source: 'hubspot',
+      client_id: 'hs-mrc-201',
+      campaign_name: 'FirstCampaign',
+      raw_data: {
+        leadx_id: 'ldx-test-unique-id-999',
+        campaign_id: 'cmp-test-first-id-001',
+        hubspot_id: 'hs-mrc-201'
+      }
+    })
+  });
+  assert.strictEqual(ingestRes1.status, 201);
+
+  // Verify first campaign_id is stored
+  const leadRes1 = await fetch(`${baseUrl}/leads?tenant_id=test-tenant`);
+  const leadData1 = await leadRes1.json();
+  const lead1 = leadData1.leads.find(l => l.phone === '9999955555');
+  assert.ok(lead1);
+  assert.strictEqual(lead1.raw_data?.campaign_id, 'cmp-test-first-id-001');
+  assert.strictEqual(lead1.raw_data?.leadx_id, 'ldx-test-unique-id-999');
+
+  // Ingest duplicate lead for the second campaign (should append and update campaign_id to second campaign_id)
+  const ingestRes2 = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'test-tenant',
+      name: 'Most Recent Campaign ID Test User',
+      phone: '9999955555',
+      source: 'hubspot',
+      client_id: 'hs-mrc-201',
+      campaign_name: 'SecondCampaign',
+      raw_data: {
+        campaign_id: 'cmp-test-second-id-002'
+      }
+    })
+  });
+  assert.strictEqual(ingestRes2.status, 200);
+
+  // Verify campaign_id has updated to the most recent campaign_id, while leadx_id remains unchanged
+  const leadRes2 = await fetch(`${baseUrl}/leads?tenant_id=test-tenant`);
+  const leadData2 = await leadRes2.json();
+  const lead2 = leadData2.leads.find(l => l.phone === '9999955555');
+  assert.ok(lead2);
+  assert.strictEqual(lead2.raw_data?.campaign_id, 'cmp-test-second-id-002');
+  assert.strictEqual(lead2.raw_data?.leadx_id, 'ldx-test-unique-id-999');
+  assert.ok(lead2.campaign_name.includes('FirstCampaign'));
+  assert.ok(lead2.campaign_name.includes('SecondCampaign'));
+});
+

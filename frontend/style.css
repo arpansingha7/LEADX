@@ -362,6 +362,7 @@ body {
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 /* Badges */
@@ -1806,7 +1807,8 @@ select option {
 }
 
 .wizard-step-content.show {
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 .wizard-body-card {

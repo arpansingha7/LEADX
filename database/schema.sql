@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS leads (
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     dataset_id VARCHAR(100),
     campaign_name VARCHAR(100),
+    client_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

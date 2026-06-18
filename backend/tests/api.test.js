@@ -38,8 +38,9 @@ test.after(async () => {
 test('POST /leads/ingest - Ingest valid lead', async () => {
   const payload = {
     tenant_id: 'test-tenant',
+    client_id: 'client-1',
     name: 'Jane Doe',
-    phone: '+919999988888',
+    phone: '9999988888',
     email: 'jane.doe@example.com',
     source: 'referral',
     raw_data: {
@@ -61,7 +62,7 @@ test('POST /leads/ingest - Ingest valid lead', async () => {
   const data = await response.json();
   assert.strictEqual(data.success, true);
   assert.ok(data.lead.id);
-  assert.strictEqual(data.lead.phone, '+919999988888');
+  assert.strictEqual(data.lead.phone, '9999988888');
   assert.ok(data.lead.score > 0);
   assert.strictEqual(data.lead.status, 'queued');
 });
@@ -69,8 +70,9 @@ test('POST /leads/ingest - Ingest valid lead', async () => {
 test('POST /leads/ingest - Ingest duplicate lead appends campaign', async () => {
   const payload = {
     tenant_id: 'test-tenant',
+    client_id: 'client-2',
     name: 'Duplicate Test',
-    phone: '+919999988888', // Same phone as previous test
+    phone: '9999988888', // Same phone as previous test
     source: 'organic',
     campaign_name: 'New Campaign'
   };
@@ -90,6 +92,8 @@ test('POST /leads/ingest - Ingest duplicate lead appends campaign', async () => 
 test('POST /leads/ingest - Ingest invalid lead format (400 Bad Request)', async () => {
   const payload = {
     tenant_id: 'test-tenant',
+    client_id: 'client-3',
+    name: 'Invalid Lead',
     phone: '123', // Too short phone number
     source: ''    // Empty source
   };
@@ -157,26 +161,18 @@ test('POST /leads/batch - Ingest batch of leads', async () => {
     tenant_id: 'test-tenant',
     leads: [
       {
+        client_id: 'batch-1',
         name: 'Batch User 1',
-        phone: '+917777777777',
+        phone: '7777777777',
         source: 'organic',
         raw_data: { age: 30 }
       },
       {
+        client_id: 'batch-2',
         name: 'Batch User 2',
-        phone: '+917777766666',
+        phone: '7777766666',
         source: 'referral',
         raw_data: { age: 24 }
-      },
-      {
-        name: 'Duplicate Phone in Batch',
-        phone: '+917777777777', // duplicate of first
-        source: 'organic'
-      },
-      {
-        name: 'Invalid Phone',
-        phone: '12',
-        source: 'organic'
       }
     ]
   };
@@ -191,17 +187,47 @@ test('POST /leads/batch - Ingest batch of leads', async () => {
   const data = await response.json();
   assert.strictEqual(data.success, true);
   assert.strictEqual(data.summary.accepted, 2);
-  assert.strictEqual(data.summary.rejected, 1);
-  assert.strictEqual(data.summary.duplicates, 1);
   assert.strictEqual(data.summary.appended, 0);
+});
+
+test('POST /leads/batch - Reject all-or-nothing on validation', async () => {
+  const payload = {
+    tenant_id: 'test-tenant',
+    leads: [
+      {
+        client_id: 'batch-3',
+        name: 'Valid User',
+        phone: '8888888888',
+        source: 'organic'
+      },
+      {
+        client_id: 'batch-4',
+        name: 'Invalid Phone',
+        phone: '12',
+        source: 'organic'
+      }
+    ]
+  };
+
+  const response = await fetch(`${baseUrl}/leads/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  assert.strictEqual(response.status, 400);
+  const data = await response.json();
+  assert.strictEqual(data.error, 'Batch Validation Failed');
+  assert.ok(data.details.length > 0);
 });
 
 test('POST /leads/:id/rescore - Dynamic lead rescore', async () => {
   // First, ingest a new lead
   const ingestPayload = {
     tenant_id: 'rescore-tenant',
+    client_id: 'rescore-1',
     name: 'Rescore User',
-    phone: '+915555544444',
+    phone: '5555544444',
     source: 'referral',
     raw_data: {
       age: 25,
@@ -298,8 +324,9 @@ test('POST /leads/trigger-call & /leads/voiz-webhook - Trigger call session and 
   // First ingest a lead
   const ingestPayload = {
     tenant_id: 'test-tenant',
-    name: 'Call Trigger Test',
-    phone: '+919988776655',
+    client_id: 'call-test-1',
+    name: 'Call Test User',
+    phone: '9988776655',
     source: 'referral'
   };
 
@@ -331,7 +358,7 @@ test('POST /leads/trigger-call & /leads/voiz-webhook - Trigger call session and 
     tenant_id: 'test-tenant',
     lead_id: leadId,
     event_type: 'call_started',
-    phone: '+919988776655',
+    phone: '9988776655',
     payload: {
       voiz_session_id: triggerData.voiz_session_id,
       agent_id: 'VOIZ-01',
@@ -363,7 +390,7 @@ test('POST /leads/:id/sync-crm - Sync individual lead to CRM', async () => {
   const ingestPayload = {
     tenant_id: 'test-tenant',
     name: 'Sync Single Test',
-    phone: '+919876543210',
+    phone: '9876543210',
     source: 'referral'
   };
 
@@ -395,8 +422,9 @@ test('POST /leads/batch-sync-crm - Batch sync multiple leads to CRM', async () =
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       tenant_id: 'test-tenant',
-      name: 'Batch Sync 1',
-      phone: '+919876543211',
+      client_id: 'batch-sync-1',
+      name: 'Batch Sync User',
+      phone: '9876543210',
       source: 'organic'
     })
   });
@@ -408,8 +436,9 @@ test('POST /leads/batch-sync-crm - Batch sync multiple leads to CRM', async () =
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       tenant_id: 'test-tenant',
-      name: 'Batch Sync 2',
-      phone: '+919876543212',
+      client_id: 'camp-agg-2',
+      name: 'Camp Lead 2',
+      phone: '9876543212',
       source: 'referral'
     })
   });
@@ -487,9 +516,10 @@ import crypto from 'crypto';
 
 test('POST /leads/dnc - Register phone in DNC registry', async () => {
   // First ingest a lead
-  const phone = '+919999911111';
+  const phone = '9999911111';
   const ingestPayload = {
     tenant_id: 'test-tenant',
+    client_id: 'dnc-test-1',
     name: 'DNC Target Lead',
     phone,
     source: 'organic'
@@ -591,8 +621,9 @@ test('Unit - Dialer Retry Logic and Exponential Backoff', async () => {
   // Ingest a lead
   const processedLead = {
     tenant_id: 'test-tenant',
+    client_id: 'retry-test-1',
     name: 'Retry Test Lead',
-    phone: '+919876543211',
+    phone: '9876543211',
     source: 'referral',
     score: 80
   };
@@ -664,5 +695,45 @@ test('Unit - CRM Adapter Salesforce token and activity write', async () => {
     summary: 'Mock salesforce task creation test'
   });
   assert.ok(res.id.startsWith('mock-sf-task-id-'));
+});
+
+test('POST /leads/ingest - Ingest lead with optional country code prefix (e.g. +91 or 91)', async () => {
+  const payload1 = {
+    tenant_id: 'test-tenant',
+    client_id: 'client-prefix-1',
+    name: 'Plus Ninety One User',
+    phone: '+919999922222',
+    source: 'referral'
+  };
+
+  const response1 = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload1)
+  });
+
+  assert.strictEqual(response1.status, 201);
+  const data1 = await response1.json();
+  assert.strictEqual(data1.success, true);
+  assert.strictEqual(data1.lead.phone, '+919999922222');
+
+  const payload2 = {
+    tenant_id: 'test-tenant',
+    client_id: 'client-prefix-2',
+    name: 'Ninety One User',
+    phone: '919999933333',
+    source: 'referral'
+  };
+
+  const response2 = await fetch(`${baseUrl}/leads/ingest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload2)
+  });
+
+  assert.strictEqual(response2.status, 201);
+  const data2 = await response2.json();
+  assert.strictEqual(data2.success, true);
+  assert.strictEqual(data2.lead.phone, '919999933333');
 });
 
