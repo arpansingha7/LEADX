@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Orb & Agent card" subtitle="The signature voice orb + agent picker card" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:24px;display:flex;gap:34px;align-items:center;flex-wrap:wrap}
+  .orbs{display:flex;gap:30px;align-items:center}
+  .stack{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cap{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;color:var(--text-label)}
+  .card{width:240px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl);box-shadow:var(--shadow-card-inner);padding:26px 22px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+  h2{margin:0;font-size:var(--text-2xl);font-weight:var(--weight-semibold);color:var(--text-heading)}
+  p{margin:0;font-size:var(--text-md);color:var(--text-muted);line-height:var(--leading-normal)}
+</style></head>
+<body>
+  <div class="orbs">
+    <div class="stack"><div class="pd-orb orb-blue sm speaking"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div><span class="cap">SPEAKING</span></div>
+    <div class="stack"><div class="pd-orb orb-violet sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div><span class="cap">IDLE</span></div>
+    <div class="stack"><div class="pd-orb orb-amber sm calm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div><span class="cap">CALM</span></div>
+  </div>
+  <div class="card">
+    <div class="pd-orb orb-emerald sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <h2>Max</h2>
+    <span class="pd-chip" style="--acc:var(--pd-emerald)">SALES QUALIFICATION</span>
+    <p>Qualifies inbound leads and books meetings, 24/7.</p>
+    <button class="pd-talk" style="--acc:var(--pd-emerald);margin-top:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to Max</button>
+  </div>
+</body></html>

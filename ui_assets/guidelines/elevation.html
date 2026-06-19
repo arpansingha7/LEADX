@@ -1,0 +1,19 @@
+<!-- @dsCard group="Spacing" viewport="700x170" subtitle="Flat surfaces, hairline borders, reserved shadows" name="Elevation & borders" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:22px}
+  .row{display:flex;gap:16px}
+  .cell{flex:1;display:flex;flex-direction:column;gap:8px}
+  .box{height:74px;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;color:var(--text-label)}
+  .card{background:var(--surface);border:1px solid var(--border-strong);box-shadow:var(--shadow-card-inner)}
+  .panel{background:var(--panel);border:1px solid var(--border)}
+  .modal{background:var(--panel);border:1px solid var(--border-strong);box-shadow:var(--shadow-modal)}
+  .nm{font-size:10.5px;color:var(--text-soft)}
+</style></head>
+<body>
+  <div class="row">
+    <div class="cell"><div class="box card">INNER SHEEN</div><span class="nm">Card surface · hairline + inset top light</span></div>
+    <div class="cell"><div class="box panel">FLAT</div><span class="nm">Panel · solid, no shadow</span></div>
+    <div class="cell"><div class="box modal">DROP SHADOW</div><span class="nm">Modal · deep soft shadow</span></div>
+  </div>
+</body></html>

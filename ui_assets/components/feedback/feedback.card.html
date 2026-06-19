@@ -1,0 +1,11 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Status cards" subtitle="success · error · empty terminal states" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:24px;display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+ .c{flex:1;min-width:200px;max-width:300px;padding:30px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+ .ic{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+ h2{margin:4px 0 0;font-size:16px;font-weight:600;color:var(--text-heading)} p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.55}</style></head>
+<body>
+  <div class="pd-card c"><div class="ic" style="border-radius:50%;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.35);color:var(--pd-success)">✓</div><h2>Feedback received</h2><p>Your input goes to our product team.</p><button class="pd-btn pd-btn--primary pd-btn--sm" style="margin-top:6px">Back to agents</button></div>
+  <div class="pd-card c"><div class="ic" style="border-radius:var(--radius-lg);background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);color:var(--pd-danger-fg-dark)">!</div><h2>Demo unavailable</h2><p>Check your link or try again.</p><button class="pd-btn pd-btn--secondary pd-btn--sm" style="margin-top:6px">Try again</button></div>
+  <div class="pd-card c"><div class="ic" style="border-radius:50%;background:var(--input-bg);border:1px solid var(--border-input);color:var(--text-muted)">∅</div><h2>No agents yet</h2><p>Create your first voice agent to begin.</p><button class="pd-btn pd-btn--primary pd-btn--sm" style="margin-top:6px">New agent ➜</button></div>
+</body></html>

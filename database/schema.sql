@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS leads (
     source VARCHAR(100) NOT NULL,
     raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     score INT NOT NULL DEFAULT 0,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    status VARCHAR(50) NOT NULL DEFAULT 'ingested',
     dataset_id VARCHAR(100),
     campaign_name VARCHAR(100),
     client_id VARCHAR(255),

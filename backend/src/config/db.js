@@ -162,7 +162,7 @@ const db = {
       source: lead.source,
       raw_data: lead.raw_data || {},
       score: lead.score || 0,
-      status: lead.status || 'pending',
+      status: lead.status || 'ingested',
       dataset_id: lead.dataset_id || null,
       campaign_name: lead.campaign_name || null,
       client_id: lead.client_id || null,
@@ -220,6 +220,19 @@ const db = {
   },
 
   async updateLeadStatus(id, status) {
+    let oldStatus = 'unknown';
+    let tenantId = null;
+    try {
+      const lead = await this.findLeadById(id);
+      if (lead) {
+        oldStatus = lead.status;
+        tenantId = lead.tenant_id;
+      }
+    } catch (err) {
+      console.error('Error finding lead for status update audit:', err);
+    }
+
+    let result;
     if (supabase) {
       const { data, error } = await supabase
         .from('leads')
@@ -228,17 +241,54 @@ const db = {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      result = data;
     } else {
       const lead = mockDb.leads.find(l => l.id === id);
       if (!lead) throw new Error('Lead not found');
       lead.status = status;
       lead.updated_at = new Date().toISOString();
-      return lead;
+      result = lead;
     }
+
+    if (tenantId && oldStatus !== status) {
+      try {
+        let reason = `Status transitioned from ${oldStatus} to ${status}`;
+        if (status === 'queued') reason = 'Lead enqueued for dialing';
+        else if (status === 'calling') reason = 'Call initiated by outbound system';
+        else if (status === 'called') reason = 'Call completed';
+        else if (status === 'dnc') reason = 'DNC registration matched and blocked';
+        else if (status === 'closed') reason = 'Lead closed (max dial attempts reached)';
+        else if (status === 'hot_escalated') reason = 'AI detected high intent and escalated lead';
+
+        await this.insertAuditLog(tenantId, 'disposition_changed', {
+          lead_id: id,
+          old_status: oldStatus,
+          new_status: status,
+          reason,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Failed to insert disposition_changed audit log:', err);
+      }
+    }
+
+    return result;
   },
 
   async updateLeadStatusAndData(id, status, rawData) {
+    let oldStatus = 'unknown';
+    let tenantId = null;
+    try {
+      const lead = await this.findLeadById(id);
+      if (lead) {
+        oldStatus = lead.status;
+        tenantId = lead.tenant_id;
+      }
+    } catch (err) {
+      console.error('Error finding lead for status update audit:', err);
+    }
+
+    let result;
     if (supabase) {
       const { data, error } = await supabase
         .from('leads')
@@ -247,14 +297,50 @@ const db = {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      result = data;
     } else {
       const lead = mockDb.leads.find(l => l.id === id);
       if (!lead) throw new Error('Lead not found');
       lead.status = status;
       lead.raw_data = rawData;
       lead.updated_at = new Date().toISOString();
-      return lead;
+      result = lead;
+    }
+
+    if (tenantId && oldStatus !== status) {
+      try {
+        let reason = `Status transitioned from ${oldStatus} to ${status}`;
+        if (status === 're-queued') reason = `Call failed or busy. Re-queued for retry (Attempt: ${rawData.attempts || 1})`;
+        
+        await this.insertAuditLog(tenantId, 'disposition_changed', {
+          lead_id: id,
+          old_status: oldStatus,
+          new_status: status,
+          reason,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Failed to insert disposition_changed audit log:', err);
+      }
+    }
+
+    return result;
+  },
+
+  async getLeadInteractions(tenantId, leadId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('audit_trail')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .filter('details->>lead_id', 'eq', leadId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    } else {
+      return mockDb.auditTrail
+        .filter(a => a.tenant_id === tenantId && a.details && a.details.lead_id === leadId)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     }
   },
 

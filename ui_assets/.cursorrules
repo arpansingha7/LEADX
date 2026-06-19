@@ -1,0 +1,15 @@
+# Predixion AI Design System — Cursor rules
+
+You are editing a project that uses the Predixion AI Design System. Read AI_CONTEXT.md and DOCUMENTATION.md for full detail.
+
+- Link ONLY styles.css. No other CSS framework, reset, or icon font.
+- Theme via data-pd-theme="dark" (DEFAULT) or "light" on a root element. Never hard-code hex/font/px-radius — use CSS variables (var(--text), var(--surface), var(--accent), var(--font-sans), var(--radius-md), var(--space-4), ...).
+- Reuse pd-* classes and the React components in components/. Do not rebuild existing controls.
+- Responsive is required: include <meta name="viewport" content="width=device-width, initial-scale=1"> and keep the 900/600/380px adaptive behavior. App shell, grids, tables, cards, orbs, charts already adapt.
+- Typography: Helvetica Neue (--font-sans) for UI/body; IBM Plex Mono (--font-mono) UPPERCASE + tracked for eyebrows/badges/labels/timers. Weights 400/500/600 only.
+- Icons: inline line SVG, 1.9px stroke, rounded caps, from the Icon set (nav, integration/secret/webhook/api, eye/eyeOff, forward/back/arrows/chevrons, accept/reject/x/check, actions). No icon font, NO emoji anywhere (use the mic icon on talk CTAs, never a microphone emoji).
+- Accents: one hue per agent (blue→emerald→violet→amber→rose→cyan); solid var(--pd-blue) on light, tint var(--pd-blue-200) on dark.
+- Copy: calm, precise, enterprise. No exclamation marks in chrome.
+- Dependencies: no build step, no npm; uses color-mix() + custom properties (evergreen browsers). IBM Plex Mono via Google Fonts (system-mono fallback); Helvetica Neue is a system font (self-host for exact rendering).
+
+Key classes: pd-btn (--primary/--secondary/--back/--danger/--sm), pd-talk, pd-chip, pd-orb orb-<hue> (sm/md, speaking/calm), pd-input/pd-textarea/pd-select, pd-check/pd-radio/pd-switch/pd-segment, pd-dropdown+pd-menu, pd-search/pd-search-lg, pd-status-dot, pd-toggle, pd-star, pd-card/pd-panel/pd-section, pd-stat/pd-table/pd-tabs/pd-pill-status, pd-sidebar/pd-topbar/pd-nav, pd-bars/pd-line-*/pd-donut/pd-spark/pd-meter/pd-heat.

@@ -1,0 +1,226 @@
+<!-- @dsCard group="Voice Demo" viewport="1040x640" subtitle="Full interactive demo — landing → live call → summary + feedback" -->
+<!-- @startingPoint section="Voice Demo" subtitle="Public voice-agent demo (dark/light, multi-agent)" viewport="1040x720" -->
+<!DOCTYPE html>
+<html data-pd-theme="dark" lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predixion — Voice Demo</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  html,body{margin:0}
+  .root{min-height:100vh;position:relative;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font-family:var(--font-sans);overflow:hidden}
+  .sheen{position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--sheen-line),transparent);z-index:6}
+  .wash{position:absolute;top:0;left:0;right:0;height:240px;background:linear-gradient(180deg,var(--sheen-wash),transparent);z-index:1;pointer-events:none}
+  .grid-bg{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse 62% 50% at 50% 32%,#000 16%,transparent 72%);mask-image:radial-gradient(ellipse 62% 50% at 50% 32%,#000 16%,transparent 72%);z-index:0}
+  header{position:relative;z-index:5;flex:none;padding:0 32px;border-bottom:1px solid var(--border-soft)}
+  .hinner{max-width:1040px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:20px 4px}
+  header img{height:58px;width:auto}
+  [data-pd-theme="light"] header img{filter:invert(1)}
+  .presented{text-align:right;display:flex;flex-direction:column;gap:3px}
+  .pf{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.2em;color:var(--text-label-2)}
+  .cn{font-size:13.5px;font-weight:600;color:var(--text-client);line-height:1}
+  .avatar{width:38px;height:38px;border-radius:var(--radius-md);background:var(--avatar-chip);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card-inner)}
+  .avatar span{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text-muted)}
+  main{position:relative;z-index:4;flex:1;display:flex;flex-direction:column;align-items:center;padding:0 32px 56px}
+  .hero{width:100%;max-width:1040px;padding:44px 4px 30px;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+  .eyebrow{margin:0 0 12px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.22em;color:var(--text-label)}
+  h1{margin:0;font-size:30px;font-weight:600;color:var(--text-strong);letter-spacing:-.01em;line-height:1.15}
+  .sub{margin:12px 0 0;font-size:15px;color:var(--text-muted);line-height:1.6;max-width:560px}
+  .gridcards{width:100%;max-width:1040px;display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:18px}
+  .card{padding:30px 24px 26px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+  .card h2{margin:0;font-size:20px;font-weight:600;color:var(--text-heading)}
+  .card p{margin:2px 0 0;flex:1;font-size:13px;color:var(--text-muted);line-height:1.6}
+  .footer-cta{display:flex;flex-direction:column;align-items:center;gap:13px;padding:42px 0 4px;width:100%;max-width:1040px}
+  .footer-cta .lbl{margin:0;font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--text-label-2)}
+  .callwrap{width:100%;max-width:472px;display:flex;flex-direction:column;align-items:center;gap:18px;margin:36px auto 0}
+  .callwrap.two{max-width:912px;flex-direction:row;align-items:flex-start}
+  .callcard{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-2xl);padding:24px 30px 32px;display:flex;flex-direction:column;align-items:center}
+  .two .callcard{flex:1 1 0;min-width:0;max-width:452px}
+  .callcard h2{margin:0;font-size:25px;font-weight:600;color:var(--text-heading)}
+  .summary{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-top:24px}
+  .summary .lab{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.18em;color:var(--text-label)}
+  .summary p{margin:0;font-size:14px;line-height:1.72;color:var(--text-soft)}
+  .fb{flex:1 1 0;min-width:0;max-width:452px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:26px;display:flex;flex-direction:column}
+  .fb .eye{margin:0 0 4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;color:var(--text-label)}
+  .fb h3{margin:0 0 16px;font-size:17px;font-weight:600;color:var(--text-heading)}
+  .fblabel{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.12em;color:var(--text-label);margin-bottom:8px}
+  .stars{display:flex;gap:10px;margin-bottom:20px}
+  .modal-scrim{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:100;padding:22px}
+  .modal{width:100%;max-width:430px;background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius-xl);padding:28px 30px;display:flex;flex-direction:column;gap:18px;box-shadow:var(--shadow-modal)}
+  .modal .mh{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;color:var(--text-muted)}
+  .step{display:flex;gap:13px;align-items:flex-start}
+  .step .n{flex:none;width:25px;height:25px;border-radius:var(--radius-xs);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;font-weight:600}
+  .step span:last-child{font-size:14px;color:var(--text-soft);line-height:1.55}
+  .x{background:none;border:none;color:var(--text-label);cursor:pointer;font-size:15px}
+  .timer{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-mono);font-size:13px;letter-spacing:.12em;color:var(--accent)}
+  .live-status{margin:16px 0 0;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;color:var(--text-label);height:14px}
+  .hidden{display:none!important}
+  @media (max-width:840px){ .callwrap.two{max-width:472px;flex-direction:column} .two .callcard,.fb{max-width:472px} }
+</style>
+</head>
+<body>
+<div class="root" id="root">
+  <div class="sheen"></div><div class="wash"></div><div class="grid-bg"></div>
+
+  <header>
+    <div class="hinner">
+      <img src="../../assets/predixion-logo.png" alt="Predixion AI">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div class="presented"><span class="pf">PRESENTED FOR</span><span class="cn">Acme Financial</span></div>
+        <div class="avatar"><span>AF</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LANDING -->
+    <section id="landing" style="width:100%;display:flex;flex-direction:column;align-items:center">
+      <div class="hero">
+        <div style="min-width:0">
+          <p class="eyebrow">LIVE VOICE DEMO</p>
+          <h1>Choose an agent to start a conversation</h1>
+          <p class="sub">Pick a Predixion voice agent below and talk to it live, exactly the way your customers would.</p>
+        </div>
+        <div class="pd-toggle" id="toggle">
+          <button data-theme="light" aria-label="Light mode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button data-theme="dark" aria-pressed="true" aria-label="Dark mode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
+        </div>
+      </div>
+      <div class="gridcards" id="agentGrid"></div>
+      <div class="footer-cta">
+        <p class="lbl">AI VOICE AGENTS FOR YOUR BUSINESS?</p>
+        <a class="pd-btn pd-btn--primary" href="mailto:harshal@predixion.ai?subject=AI%20Voice%20Agents%20%E2%80%94%20Demo%20Inquiry" style="text-decoration:none">Contact us ➜</a>
+      </div>
+    </section>
+
+    <!-- CALL -->
+    <section id="call" class="hidden" style="width:100%">
+      <div class="callwrap" id="callwrap">
+        <div class="callcard">
+          <div id="callOrb" style="padding:32px"></div>
+          <h2 id="callName">Aria</h2>
+          <span class="pd-chip" id="callChip">COLLECTIONS &amp; RECOVERY</span>
+          <div id="liveBlock">
+            <p class="live-status" id="liveStatus">ARIA IS SPEAKING</p>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;margin-top:18px">
+              <span class="timer"><span class="pd-status-dot"></span><span id="timer">0:00</span></span>
+              <button class="pd-btn pd-btn--danger" id="endBtn">✕ End call</button>
+            </div>
+          </div>
+          <div id="endedBlock" class="hidden">
+            <div class="summary">
+              <div class="lab"><span style="color:var(--accent)">▦</span> CALL SUMMARY</div>
+              <p id="summaryText"></p>
+            </div>
+          </div>
+        </div>
+        <div class="fb hidden" id="fbCard">
+          <p class="eye">YOUR FEEDBACK</p>
+          <h3>How was your conversation?</h3>
+          <div class="stars" id="stars"></div>
+          <div class="fblabel">TELL US MORE <span style="color:var(--text-placeholder)">(OPTIONAL)</span></div>
+          <textarea class="pd-textarea" placeholder="What went well? What could be better?" style="margin-bottom:14px"></textarea>
+          <input class="pd-input" placeholder="Your name (optional)" style="margin-bottom:10px">
+          <input class="pd-input" placeholder="Your email (optional)" style="margin-bottom:16px">
+          <div style="display:flex;gap:11px">
+            <button class="pd-btn pd-btn--back" id="backBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to agents</button>
+            <button class="pd-btn pd-btn--primary" id="submitBtn" style="flex:1">Submit feedback</button>
+          </div>
+        </div>
+        <div class="fb hidden" id="thanks" style="align-items:center;text-align:center;gap:8px">
+          <div style="width:50px;height:50px;border-radius:50%;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.35);display:flex;align-items:center;justify-content:center;color:var(--pd-success);font-size:24px">✓</div>
+          <p style="margin:8px 0 0;font-size:17px;font-weight:600;color:var(--text-heading)">Thank you for your feedback</p>
+          <p style="margin:0 0 12px;font-size:13.5px;color:var(--text-muted);line-height:1.6;max-width:300px">Your input goes straight to our product team.</p>
+          <button class="pd-btn pd-btn--primary" id="thanksBack">Back to agents</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BEFORE-YOU-START MODAL -->
+  <div class="modal-scrim hidden" id="scrim">
+    <div class="modal">
+      <div class="mh"><span style="display:flex;align-items:center;gap:9px"><span style="color:var(--accent)">ⓘ</span> BEFORE YOU START</span><button class="x" id="closeModal">✕</button></div>
+      <div class="step"><span class="n">1</span><span>Allow microphone access when your browser prompts you.</span></div>
+      <div class="step"><span class="n">2</span><span>Close other apps that may be using your microphone.</span></div>
+      <div class="step"><span class="n">3</span><span>Find a quiet space — voice quality depends on your connection.</span></div>
+      <button class="pd-btn pd-btn--primary" id="proceedBtn" style="width:100%">Proceed ➜</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const AGENTS = [
+  { name:"Aria", color:"blue",    objective:"Collections & Recovery",  desc:"Empathetic, compliant outreach for early-stage delinquencies — sets up flexible payment arrangements.", summary:"Jordan reached out about an outstanding balance and asked to arrange a flexible repayment plan. Aria verified the account, presented monthly options, and the customer agreed to proceed. A confirmation email will follow." },
+  { name:"Max",  color:"emerald", objective:"Sales Qualification",     desc:"Qualifies inbound leads, answers product questions, and books meetings with your team, 24/7.", summary:"The caller was evaluating Predixion for outbound sales and asked about pricing and integrations. Max answered the questions, confirmed a strong fit, and booked a follow-up demo for next week." },
+  { name:"Sol",  color:"violet",  objective:"Appointments & Reminders", desc:"Confirms, reschedules, and sends reminders — keeps your calendar full and no-shows low.", summary:"The customer called to move an upcoming appointment. Sol located the booking, offered nearby openings, and rescheduled to their preferred time. A calendar invite and reminder were sent." }
+];
+const ACC = { blue:"var(--pd-blue)", emerald:"var(--pd-emerald)", violet:"var(--pd-violet)" };
+const orbHTML = (color, cls) => `<div class="pd-orb orb-${color} ${cls}"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+const $ = s => document.querySelector(s);
+let cur = 0, timerId = null, speakId = null, secs = 0;
+
+// build agent grid
+$("#agentGrid").innerHTML = AGENTS.map((a,i)=>`
+  <div class="pd-card card">
+    ${orbHTML(a.color,"sm")}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px">
+      <h2>${a.name}</h2>
+      <span class="pd-chip" style="--acc:${ACC[a.color]}">${a.objective.toUpperCase()}</span>
+    </div>
+    <p>${a.desc}</p>
+    <button class="pd-talk" style="--acc:${ACC[a.color]};margin-top:6px" data-i="${i}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to ${a.name}</button>
+  </div>`).join("");
+
+// stars
+$("#stars").innerHTML = [1,2,3,4,5].map(n=>`<button class="pd-star" data-n="${n}"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--star-empty)" stroke-width="1.4"><path d="M12 2l2.9 6.26 6.6.86-4.9 4.6 1.27 6.78L12 17.9 6.13 20.5 7.4 13.72 2.5 9.12l6.6-.86L12 2z"/></svg></button>`).join("");
+let rating = 0;
+$("#stars").addEventListener("click", e=>{ const b=e.target.closest("[data-n]"); if(!b)return; rating=+b.dataset.n;
+  [...$("#stars").children].forEach((btn,idx)=>{ const on=idx<rating; const svg=btn.querySelector("svg"); svg.setAttribute("fill",on?"var(--pd-star)":"none"); svg.setAttribute("stroke",on?"var(--pd-star)":"var(--star-empty)"); }); });
+
+// theme toggle
+$("#toggle").addEventListener("click", e=>{ const b=e.target.closest("[data-theme]"); if(!b)return; const t=b.dataset.theme;
+  document.getElementById("root").setAttribute("data-pd-theme",t); document.documentElement.setAttribute("data-pd-theme",t);
+  [...$("#toggle").children].forEach(x=>x.removeAttribute("aria-pressed")); b.setAttribute("aria-pressed","true"); });
+
+const fmt = s => Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+function show(id){ ["landing","call"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id)); }
+
+// talk -> modal
+$("#agentGrid").addEventListener("click", e=>{ const b=e.target.closest("[data-i]"); if(!b)return; cur=+b.dataset.i; $("#scrim").classList.remove("hidden"); });
+$("#closeModal").onclick = ()=> $("#scrim").classList.add("hidden");
+$("#proceedBtn").onclick = ()=>{ $("#scrim").classList.add("hidden"); startCall(); };
+
+function startCall(){
+  const a = AGENTS[cur];
+  $("#callOrb").innerHTML = orbHTML(a.color,"speaking");
+  $("#callName").textContent = a.name;
+  $("#callChip").style.setProperty("--acc", ACC[a.color]);
+  $("#callChip").textContent = a.objective.toUpperCase();
+  $("#liveStatus").textContent = a.name.toUpperCase()+" IS SPEAKING";
+  $("#liveBlock").classList.remove("hidden"); $("#endedBlock").classList.add("hidden");
+  $("#fbCard").classList.add("hidden"); $("#thanks").classList.add("hidden");
+  $("#callwrap").classList.remove("two");
+  secs=0; $("#timer").textContent="0:00"; show("call");
+  timerId=setInterval(()=>{ secs++; $("#timer").textContent=fmt(secs); },1000);
+  let sp=true; speakId=setInterval(()=>{ sp=!sp; const orb=$("#callOrb .pd-orb"); orb.classList.toggle("speaking",sp);
+    $("#liveStatus").textContent = sp ? a.name.toUpperCase()+" IS SPEAKING" : "LISTENING…"; },2600);
+}
+function endCall(){
+  clearInterval(timerId); clearInterval(speakId);
+  const a = AGENTS[cur];
+  $("#callOrb").innerHTML = orbHTML(a.color,"calm");
+  $("#liveBlock").classList.add("hidden");
+  $("#endedBlock").classList.remove("hidden"); $("#summaryText").textContent=a.summary;
+  $("#fbCard").classList.remove("hidden"); $("#callwrap").classList.add("two");
+}
+function reset(){ clearInterval(timerId); clearInterval(speakId); rating=0;
+  [...$("#stars").children].forEach(btn=>{const s=btn.querySelector("svg");s.setAttribute("fill","none");s.setAttribute("stroke","var(--star-empty)");});
+  show("landing"); window.scrollTo(0,0); }
+$("#endBtn").onclick = endCall;
+$("#backBtn").onclick = reset;
+$("#thanksBack").onclick = reset;
+$("#submitBtn").onclick = ()=>{ $("#fbCard").classList.add("hidden"); $("#thanks").classList.remove("hidden"); };
+</script>
+</body>
+</html>

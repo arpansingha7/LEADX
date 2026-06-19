@@ -1,0 +1,99 @@
+<!-- @dsCard group="Agent Builder" viewport="1280x760" subtitle="Configure a voice agent — persona, voice, behavior, live preview orb" -->
+<!-- @startingPoint section="Agent Builder" subtitle="Voice agent configuration editor" viewport="1280x800" -->
+<!DOCTYPE html><html data-pd-theme="dark" lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predixion — Agent Builder</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  html,body{margin:0}
+  .builder{display:grid;grid-template-columns:1fr 360px;gap:0;flex:1;min-height:0}
+  .editor{padding:26px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+  .preview{border-left:1px solid var(--border-soft);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px}
+  .field{display:flex;flex-direction:column;gap:7px}
+  .field label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;color:var(--text-label)}
+  .swatches{display:flex;gap:8px}
+  .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+  .sw.on{border-color:var(--text-heading)}
+  .voicechip{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--border-input);border-radius:var(--radius-md);font-size:13px;color:var(--text-soft);cursor:pointer}
+  .voicechip.on{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text-heading)}
+  @media(max-width:1000px){.builder{grid-template-columns:1fr}.preview{display:none}}
+</style></head>
+<body>
+<div class="pd-app" id="root" style="flex-direction:column">
+  <div class="pd-topbar">
+    <div style="display:flex;align-items:center;gap:14px">
+      <img src="../../assets/predixion-logo.png" alt="Predixion AI" style="height:30px" id="logo">
+      <span style="color:var(--text-label-2)">/</span>
+      <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text-muted)">AGENTS / NEW</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="pd-pill-status pd-pill-draft">DRAFT</span>
+      <button class="pd-btn pd-btn--secondary pd-btn--sm">Test call</button>
+      <button class="pd-btn pd-btn--primary pd-btn--sm">Publish ➜</button>
+    </div>
+  </div>
+
+  <div class="builder">
+    <div class="editor">
+      <div class="pd-pagehead" style="border:none"><div><p class="eyebrow">CONFIGURE</p><h1>Agent setup</h1><p>Define who the agent is and how it behaves on a call.</p></div></div>
+
+      <div class="pd-section"><div class="pd-section-head"><h3>Identity</h3></div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+          <div class="field"><label>AGENT NAME</label><input class="pd-input" value="Aria" id="nameIn"></div>
+          <div class="field"><label>OBJECTIVE</label><input class="pd-input" value="Collections & Recovery" id="objIn"></div>
+          <div class="field"><label>ORB COLOR</label>
+            <div class="swatches" id="sw">
+              <div class="sw on" data-c="blue" style="background:var(--pd-blue)"></div>
+              <div class="sw" data-c="emerald" style="background:var(--pd-emerald)"></div>
+              <div class="sw" data-c="violet" style="background:var(--pd-violet)"></div>
+              <div class="sw" data-c="amber" style="background:var(--pd-amber)"></div>
+              <div class="sw" data-c="rose" style="background:var(--pd-rose)"></div>
+              <div class="sw" data-c="cyan" style="background:var(--pd-cyan)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pd-section"><div class="pd-section-head"><h3>Voice</h3></div>
+        <div style="padding:18px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div class="voicechip on"><span class="pd-status-dot" style="animation:none;background:var(--accent);box-shadow:none"></span>Nova · Warm</div>
+          <div class="voicechip">Atlas · Neutral</div>
+          <div class="voicechip">Sage · Calm</div>
+        </div>
+      </div>
+
+      <div class="pd-section"><div class="pd-section-head"><h3>Behavior</h3></div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+          <div class="field"><label>SYSTEM PROMPT</label><textarea class="pd-textarea" style="min-height:96px">You are Aria, an empathetic collections specialist. Verify the account, then offer flexible monthly payment options. Stay warm, compliant, and concise.</textarea></div>
+          <div class="field"><label>GREETING</label><input class="pd-input" value="Hi, thanks for connecting with Predixion — who am I speaking with today?"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview">
+      <span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;color:var(--text-label)">LIVE PREVIEW</span>
+      <div id="prevOrb"></div>
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px">
+        <h2 style="margin:0;font-size:22px;font-weight:600;color:var(--text-heading)" id="prevName">Aria</h2>
+        <span class="pd-chip" id="prevChip" style="--acc:var(--pd-blue)">COLLECTIONS &amp; RECOVERY</span>
+      </div>
+      <button class="pd-talk" id="prevBtn" style="--acc:var(--pd-blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to Aria</button>
+    </div>
+  </div>
+</div>
+<script>
+  const ACC={blue:"var(--pd-blue)",emerald:"var(--pd-emerald)",violet:"var(--pd-violet)",amber:"var(--pd-amber)",rose:"var(--pd-rose)",cyan:"var(--pd-cyan)"};
+  const orb=c=>`<div class="pd-orb orb-${c} md"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+  let color="blue";
+  const $=s=>document.querySelector(s);
+  function render(){
+    $("#prevOrb").innerHTML=orb(color);
+    const n=$("#nameIn").value||"Agent", o=($("#objIn").value||"").toUpperCase();
+    $("#prevName").textContent=n; $("#prevChip").textContent=o; $("#prevChip").style.setProperty("--acc",ACC[color]);
+    $("#prevBtn").style.setProperty("--acc",ACC[color]); $("#prevBtn").innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to '+n;
+  }
+  $("#sw").addEventListener("click",e=>{const s=e.target.closest("[data-c]");if(!s)return;color=s.dataset.c;[...$("#sw").children].forEach(x=>x.classList.remove("on"));s.classList.add("on");render();});
+  $("#nameIn").addEventListener("input",render); $("#objIn").addEventListener("input",render);
+  render();
+</script>
+</body></html>

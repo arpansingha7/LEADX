@@ -112,7 +112,39 @@ window.addEventListener('DOMContentLoaded', () => {
   // Queue Status Poller
   setInterval(fetchQueueStatus, 5000);
   fetchQueueStatus();
+  
+  setupThemeToggle();
 });
+
+// Theme Toggle wiring
+function setupThemeToggle() {
+  const lightBtn = document.getElementById('themeLightBtn');
+  const darkBtn = document.getElementById('themeDarkBtn');
+  if (!lightBtn || !darkBtn) return;
+
+  function updateActiveState() {
+    const currentTheme = window.PredixionTheme.get();
+    if (currentTheme === 'light') {
+      lightBtn.setAttribute('aria-pressed', 'true');
+      darkBtn.removeAttribute('aria-pressed');
+    } else {
+      darkBtn.setAttribute('aria-pressed', 'true');
+      lightBtn.removeAttribute('aria-pressed');
+    }
+  }
+
+  lightBtn.addEventListener('click', () => {
+    window.PredixionTheme.set('light');
+    updateActiveState();
+  });
+
+  darkBtn.addEventListener('click', () => {
+    window.PredixionTheme.set('dark');
+    updateActiveState();
+  });
+
+  updateActiveState();
+}
 
 // 1. Navigation Panel Handler
 function setupNavigation() {
@@ -148,6 +180,8 @@ function setupNavigation() {
         if (typeof onWizardCrmProviderChange === 'function') {
           onWizardCrmProviderChange();
         }
+      } else if (pageId === 'agents') {
+        renderVoizRoster();
       }
     });
   });
@@ -177,6 +211,36 @@ function setupEventListeners() {
       showToast('Tenant Switched', `Switched active tenant context to: ${currentTenant}`, 'key');
     }
   });
+
+  // Maximize preview modal open/close
+  const maximizePreviewBtn = document.getElementById('maximizePreviewBtn');
+  const maximizePreviewModal = document.getElementById('maximizePreviewModal');
+  const closeMaximizePreviewModal = document.getElementById('closeMaximizePreviewModal');
+  const closeMaximizePreviewModalBtn = document.getElementById('closeMaximizePreviewModalBtn');
+
+  if (maximizePreviewBtn && maximizePreviewModal) {
+    maximizePreviewBtn.addEventListener('click', () => {
+      renderMaximizedMappingPreview();
+      maximizePreviewModal.style.display = 'flex';
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  }
+
+  const hideMaximizeModal = () => {
+    if (maximizePreviewModal) {
+      maximizePreviewModal.style.display = 'none';
+    }
+  };
+
+  if (closeMaximizePreviewModal) {
+    closeMaximizePreviewModal.addEventListener('click', hideMaximizeModal);
+  }
+  if (closeMaximizePreviewModalBtn) {
+    closeMaximizePreviewModalBtn.addEventListener('click', hideMaximizeModal);
+  }
+
 
 
 
@@ -665,8 +729,8 @@ function renderLeads(leads) {
           <div class="lx-action-row">
             <button class="btn-call" ${dncDisabled} onclick="triggerMockCall('${lead.id}','${lead.name}','${lead.phone}',${score})">Call</button>
             <button class="btn-handoff" ${dncDisabled} onclick="triggerMockHandoff('${lead.id}','${lead.name}')">Handoff</button>
-            <button class="btn-icon-sm danger" ${dncDisabled} onclick="triggerMockDnc('${lead.id}','${lead.phone}')" title="Flag DNC">Block</button>
-            <button class="btn-icon-sm" ${dncDisabled} onclick="rescoreSingleLead('${lead.id}')" title="Rescore">Rescore</button>
+            <button class="btn-icon-sm danger" ${dncDisabled} onclick="triggerMockDnc('${lead.id}','${lead.phone}')" title="Flag DNC"><i data-lucide="ban" style="width: 12px; height: 12px;"></i></button>
+            <button class="btn-icon-sm" ${dncDisabled} onclick="rescoreSingleLead('${lead.id}')" title="Rescore"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i></button>
           </div>
         </td>
       </tr>`;
@@ -1356,40 +1420,57 @@ function findBestHeaderMatch(targetKey, targetLabel, headers) {
     loan_amount: ['loan_amount', 'loan', 'loan amount', 'req loan', 'loan_amt'],
     budget: ['budget', 'price', 'max budget', 'investment', 'cost', 'value'],
     property_type: ['property_type', 'property', 'bhk', 'type', 'flat', 'unit'],
-    location_preference: ['location', 'city', 'location preference', 'pref location', 'area'],
+    location_preference: ['location_preference', 'location preference', 'location', 'city', 'pref location', 'area'],
     course_interest: ['course', 'course_interest', 'stream', 'subject', 'program', 'major'],
     qualification: ['qualification', 'education', 'degree', 'qualification level'],
     year_of_graduation: ['graduation', 'year', 'grad year', 'year_of_graduation']
   };
 
-  const candidates = synonyms[targetKey] || [targetKey, targetLabel.toLowerCase()];
+  // Build ordered list of candidates: exact target matches first, then synonyms
+  const baseCandidates = [
+    targetKey.toLowerCase(),
+    targetLabel.toLowerCase(),
+    targetKey.replace(/_/g, ' ').toLowerCase(),
+    targetKey.replace(/ /g, '_').toLowerCase()
+  ];
   
-  let bestMatch = '';
-  let highestScore = 0;
-
-  headers.forEach(h => {
-    const cleanH = h.toLowerCase().trim();
-    candidates.forEach(c => {
-      if (cleanH === c) {
-        bestMatch = h;
-        highestScore = 10;
-      }
-    });
-
-    if (highestScore >= 10) return;
-
-    candidates.forEach(c => {
-      if (cleanH.includes(c) || c.includes(cleanH)) {
-        const score = cleanH.includes(c) ? c.length : cleanH.length;
-        if (score > highestScore) {
-          bestMatch = h;
-          highestScore = score;
-        }
-      }
-    });
+  const candidates = [];
+  baseCandidates.forEach(c => {
+    const clean = c.toLowerCase().trim();
+    if (!candidates.includes(clean)) {
+      candidates.push(clean);
+    }
   });
 
-  return bestMatch;
+  if (synonyms[targetKey]) {
+    synonyms[targetKey].forEach(syn => {
+      const cleanSyn = syn.toLowerCase().trim();
+      if (!candidates.includes(cleanSyn)) {
+        candidates.push(cleanSyn);
+      }
+    });
+  }
+
+  // 1. First pass: look for exact matches in order of candidate priority
+  for (const c of candidates) {
+    const matchedHeader = headers.find(h => h.toLowerCase().trim() === c);
+    if (matchedHeader) {
+      return matchedHeader;
+    }
+  }
+
+  // 2. Second pass: look for partial matches in order of candidate priority
+  for (const c of candidates) {
+    const matchedHeader = headers.find(h => {
+      const cleanH = h.toLowerCase().trim();
+      return cleanH.includes(c) || c.includes(cleanH);
+    });
+    if (matchedHeader) {
+      return matchedHeader;
+    }
+  }
+
+  return '';
 }
 
 function buildMappingOptionsHtml(targetKey, targetLabel, isCrm, isSyncBack, bestMatch) {
@@ -1688,6 +1769,66 @@ function renderMappingPreview() {
     errorSummary.innerHTML = '';
   }
 }
+
+function renderMaximizedMappingPreview() {
+  const targetFields = getActiveTargetFields();
+  const mappingConfig = {};
+  targetFields.forEach(tf => {
+    const el = document.getElementById(`map-target-${tf.key}`);
+    mappingConfig[tf.key] = el ? el.value : '';
+  });
+
+  const previewHead = document.getElementById('maximizedPreviewHead');
+  const previewBody = document.getElementById('maximizedPreviewBody');
+  const previewCount = document.getElementById('maximizedPreviewCount');
+
+  previewHead.innerHTML = `
+    <tr>
+      ${targetFields.map(tf => `<th>${tf.label.toUpperCase()}</th>`).join('')}
+      <th>LEADX ID <span style="font-size:9px; color:var(--lx-green);">(Generated)</span></th>
+      <th>CAMPAIGN ID <span style="font-size:9px; color:var(--lx-green);">(Generated)</span></th>
+    </tr>
+  `;
+
+  // Render all rows
+  const allRows = parsedCsvRows;
+  if (allRows.length === 0) {
+    previewBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No data rows found</td></tr>';
+    previewCount.innerText = 'Showing 0 rows';
+    return;
+  }
+
+  previewCount.innerText = `Showing all ${allRows.length} rows`;
+
+  previewBody.innerHTML = allRows.map((row, index) => {
+    const rowHtml = `
+      <tr>
+        ${targetFields.map(tf => {
+          const rawHeader = mappingConfig[tf.key];
+          let val = rawHeader ? row[rawHeader] || '' : '';
+          let isInvalid = false;
+          let cellErrMsg = '';
+
+          if (rawHeader) {
+            if (tf.key === 'phone' && !/^(?:\+?91)?\d{10}$/.test(val)) { isInvalid = true; cellErrMsg = 'Must be exactly 10 digits or start with +91 country code prefix'; }
+            else if (tf.key === 'name' && tf.importance === 'compulsory' && !val.trim()) { isInvalid = true; cellErrMsg = 'Required'; }
+            else if ((tf.key === 'budget' || tf.key === 'monthly_income' || tf.key === 'loan_amount') && val && isNaN(parseFloat(val.replace(/[^0-9.-]/g, '')))) { isInvalid = true; cellErrMsg = 'Must be numeric'; }
+          }
+
+          const displayVal = val ? val : '<span style="color:var(--lx-hint);">N/A</span>';
+          const errorBadge = isInvalid ? `<br><span style="color:var(--lx-red); font-size: 10px;">${cellErrMsg}</span>` : '';
+          const finalVal = rawHeader ? displayVal + errorBadge : '<span style="color:var(--lx-hint);">Skipped</span>';
+          
+          return `<td ${isInvalid ? 'style="box-shadow: inset 0 0 0 1px var(--lx-red); background: rgba(255,0,0,0.05);"' : ''}>${finalVal}</td>`;
+        }).join('')}
+        <td><span style="color:var(--lx-text);">${row['_leadx_id'] || '-'}</span></td>
+        <td><span style="color:var(--lx-text);">${row['_campaign_id'] || '-'}</span></td>
+      </tr>
+    `;
+    return rowHtml;
+  }).join('');
+}
+
 
 window.validateMappingAndProceed = function() {
   const targetFields = getActiveTargetFields();
@@ -4569,13 +4710,18 @@ window.viewLeadDetails = async function(leadId) {
   modal.style.display = 'flex';
 
   try {
-    // Fetch call sessions for this lead
+    // Fetch sessions, message logs, and dispositions
     const res = await fetch(`${API_BASE}/${leadId}/sessions?tenant_id=${currentTenant}`);
     let sessions = [];
+    let messages = [];
+    let dispositions = [];
+
     if (res.ok) {
       const data = await res.json();
       if (data.success) {
         sessions = data.sessions || [];
+        messages = data.messages || [];
+        dispositions = data.dispositions || [];
       }
     }
 
@@ -4600,21 +4746,18 @@ window.viewLeadDetails = async function(leadId) {
     const rawData = lead.raw_data || {};
     
     // Format preferences section dynamically
-    let prefHtml = '';
+    let prefHtml = '<div style="font-size: 11.5px; color: var(--lx-muted); padding: 12px; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;">No preferences parsed for this lead.</div>';
     const ignoreKeys = ['leadx_id', 'campaign_id', 'hubspot_id', 'email', 'phone', 'firstname', 'lastname', 'name'];
     const prefFields = Object.entries(rawData).filter(([k]) => !ignoreKeys.includes(k));
     if (prefFields.length > 0) {
       prefHtml = `
-        <div style="margin-top: 12px;">
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Lead Preferences & Attributes</h4>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px;">
-            ${prefFields.map(([k, v]) => `
-              <div style="display: flex; flex-direction: column; gap: 2px;">
-                <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">${k.replace(/_/g, ' ')}</span>
-                <span style="font-weight: 500; font-size: 12px; color: var(--lx-text);">${v}</span>
-              </div>
-            `).join('')}
-          </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px;">
+          ${prefFields.map(([k, v]) => `
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">${k.replace(/_/g, ' ')}</span>
+              <span style="font-weight: 500; font-size: 12px; color: var(--lx-text);">${v}</span>
+            </div>
+          `).join('')}
         </div>
       `;
     }
@@ -4625,63 +4768,163 @@ window.viewLeadDetails = async function(leadId) {
     const hsId = rawData.hubspot_id || 'N/A';
 
     const idsHtml = `
-      <div style="margin-top: 12px;">
-        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">System Mappings & Integration IDs</h4>
-        <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px; font-family: var(--lx-mono); font-size: 11px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--lx-muted);">LeadX ID:</span>
-            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${ldxId}'); showToast('Copied', 'LeadX ID copied to clipboard', 'copy')">${ldxId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--lx-muted);">Campaign ID:</span>
-            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${campId}'); showToast('Copied', 'Campaign ID copied to clipboard', 'copy')">${campId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--lx-muted);">HubSpot ID:</span>
-            <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${hsId}'); showToast('Copied', 'HubSpot ID copied to clipboard', 'copy')">${hsId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
-          </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px; font-family: var(--lx-mono); font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--lx-muted);">LeadX ID:</span>
+          <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${ldxId}'); showToast('Copied', 'LeadX ID copied to clipboard', 'copy')">${ldxId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--lx-muted);">Campaign ID:</span>
+          <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${campId}'); showToast('Copied', 'Campaign ID copied to clipboard', 'copy')">${campId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--lx-muted);">HubSpot ID:</span>
+          <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${hsId}'); showToast('Copied', 'HubSpot ID copied to clipboard', 'copy')">${hsId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
         </div>
       </div>
     `;
 
     // Format Call History / Sessions list
-    let historyHtml = `
-      <div style="margin-top: 12px;">
-        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Call History & Outreach Logs</h4>
-        <div style="font-size: 11.5px; color: var(--lx-muted); padding: 16px 0; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;">
-          No outbound dialing logs found for this lead.
-        </div>
+    let callsHtml = `
+      <div style="font-size: 11.5px; color: var(--lx-muted); padding: 24px 0; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;">
+        No outbound dialing logs found for this lead.
       </div>
     `;
     if (sessions.length > 0) {
-      historyHtml = `
-        <div style="margin-top: 12px;">
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Call History & Outreach Logs</h4>
-          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding-right: 4px;">
-            ${sessions.map(s => {
-              const start = new Date(s.started_at).toLocaleString();
-              const durationText = s.duration ? `${s.duration}s` : 'Ongoing/No Connect';
-              const disp = s.disposition ? s.disposition.toUpperCase() : 'NO ANSWER';
-              const badgeType = ['called', 'qualified', 'converted'].includes(s.disposition?.toLowerCase()) ? 'badge-green' : 'badge-amber';
-              return `
-                <div style="display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--lx-border); padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.01);">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600; font-size: 11px;" class="lx-badge ${badgeType}">${disp}</span>
-                    <span style="font-size: 11px; color: var(--lx-muted); font-family: var(--lx-mono);">${start}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px;">
-                    <span>Duration: <strong>${durationText}</strong></span>
-                    ${s.transcript ? `<span style="font-style: italic; color: var(--lx-hint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;" title="${s.transcript}">"${s.transcript}"</span>` : ''}
-                  </div>
+      callsHtml = `
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+          ${sessions.map(s => {
+            const start = new Date(s.started_at).toLocaleString();
+            const durationText = s.duration ? `${s.duration}s` : 'Ongoing/No Connect';
+            const disp = s.disposition ? s.disposition.toUpperCase() : 'NO ANSWER';
+            const badgeType = ['called', 'qualified', 'converted'].includes(s.disposition?.toLowerCase()) ? 'badge-green' : 'badge-amber';
+            return `
+              <div style="display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--lx-border); padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.01);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; font-size: 10px;" class="lx-badge ${badgeType}">${disp}</span>
+                  <span style="font-size: 11px; color: var(--lx-muted); font-family: var(--lx-mono);">${start}</span>
                 </div>
-              `;
-            }).join('')}
-          </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px; align-items: center;">
+                  <span>Duration: <strong>${durationText}</strong></span>
+                  ${s.transcript ? `<span style="font-style: italic; color: var(--lx-hint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;" title="${s.transcript}">"${s.transcript}"</span>` : ''}
+                </div>
+                ${s.summary ? `
+                  <div style="font-size: 11px; color: var(--lx-muted); border-top: 1px solid rgba(255,255,255,0.04); padding-top: 4px; margin-top: 4px;">
+                    <strong>AI Brief:</strong> ${s.summary}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // Format WhatsApp / Message Logs
+    let messagesHtml = '';
+    if (messages.length === 0) {
+      messagesHtml = `
+        <div style="font-size: 11.5px; color: var(--lx-muted); padding: 24px 0; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;" id="whatsapp-bubbles-container">
+          No message interactions logged.
+        </div>
+      `;
+    } else {
+      messagesHtml = `
+        <div id="whatsapp-bubbles-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; padding: 10px; border: 1px solid var(--lx-border); border-radius: 8px; background: rgba(0,0,0,0.15); margin-bottom: 12px;">
+          ${messages.map(m => {
+            const isSent = m.direction === 'sent';
+            const align = isSent ? 'flex-end' : 'flex-start';
+            const bubbleBg = isSent ? 'rgba(var(--lx-accent-rgb, 124, 77, 255), 0.12)' : 'rgba(255,255,255,0.04)';
+            const bubbleBorder = isSent ? '1px solid rgba(var(--lx-accent-rgb, 124, 77, 255), 0.25)' : '1px solid var(--lx-border)';
+            const time = new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const ticks = m.status === 'read' ? '✔✔' : '✔';
+            const ticksColor = m.status === 'read' ? 'var(--lx-green)' : 'var(--lx-muted)';
+            const ticksHtml = isSent ? `<span style="color: ${ticksColor}; font-size: 9px; margin-left: 4px;">${ticks}</span>` : '';
+
+            return `
+              <div style="display: flex; flex-direction: column; align-items: ${align}; max-width: 85%; align-self: ${align};">
+                <div style="background: ${bubbleBg}; border: ${bubbleBorder}; color: var(--lx-text); padding: 8px 12px; border-radius: 12px; border-bottom-${isSent ? 'right' : 'left'}-radius: 2px; font-size: 11.5px; line-height: 1.4; word-break: break-word;">
+                  ${m.body}
+                </div>
+                <div style="font-size: 9px; color: var(--lx-muted); margin-top: 2px; display: flex; align-items: center;">
+                  ${time} ${ticksHtml}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    const nameVal = lead.name || 'there';
+    const whatsappInteractiveHtml = `
+      <div style="border-top: 1px solid var(--lx-border); padding-top: 10px; margin-top: 10px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+          <span style="font-size: 11px; color: var(--lx-muted); white-space: nowrap;">Templates:</span>
+          <select id="whatsapp-template-select" class="lx-input" style="flex: 1; padding: 4px 8px; font-size: 11px; margin: 0; background: var(--lx-card); height: 28px;" onchange="document.getElementById('whatsapp-text-input').value = this.value">
+            <option value="">-- Select template --</option>
+            <option value="Hi ${nameVal}, thank you for your enquiry. We tried calling you earlier but couldn't reach. Please let us know a suitable time to call you back.">Request Callback Template</option>
+            <option value="Hello ${nameVal}, here is the digital brochure for the ${rawData.property_type || '3BHK'} project in ${rawData.location_preference || 'your preferred location'}: leadx.ai/realestate-brochure">Sharing Brochure Template</option>
+            <option value="Hi ${nameVal}, we have matched a few properties based on your budget of ${rawData.budget || '1.5Cr'}. Can we connect tomorrow morning to discuss?">Property Match Intro Template</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="whatsapp-text-input" placeholder="Type a custom message..." class="lx-input" style="flex: 1; padding: 6px 12px; font-size: 12px; margin: 0; height: 32px;">
+          <button class="lx-btn primary" onclick="sendCustomLeadMessage('${lead.id}')" style="padding: 6px 14px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; gap: 4px; height: 32px;">
+            <i data-lucide="send" style="width: 12px; height: 12px;"></i> Send
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Format Dispositions Timeline
+    let dispositionsHtml = `
+      <div style="font-size: 11.5px; color: var(--lx-muted); padding: 24px 0; text-align: center; border: 1px dashed var(--lx-border); border-radius: 8px;">
+        No disposition updates found for this lead.
+      </div>
+    `;
+    if (dispositions.length > 0) {
+      dispositionsHtml = `
+        <div style="display: flex; flex-direction: column; gap: 0; max-height: 250px; overflow-y: auto; padding: 4px 10px 4px 4px; border-left: 2px solid var(--lx-border); margin-left: 10px;">
+          ${dispositions.map((d, index) => {
+            const time = new Date(d.changed_at).toLocaleString();
+            
+            const getBadgeClass = (status) => {
+              if (status === 'ingested') return 'badge-gray';
+              if (status === 'queued') return 'badge-amber';
+              if (status === 'calling') return 'badge-amber';
+              if (status === 're-queued') return 'badge-amber';
+              if (status === 'called') return 'badge-green';
+              if (status === 'hot_escalated') return 'badge-teal';
+              if (status === 'closed') return 'badge-red';
+              if (status === 'dnc') return 'badge-red';
+              return 'badge-gray';
+            };
+
+            const oldBadge = d.old_status === '-' ? '-' : `<span class="lx-badge ${getBadgeClass(d.old_status)}" style="font-size: 8.5px; padding: 1px 4px; font-family: var(--lx-mono);">${d.old_status.toUpperCase()}</span>`;
+            const newBadge = `<span class="lx-badge ${getBadgeClass(d.new_status)}" style="font-size: 8.5px; padding: 1px 4px; font-family: var(--lx-mono);">${d.new_status.toUpperCase()}</span>`;
+
+            return `
+              <div style="position: relative; padding-left: 15px; padding-bottom: 16px;">
+                <!-- Dot indicator -->
+                <div style="position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--lx-accent); border: 2px solid var(--lx-card);"></div>
+                
+                <div style="font-size: 11px; color: var(--lx-muted); font-family: var(--lx-mono); margin-bottom: 2px;">${time}</div>
+                <div style="font-weight: 500; font-size: 12px; color: var(--lx-text); margin-bottom: 4px;">${d.reason}</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--lx-muted);">
+                  ${d.old_status === '-' ? '' : `${oldBadge} <i data-lucide="arrow-right" style="width: 10px; height: 10px; opacity: 0.6;"></i>`}
+                  ${newBadge}
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       `;
     }
 
     content.innerHTML = `
+      <!-- Header -->
       <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 16px; border-radius: 8px;">
         <div style="display: flex; flex-direction: column; gap: 4px;">
           <div style="font-size: 18px; font-weight: 700; color: var(--lx-text);">${lead.name || 'Anonymous'}</div>
@@ -4697,15 +4940,112 @@ window.viewLeadDetails = async function(leadId) {
         </div>
       </div>
 
-      ${idsHtml}
-      ${prefHtml}
-      ${historyHtml}
+      <!-- Tab Buttons -->
+      <div class="lx-tabs-container" style="display: flex; gap: 8px; border-bottom: 1px solid var(--lx-border); padding-bottom: 0; margin-top: 12px;">
+        <button class="lx-tab-btn active" data-tab="overview" onclick="switchLeadTab('overview')" style="background: none; border: none; color: var(--lx-text); font-weight: 600; font-size: 12px; cursor: pointer; padding: 6px 12px; border-bottom: 2px solid var(--lx-accent);">Overview</button>
+        <button class="lx-tab-btn" data-tab="calls" onclick="switchLeadTab('calls')" style="background: none; border: none; color: var(--lx-muted); font-weight: 500; font-size: 12px; cursor: pointer; padding: 6px 12px;">Calls (${sessions.length})</button>
+        <button class="lx-tab-btn" data-tab="whatsapp" onclick="switchLeadTab('whatsapp')" style="background: none; border: none; color: var(--lx-muted); font-weight: 500; font-size: 12px; cursor: pointer; padding: 6px 12px;">WhatsApp & SMS (${messages.length})</button>
+        <button class="lx-tab-btn" data-tab="disposition" onclick="switchLeadTab('disposition')" style="background: none; border: none; color: var(--lx-muted); font-weight: 500; font-size: 12px; cursor: pointer; padding: 6px 12px;">Dispositions (${dispositions.length})</button>
+      </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 8px;">
+      <!-- Tab Contents -->
+      <div id="lead-tab-content-overview" style="display: block; margin-top: 12px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">System Mappings & Integration IDs</h4>
+        ${idsHtml}
+        <h4 style="margin: 12px 0 8px 0; font-size: 13px; font-weight: 600; color: var(--lx-text);">Lead Preferences & Attributes</h4>
+        ${prefHtml}
+      </div>
+
+      <div id="lead-tab-content-calls" style="display: none; margin-top: 12px;">
+        ${callsHtml}
+      </div>
+
+      <div id="lead-tab-content-whatsapp" style="display: none; margin-top: 12px;">
+        ${messagesHtml}
+        ${whatsappInteractiveHtml}
+      </div>
+
+      <div id="lead-tab-content-disposition" style="display: none; margin-top: 12px;">
+        ${dispositionsHtml}
+      </div>
+
+      <!-- Actions Footer -->
+      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 12px;">
         <button class="lx-btn" onclick="document.getElementById('leadDetailsModal').style.display = 'none'">Close</button>
         <button class="lx-btn primary" onclick="document.getElementById('leadDetailsModal').style.display = 'none'; triggerMockCall('${lead.id}','${lead.name}','${lead.phone}',${score})">Call Lead</button>
       </div>
     `;
+
+    // Define globally-accessible helper function to switch tabs
+    window.switchLeadTab = function(tabName) {
+      const tabs = ['overview', 'calls', 'whatsapp', 'disposition'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`lead-tab-content-${t}`);
+        if (el) el.style.display = t === tabName ? 'block' : 'none';
+      });
+
+      const buttons = document.querySelectorAll('.lx-tab-btn');
+      buttons.forEach(btn => {
+        const isActive = btn.getAttribute('data-tab') === tabName;
+        if (isActive) {
+          btn.style.color = 'var(--lx-text)';
+          btn.style.borderBottom = '2px solid var(--lx-accent)';
+          btn.style.fontWeight = '600';
+        } else {
+          btn.style.color = 'var(--lx-muted)';
+          btn.style.borderBottom = 'none';
+          btn.style.fontWeight = '500';
+        }
+      });
+    };
+
+    // Define globally-accessible sender function
+    window.sendCustomLeadMessage = async function(lId) {
+      const input = document.getElementById('whatsapp-text-input');
+      const body = input ? input.value.trim() : '';
+      if (!body) return;
+
+      try {
+        const sendRes = await fetch(`${API_BASE}/${lId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: currentTenant,
+            type: 'whatsapp',
+            body
+          })
+        });
+
+        if (sendRes.ok) {
+          showToast('Message Sent', 'WhatsApp template dispatched successfully.', 'check');
+          input.value = '';
+          
+          // Refresh details after 1.6s to display the mock customer response
+          setTimeout(async () => {
+            const modalOpenState = document.getElementById('leadDetailsModal').style.display;
+            if (modalOpenState === 'flex') {
+              await viewLeadDetails(lId);
+              switchLeadTab('whatsapp');
+              const bubbleContainer = document.getElementById('whatsapp-bubbles-container');
+              if (bubbleContainer) {
+                bubbleContainer.scrollTop = bubbleContainer.scrollHeight;
+              }
+            }
+          }, 1600);
+        } else {
+          showToast('Send Failed', 'Could not send WhatsApp message.', 'alert-triangle', 'error');
+        }
+      } catch (err) {
+        console.error('Send message error:', err);
+        showToast('Error', 'Unexpected connection issue.', 'alert-triangle', 'error');
+      }
+    };
+
+    // Scroll bubbles to bottom initially
+    const bubbleContainer = document.getElementById('whatsapp-bubbles-container');
+    if (bubbleContainer) {
+      bubbleContainer.scrollTop = bubbleContainer.scrollHeight;
+    }
 
     if (window.lucide) {
       window.lucide.createIcons();
@@ -4719,4 +5059,285 @@ window.viewLeadDetails = async function(leadId) {
     `;
   }
 };
+
+// ==========================================
+// VOIZ Roster & Demo Call Simulation
+// ==========================================
+const VOICE_AGENTS = [
+  { name: "Aria", color: "blue", objective: "Collections & Recovery", desc: "Empathetic, compliant outreach for early-stage delinquencies — sets up flexible payment arrangements.", summary: "Jordan reached out about an outstanding balance and asked to arrange a flexible repayment plan. Aria verified the account, presented monthly options, and the customer agreed to proceed. A confirmation email will follow." },
+  { name: "Max", color: "emerald", objective: "Sales Qualification", desc: "Qualifies inbound leads, answers product questions, and books meetings with your team, 24/7.", summary: "The caller was evaluating Predixion for outbound sales and asked about pricing and integrations. Max answered the questions, confirmed a strong fit, and booked a follow-up demo for next week." },
+  { name: "Sol", color: "violet", objective: "Appointments & Reminders", desc: "Confirms, reschedules, and sends reminders — keeps your calendar full and no-shows low.", summary: "The customer called to move an upcoming appointment. Sol located the booking, offered nearby openings, and rescheduled to their preferred time. A calendar invite and reminder were sent." }
+];
+
+function renderVoizRoster() {
+  const rosterGrid = document.getElementById('agents-roster-grid');
+  const perfTbody = document.getElementById('agents-performance-tbody');
+  if (!rosterGrid || !perfTbody) return;
+
+  const orbHTML = (color, cls) => `<div class="pd-orb orb-${color} ${cls}"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+
+  // Draw cards
+  rosterGrid.innerHTML = VOICE_AGENTS.map((a, i) => `
+    <div class="pd-card card" style="padding: 24px 20px 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); transition: all 0.2s ease;">
+      ${orbHTML(a.color, "sm")}
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px;">
+        <h2 style="margin: 0; font-size: 19px; font-weight: 600; color: var(--text-heading);">${a.name}</h2>
+        <span class="pd-chip" style="--acc: var(--pd-${a.color});">${a.objective.toUpperCase()}</span>
+      </div>
+      <p style="margin: 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; flex: 1;">${a.desc}</p>
+      <button class="pd-talk" style="--acc: var(--pd-${a.color}); margin-top: 6px;" onclick="triggerVoiceCallDemo(${i})">
+        <i data-lucide="mic" style="width: 13px; height: 13px;"></i> Talk to ${a.name}
+      </button>
+    </div>
+  `).join('');
+
+  // Performance stats (mock stats aligned with UI kits spec)
+  const stats = [
+    { today: 412, conn: 385, qual: 280, languages: "English, Spanish" },
+    { today: 388, conn: 341, qual: 260, languages: "English, French" },
+    { today: 301, conn: 285, qual: 240, languages: "English, Hindi" }
+  ];
+
+  perfTbody.innerHTML = VOICE_AGENTS.map((a, i) => {
+    const s = stats[i];
+    const rate = ((s.qual / s.conn) * 100).toFixed(1) + "%";
+    return `
+      <tr>
+        <td>
+          <div style="display: flex; align-items: center; gap: 11px;">
+            <span class="pd-agentdot" style="background: radial-gradient(circle at 35% 30%, var(--pd-${a.color}-200), var(--pd-${a.color}) 70%, #000);"></span>
+            <span class="pd-cell-strong">${a.name}</span>
+          </div>
+        </td>
+        <td>
+          <span class="pd-pill-status pd-pill-live">
+            <span class="pd-status-dot" style="width: 6px; height: 6px;"></span>LIVE
+          </span>
+        </td>
+        <td>${s.languages}</td>
+        <td>${s.today}</td>
+        <td>${s.conn}</td>
+        <td>${s.qual}</td>
+        <td class="pd-cell-strong">${rate}</td>
+      </tr>
+    `;
+  }).join('');
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+let callSecs = 0;
+let callTimerId = null;
+let callSpeakId = null;
+let selectedAgentIndex = 0;
+
+function triggerVoiceCallDemo(index) {
+  selectedAgentIndex = index;
+  const scrim = document.getElementById('scrim');
+  if (scrim) {
+    scrim.style.display = 'flex';
+  }
+}
+
+// Wire the modals actions
+window.addEventListener('DOMContentLoaded', () => {
+  // Roster page initialization
+  const agentsTab = document.querySelector('.lx-sidebar-item[data-page="agents"]');
+  if (agentsTab) {
+    agentsTab.addEventListener('click', renderVoizRoster);
+  }
+  
+  // Scrim modals
+  const scrim = document.getElementById('scrim');
+  const closeModal = document.getElementById('closeModal');
+  const proceedBtn = document.getElementById('proceedBtn');
+  
+  if (closeModal && scrim) {
+    closeModal.onclick = () => scrim.style.display = 'none';
+  }
+  
+  if (proceedBtn) {
+    proceedBtn.onclick = () => {
+      if (scrim) scrim.style.display = 'none';
+      startDemoCall();
+    };
+  }
+  
+  // Call modal actions
+  const endCallBtn = document.getElementById('endCallBtn');
+  if (endCallBtn) {
+    endCallBtn.onclick = endDemoCall;
+  }
+  
+  const backToAgentsBtn = document.getElementById('backToAgentsBtn');
+  if (backToAgentsBtn) {
+    backToAgentsBtn.onclick = closeDemoCallModal;
+  }
+  
+  const thanksBackBtn = document.getElementById('thanksBackBtn');
+  if (thanksBackBtn) {
+    thanksBackBtn.onclick = closeDemoCallModal;
+  }
+  
+  const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
+  if (submitFeedbackBtn) {
+    submitFeedbackBtn.onclick = () => {
+      document.getElementById('fbCard').style.display = 'none';
+      document.getElementById('thanksCard').style.display = 'flex';
+    };
+  }
+
+  // Star Rating UI Setup inside Modal
+  const callStars = document.getElementById('callStars');
+  if (callStars) {
+    callStars.innerHTML = [1,2,3,4,5].map(n => `
+      <button class="pd-star" data-n="${n}" style="background: none; border: none; cursor: pointer; padding: 0; outline: none;">
+        <i data-lucide="star" style="width: 28px; height: 28px; color: var(--text-placeholder); fill: none; pointer-events: none;"></i>
+      </button>
+    `).join('');
+    
+    let currentRating = 0;
+    callStars.addEventListener('click', e => {
+      const btn = e.target.closest('[data-n]');
+      if (!btn) return;
+      currentRating = +btn.dataset.n;
+      [...callStars.children].forEach((b, idx) => {
+        const active = idx < currentRating;
+        const icon = b.querySelector('i');
+        if (icon) {
+          if (active) {
+            icon.style.color = 'var(--pd-star)';
+            icon.style.fill = 'var(--pd-star)';
+          } else {
+            icon.style.color = 'var(--text-placeholder)';
+            icon.style.fill = 'none';
+          }
+        }
+      });
+    });
+  }
+});
+
+function startDemoCall() {
+  const a = VOICE_AGENTS[selectedAgentIndex];
+  const callModal = document.getElementById('simulatedCallModal');
+  const callOrb = document.getElementById('callOrb');
+  const callName = document.getElementById('callName');
+  const callChip = document.getElementById('callChip');
+  const liveStatus = document.getElementById('liveStatus');
+  const callTimer = document.getElementById('callTimer');
+  
+  const liveBlock = document.getElementById('liveBlock');
+  const endedBlock = document.getElementById('endedBlock');
+  const fbCard = document.getElementById('fbCard');
+  const thanksCard = document.getElementById('thanksCard');
+  const callwrap = document.getElementById('callwrap');
+  
+  const orbHTML = (color, cls) => `<div class="pd-orb orb-${color} ${cls}"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+  const ACC_VALS = { blue: "var(--pd-blue)", emerald: "var(--pd-emerald)", violet: "var(--pd-violet)" };
+
+  if (!callModal) return;
+  
+  callName.textContent = a.name;
+  callChip.style.setProperty('--acc', ACC_VALS[a.color]);
+  callChip.textContent = a.objective.toUpperCase();
+  
+  liveBlock.style.display = 'flex';
+  endedBlock.style.display = 'none';
+  fbCard.style.display = 'none';
+  thanksCard.style.display = 'none';
+  callwrap.style.display = 'flex';
+  callwrap.classList.remove('two');
+  
+  callOrb.innerHTML = orbHTML(a.color, "speaking");
+  liveStatus.textContent = `${a.name.toUpperCase()} IS SPEAKING`;
+  
+  callSecs = 0;
+  callTimer.textContent = "0:00";
+  callModal.style.display = 'flex';
+  
+  clearInterval(callTimerId);
+  callTimerId = setInterval(() => {
+    callSecs++;
+    const min = Math.floor(callSecs / 60);
+    const sec = String(callSecs % 60).padStart(2, "0");
+    callTimer.textContent = `${min}:${sec}`;
+  }, 1000);
+  
+  let speaking = true;
+  clearInterval(callSpeakId);
+  callSpeakId = setInterval(() => {
+    speaking = !speaking;
+    const orb = callOrb.querySelector('.pd-orb');
+    if (orb) {
+      orb.classList.toggle('speaking', speaking);
+      orb.classList.toggle('calm', !speaking);
+    }
+    liveStatus.textContent = speaking ? `${a.name.toUpperCase()} IS SPEAKING` : "LISTENING…";
+  }, 2600);
+  
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function endDemoCall() {
+  clearInterval(callTimerId);
+  clearInterval(callSpeakId);
+  
+  const a = VOICE_AGENTS[selectedAgentIndex];
+  const callOrb = document.getElementById('callOrb');
+  const liveBlock = document.getElementById('liveBlock');
+  const endedBlock = document.getElementById('endedBlock');
+  const summaryText = document.getElementById('summaryText');
+  const fbCard = document.getElementById('fbCard');
+  const callwrap = document.getElementById('callwrap');
+  
+  const orbHTML = (color, cls) => `<div class="pd-orb orb-${color} ${cls}"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+
+  if (callOrb) {
+    callOrb.innerHTML = orbHTML(a.color, "calm");
+  }
+  
+  if (liveBlock) liveBlock.style.display = 'none';
+  if (endedBlock) {
+    endedBlock.style.display = 'block';
+    summaryText.textContent = a.summary;
+  }
+  if (fbCard) fbCard.style.display = 'flex';
+  if (callwrap) callwrap.classList.add('two');
+  
+  // reset stars
+  const callStars = document.getElementById('callStars');
+  if (callStars) {
+    [...callStars.children].forEach(b => {
+      const icon = b.querySelector('i');
+      if (icon) {
+        icon.style.color = 'var(--text-placeholder)';
+        icon.style.fill = 'none';
+      }
+    });
+  }
+  const feedbackText = document.getElementById('feedbackText');
+  if (feedbackText) feedbackText.value = '';
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function closeDemoCallModal() {
+  clearInterval(callTimerId);
+  clearInterval(callSpeakId);
+  const callModal = document.getElementById('simulatedCallModal');
+  if (callModal) {
+    callModal.style.display = 'none';
+  }
+}
+
+// Make functions globally available
+window.triggerVoiceCallDemo = triggerVoiceCallDemo;
+window.renderVoizRoster = renderVoizRoster;
 

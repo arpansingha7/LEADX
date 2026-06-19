@@ -275,7 +275,7 @@ export async function getQueueStats(tenantId) {
   const leads = await db.getLeads(tenantId);
   
   const stats = {
-    pending: leads.filter(l => l.status === 'pending').length,
+    pending: leads.filter(l => l.status === 'ingested').length,
     queued: leads.filter(l => l.status === 'queued').length,
     calling: leads.filter(l => l.status === 'calling').length,
     called: leads.filter(l => l.status === 'called').length,

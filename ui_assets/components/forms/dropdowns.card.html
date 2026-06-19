@@ -1,0 +1,57 @@
+<!-- @dsCard group="Components" viewport="760x360" name="Dropdowns & menus" subtitle="action menu · option select · live hover states (interactive)" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:26px;display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start}
+ .col{display:flex;flex-direction:column;gap:12px}
+ .lab{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;color:var(--text-label)}</style></head>
+<body>
+<div class="col">
+  <span class="lab">ACTION MENU</span>
+  <div class="pd-dropdown" id="d1">
+    <button class="pd-dropdown-trigger" data-t="d1" style="min-width:170px"><span style="display:flex;align-items:center;gap:9px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>Agent actions</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="pd-menu" role="menu">
+      <div class="pd-menu-label">MANAGE</div>
+      <button class="pd-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>Edit configuration</button>
+      <button class="pd-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Test call</button>
+      <button class="pd-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6 12 2 8 6M12 2v14M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>Duplicate</button>
+      <div class="pd-menu-sep"></div>
+      <button class="pd-menu-item danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete agent</button>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <span class="lab">OPTION SELECT</span>
+  <div class="pd-dropdown" id="d2">
+    <button class="pd-dropdown-trigger" data-t="d2" style="min-width:200px"><span id="d2val">Nova · Warm</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="pd-menu" role="menu" id="d2menu">
+      <button class="pd-menu-item active" data-v="Nova · Warm">Nova · Warm<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+      <button class="pd-menu-item" data-v="Atlas · Neutral">Atlas · Neutral</button>
+      <button class="pd-menu-item" data-v="Sage · Calm">Sage · Calm</button>
+      <button class="pd-menu-item" data-v="Echo · Bright">Echo · Bright</button>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <span class="lab">LIVE STATES — HOVER ME</span>
+  <select class="pd-select" style="min-width:180px"><option>Native select</option><option>Option two</option></select>
+  <label class="pd-check"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Checkbox</label>
+  <label class="pd-check pd-radio"><input type="radio" name="r" checked><span class="box"></span>Radio</label>
+  <label class="pd-switch" style="gap:10px"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span><span style="margin-left:10px;font-size:13px;color:var(--text-soft)">Switch</span></label>
+</div>
+
+<script>
+  const $=s=>document.querySelector(s);
+  document.querySelectorAll("[data-t]").forEach(btn=>btn.addEventListener("click",e=>{
+    e.stopPropagation();const dd=document.getElementById(btn.dataset.t);const open=dd.hasAttribute("data-open");
+    document.querySelectorAll(".pd-dropdown").forEach(x=>x.removeAttribute("data-open"));
+    if(!open)dd.setAttribute("data-open","");
+  }));
+  document.addEventListener("click",()=>document.querySelectorAll(".pd-dropdown").forEach(x=>x.removeAttribute("data-open")));
+  $("#d2menu").addEventListener("click",e=>{const it=e.target.closest("[data-v]");if(!it)return;
+    $("#d2val").textContent=it.dataset.v;
+    [...$("#d2menu").children].forEach(c=>{c.classList.remove("active");const t=c.querySelector(".tick");if(t)t.remove();});
+    it.classList.add("active");it.insertAdjacentHTML("beforeend",'<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>');
+  });
+</script>
+</body></html>

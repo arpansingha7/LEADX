@@ -1,0 +1,25 @@
+<!-- @dsCard group="Charts" viewport="760x320" name="Line & area chart" subtitle="dotted gridlines, axes, area fill, data dots" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:22px}
+ .pd-section{max-width:700px}</style></head>
+<body>
+<div class="pd-section">
+  <div class="pd-section-head"><h3>Conversation volume</h3>
+    <span class="pd-legend"><span style="color:var(--pd-blue)"><span class="dot" style="background:var(--pd-blue)"></span>This week</span><span style="color:var(--text-muted)"><span class="dash"></span>Last week</span></span>
+  </div>
+  <div class="pd-chart">
+    <div class="pd-chart-plot" style="height:200px;padding-left:30px">
+      <div class="pd-chart-yaxis"><span>1.5k</span><span>1.0k</span><span>0.5k</span><span>0</span></div>
+      <div class="pd-chart-grid" style="left:30px"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line solid"></div></div>
+      <svg class="pd-line-svg" viewBox="0 0 300 160" preserveAspectRatio="none" style="position:absolute;left:30px;right:0;top:0;bottom:0;width:calc(100% - 30px);height:100%">
+        <defs><linearGradient id="pdAreaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--pd-blue)" stop-opacity=".28"/><stop offset="100%" stop-color="var(--pd-blue)" stop-opacity="0"/></linearGradient></defs>
+        <path class="pd-line-area" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84 L300,160 L0,160 Z"/>
+        <path class="pd-line-stroke dashed" style="stroke:var(--text-muted)" d="M0,130 L50,118 L100,110 L150,96 L200,90 L250,100 L300,96"/>
+        <path class="pd-line-stroke" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84"/>
+        <circle class="pd-line-dot" cx="200" cy="40" r="4"/>
+      </svg>
+    </div>
+    <div class="pd-chart-xaxis" style="padding-left:30px"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+  </div>
+</div>
+</body></html>

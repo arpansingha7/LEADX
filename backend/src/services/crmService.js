@@ -310,7 +310,7 @@ export class SalesforceAdapter {
       raw_data: {
         salesforce_id: r.Id,
         score: r.mx_LeadX_Score__c || 0,
-        status: r.mx_LeadX_Status__c || 'pending'
+        status: r.mx_LeadX_Status__c || 'ingested'
       }
     }));
   }

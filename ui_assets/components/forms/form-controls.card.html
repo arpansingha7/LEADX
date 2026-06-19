@@ -1,0 +1,29 @@
+<!-- @dsCard group="Components" viewport="760x420" name="Form controls" subtitle="inputs, sizes, states, select, check/radio/switch, segmented" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:760px}
+ .col{display:flex;flex-direction:column;gap:16px}</style></head>
+<body>
+<div class="col">
+  <div class="pd-field"><span class="pd-label">Agent name</span><input class="pd-input" value="Aria"></div>
+  <div class="pd-field"><span class="pd-label">Work email <span class="opt">(optional)</span></span>
+    <div class="pd-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><input class="pd-input" placeholder="you@company.com"></div>
+  </div>
+  <div class="pd-field"><span class="pd-label">Invalid state</span><input class="pd-input invalid" value="not-an-email"><span class="pd-error">ENTER A VALID EMAIL</span></div>
+  <div class="pd-field"><span class="pd-label">Disabled</span><input class="pd-input" value="Locked" disabled></div>
+  <div class="pd-field"><span class="pd-label">Voice</span>
+    <select class="pd-select"><option>Nova · Warm</option><option>Atlas · Neutral</option><option>Sage · Calm</option></select>
+  </div>
+</div>
+<div class="col">
+  <span class="pd-label">Search</span>
+  <div class="pd-search-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Search agents, conversations…"><kbd>⌘K</kbd></div>
+  <span class="pd-label" style="margin-top:4px">Choices</span>
+  <label class="pd-check"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Record &amp; transcribe calls</label>
+  <label class="pd-check pd-radio"><input type="radio" name="r" checked><span class="box"></span>Outbound campaign</label>
+  <label class="pd-check pd-radio"><input type="radio" name="r"><span class="box"></span>Inbound only</label>
+  <label class="pd-switch" style="gap:10px"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span><span style="margin-left:10px;font-size:13px;color:var(--text-soft)">After-hours mode</span></label>
+  <span class="pd-label" style="margin-top:4px">Range</span>
+  <div class="pd-segment"><button>24h</button><button class="active">7d</button><button>30d</button><button>QTD</button></div>
+  <div style="display:flex;gap:10px"><input class="pd-input pd-input--sm" placeholder="Small" style="flex:1"><input class="pd-input pd-input--lg" placeholder="Large" style="flex:1"></div>
+</div>
+</body></html>

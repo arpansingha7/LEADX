@@ -1,0 +1,28 @@
+<!-- @dsCard group="Charts" viewport="760x320" name="Bars, donut, sparkline & meters" subtitle="grouped bars · outcome donut · inline spark · progress meters" -->
+<!DOCTYPE html><html data-pd-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:22px;display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+ .pd-section{overflow:hidden}</style></head>
+<body>
+<div class="pd-section">
+  <div class="pd-section-head"><h3>Calls by agent</h3><span class="pd-legend"><span style="color:var(--pd-blue)"><span class="dot" style="background:var(--pd-blue)"></span>Inbound</span><span style="color:var(--pd-emerald)"><span class="dot" style="background:var(--pd-emerald)"></span>Outbound</span></span></div>
+  <div class="pd-chart"><div class="pd-bars" style="height:170px">
+    <div class="col"><div class="grp"><div class="fill" style="height:60%"></div><div class="fill g2" style="height:40%"></div></div><span class="lab">ARIA</span></div>
+    <div class="col"><div class="grp"><div class="fill" style="height:48%"></div><div class="fill g2" style="height:72%"></div></div><span class="lab">MAX</span></div>
+    <div class="col"><div class="grp"><div class="fill" style="height:84%"></div><div class="fill g2" style="height:30%"></div></div><span class="lab">SOL</span></div>
+    <div class="col"><div class="grp"><div class="fill" style="height:38%"></div><div class="fill g2" style="height:22%"></div></div><span class="lab">VERA</span></div>
+  </div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+  <div class="pd-section">
+    <div class="pd-section-head"><h3>Outcomes</h3></div>
+    <div style="display:flex;align-items:center;gap:18px;padding:18px 20px">
+      <div class="pd-donut" style="width:104px;height:104px;background:conic-gradient(var(--pd-success) 0 68%,var(--pd-warning) 68% 86%,var(--pd-danger) 86% 100%)"><div class="pd-donut-center"><span class="v" style="font-size:17px">68%</span><span class="k">RESOLVED</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px;color:var(--text-soft)"><span><span class="pd-legend"></span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--pd-success);margin-right:6px"></span>Resolved</span><span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--pd-warning);margin-right:6px"></span>Escalated</span><span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--pd-danger);margin-right:6px"></span>Dropped</span></div>
+    </div>
+  </div>
+  <div class="pd-section" style="padding:16px 20px;display:flex;flex-direction:column;gap:13px">
+    <div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px"><span>Containment</span><span style="color:var(--text-heading)">82% <svg class="pd-spark" viewBox="0 0 84 26"><path d="M2,20 L14,16 L26,18 L38,10 L50,12 L62,6 L74,8 L82,4"/></svg></span></div><div class="pd-meter success"><div class="bar" style="width:82%"></div></div></div>
+    <div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px"><span>CSAT</span><span style="color:var(--text-heading)">92%</span></div><div class="pd-meter"><div class="bar" style="width:92%"></div></div></div>
+  </div>
+</div>
+</body></html>

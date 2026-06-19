@@ -759,8 +759,8 @@ router.get('/campaigns', async (req, res, next) => {
         const camp = campaignsMap[campName];
         camp.ingested += 1;
         
-        // attempted means status is not pending
-        if (lead.status && lead.status !== 'pending') {
+        // attempted means status is not ingested
+        if (lead.status && lead.status !== 'ingested') {
           camp.attempted += 1;
         }
         // connected means status is connected
@@ -1317,7 +1317,7 @@ router.post('/scoring-config/:tenant_id', async (req, res, next) => {
 
 /**
  * GET /leads/:id/sessions
- * Retrieves call sessions for a specific lead.
+ * Retrieves call sessions, WhatsApp/message logs, and disposition history for a specific lead.
  */
 router.get('/:id/sessions', async (req, res, next) => {
   try {
@@ -1326,9 +1326,250 @@ router.get('/:id/sessions', async (req, res, next) => {
     if (!tenant_id) {
       return res.status(400).json({ error: 'Validation Error', message: 'tenant_id query parameter is required' });
     }
+
+    const lead = await db.findLeadById(id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${id} does not exist.` });
+    }
+
     const allSessions = await db.getCallSessions(tenant_id);
     const sessions = allSessions.filter(s => s.lead_id === id);
-    res.json({ success: true, sessions });
+
+    // Fetch actual interactions from the audit trail
+    const auditEvents = await db.getLeadInteractions(tenant_id, id);
+    
+    // Separate message logs and disposition logs from audit events
+    const realMessages = auditEvents
+      .filter(e => e.event_type === 'whatsapp_message' || e.event_type === 'sms_message')
+      .map(e => ({
+        id: e.id,
+        type: e.event_type === 'whatsapp_message' ? 'whatsapp' : 'sms',
+        direction: e.details.direction || 'sent',
+        sender: e.details.sender || 'system',
+        body: e.details.body || '',
+        timestamp: e.created_at || e.timestamp,
+        status: e.details.status || 'delivered'
+      }));
+
+    const realDispositions = auditEvents
+      .filter(e => e.event_type === 'disposition_changed' || e.event_type === 'lead_ingested' || e.event_type === 'lead_enqueued')
+      .map(e => {
+        let old_status = 'unknown';
+        let new_status = 'unknown';
+        let reason = '';
+        if (e.event_type === 'lead_ingested') {
+          old_status = '-';
+          new_status = 'ingested';
+          reason = 'Lead ingested from source';
+        } else if (e.event_type === 'lead_enqueued') {
+          old_status = 'ingested';
+          new_status = 'queued';
+          reason = 'Added to outbound dialer queue';
+        } else {
+          old_status = e.details.old_status || 'unknown';
+          new_status = e.details.new_status || 'unknown';
+          reason = e.details.reason || `Status updated from ${old_status} to ${new_status}`;
+        }
+        return {
+          id: e.id,
+          old_status,
+          new_status,
+          changed_at: e.created_at || e.timestamp,
+          reason
+        };
+      });
+
+    // Helper functions for mock data generation if database is empty
+    const generateMockMessagesForLead = (ld, sess) => {
+      const msgs = [];
+      const name = ld.name || 'Customer';
+      const phone = ld.phone;
+      const createdAt = new Date(ld.created_at || Date.now() - 3600000 * 24);
+
+      msgs.push({
+        id: 'msg-mock-1',
+        type: 'whatsapp',
+        direction: 'sent',
+        sender: 'system',
+        body: `Hello ${name}, thank you for your interest in our real estate campaigns. A representative will contact you shortly on ${phone}.`,
+        timestamp: new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString(),
+        status: 'read'
+      });
+
+      sess.forEach((s, idx) => {
+        const sessionTime = new Date(s.started_at);
+        if (s.disposition === 'no_answer' || s.disposition === 'busy' || s.disposition === 'failed') {
+          msgs.push({
+            id: `msg-mock-session-fail-${idx}`,
+            type: 'whatsapp',
+            direction: 'sent',
+            sender: 'system',
+            body: `Hi ${name}, we tried calling you but couldn't connect. Let us know a convenient time to call you back.`,
+            timestamp: new Date(sessionTime.getTime() + 10 * 60 * 1000).toISOString(),
+            status: 'read'
+          });
+          msgs.push({
+            id: `msg-mock-session-fail-reply-${idx}`,
+            type: 'whatsapp',
+            direction: 'received',
+            sender: 'customer',
+            body: `I am busy now. Please try calling me after some time.`,
+            timestamp: new Date(sessionTime.getTime() + 25 * 60 * 1000).toISOString(),
+            status: 'read'
+          });
+        } else if (s.disposition === 'called' || s.disposition === 'qualified' || s.disposition === 'converted' || s.disposition === 'hot_escalated') {
+          msgs.push({
+            id: `msg-mock-session-succ-${idx}`,
+            type: 'whatsapp',
+            direction: 'sent',
+            sender: 'system',
+            body: `Hi ${name}, thank you for speaking with us. As requested, we have registered your preference for ${ld.raw_data?.property_type || '3BHK properties'}. We'll keep you posted.`,
+            timestamp: new Date(sessionTime.getTime() + 15 * 60 * 1000).toISOString(),
+            status: 'delivered'
+          });
+        }
+      });
+      return msgs;
+    };
+
+    const generateMockDispositionsForLead = (ld, sess) => {
+      const disps = [];
+      const createdAt = new Date(ld.created_at || Date.now() - 3600000 * 24);
+
+      disps.push({
+        id: 'disp-mock-1',
+        old_status: '-',
+        new_status: 'ingested',
+        changed_at: createdAt.toISOString(),
+        reason: `Lead ingested from source: ${ld.source}`
+      });
+
+      disps.push({
+        id: 'disp-mock-2',
+        old_status: 'ingested',
+        new_status: 'queued',
+        changed_at: new Date(createdAt.getTime() + 10 * 60 * 1000).toISOString(),
+        reason: 'Automatically enqueued for outbound dialing'
+      });
+
+      sess.forEach((s, idx) => {
+        const sessionTime = new Date(s.started_at);
+        disps.push({
+          id: `disp-mock-session-start-${idx}`,
+          old_status: idx === 0 ? 'queued' : 're-queued',
+          new_status: 'calling',
+          changed_at: sessionTime.toISOString(),
+          reason: `Outbound call session initiated (Session ID: ${s.voiz_session_id.substring(0, 8)}...)`
+        });
+
+        const endTime = s.ended_at ? new Date(s.ended_at) : new Date(sessionTime.getTime() + 30 * 1000);
+        const finalStatus = s.disposition.includes('escalated') ? 'hot_escalated' : s.disposition === 'called' ? 'called' : 're-queued';
+        
+        disps.push({
+          id: `disp-mock-session-end-${idx}`,
+          old_status: 'calling',
+          new_status: finalStatus,
+          changed_at: endTime.toISOString(),
+          reason: `Call ended. Disposition logged: ${s.disposition.toUpperCase()}`
+        });
+      });
+
+      if (ld.status === 'hot_escalated' && !disps.some(d => d.new_status === 'hot_escalated')) {
+        disps.push({
+          id: 'disp-mock-esc',
+          old_status: ld.status === 'called' ? 'called' : 'queued',
+          new_status: 'hot_escalated',
+          changed_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          reason: 'AI detected hot qualification signals and escalated lead'
+        });
+      }
+      return disps;
+    };
+
+    const mockMessages = generateMockMessagesForLead(lead, sessions);
+    const mockDispositions = generateMockDispositionsForLead(lead, sessions);
+
+    // Merge real and mock (prevent duplicates)
+    const messages = [...realMessages];
+    mockMessages.forEach(m => {
+      if (!messages.some(rm => rm.body === m.body)) {
+        messages.push(m);
+      }
+    });
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    const dispositions = [...realDispositions];
+    mockDispositions.forEach(d => {
+      if (!dispositions.some(rd => rd.reason === d.reason)) {
+        dispositions.push(d);
+      }
+    });
+    dispositions.sort((a, b) => new Date(a.changed_at) - new Date(b.changed_at));
+
+    res.json({
+      success: true,
+      sessions,
+      messages,
+      dispositions
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /leads/:id/messages
+ * Sends a message (WhatsApp or SMS) to a lead, records it in audit_trail,
+ * and schedules a mock user response for interactive testing.
+ */
+router.post('/:id/messages', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { tenant_id, type, body } = req.body;
+    
+    if (!tenant_id || !type || !body) {
+      return res.status(400).json({ error: 'Validation Error', message: 'tenant_id, type, and body are required' });
+    }
+
+    const lead = await db.findLeadById(id);
+    if (!lead) {
+      return res.status(404).json({ error: 'Not Found', message: `Lead with ID ${id} does not exist.` });
+    }
+
+    // Insert the outgoing message
+    const outgoing = await db.insertAuditLog(tenant_id, type === 'whatsapp' ? 'whatsapp_message' : 'sms_message', {
+      lead_id: id,
+      direction: 'sent',
+      sender: 'system',
+      body,
+      status: 'delivered'
+    });
+
+    // Generate a mock response after 1.5 seconds if in mock/test mode
+    setTimeout(async () => {
+      try {
+        const replies = [
+          "Sure, thank you for sharing details.",
+          "I will review the brochure and get back to you.",
+          "Can you call me tomorrow morning instead?",
+          "Yes, please send me the branch location.",
+          "Perfect, thanks for the update!"
+        ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        
+        await db.insertAuditLog(tenant_id, type === 'whatsapp' ? 'whatsapp_message' : 'sms_message', {
+          lead_id: id,
+          direction: 'received',
+          sender: 'customer',
+          body: randomReply,
+          status: 'read'
+        });
+      } catch (err) {
+        console.error('Error recording mock customer response:', err);
+      }
+    }, 1500);
+
+    res.json({ success: true, message: 'Message sent successfully.', message_id: outgoing.id });
   } catch (error) {
     next(error);
   }

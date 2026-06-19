@@ -1,0 +1,76 @@
+<!-- @dsCard group="Marketing Site" viewport="1280x820" subtitle="Landing page — hero with orb, product, CTA" -->
+<!-- @startingPoint section="Marketing Site" subtitle="Predixion marketing landing page" viewport="1280x900" -->
+<!DOCTYPE html><html data-pd-theme="dark" lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predixion AI — Voice agents that sound human</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans)}
+  .wrap{position:relative;overflow:hidden}
+  .grid-bg{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse 70% 55% at 50% 18%,#000 12%,transparent 70%);mask-image:radial-gradient(ellipse 70% 55% at 50% 18%,#000 12%,transparent 70%)}
+  nav{position:relative;z-index:5;max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:22px 28px}
+  nav img{height:34px}[data-pd-theme="light"] nav img{filter:invert(1)}
+  .links{display:flex;align-items:center;gap:26px;font-size:13.5px;color:var(--text-muted)}
+  .links a{color:inherit;text-decoration:none}
+  .hero{position:relative;z-index:4;max-width:760px;margin:0 auto;text-align:center;padding:60px 28px 40px;display:flex;flex-direction:column;align-items:center;gap:22px}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;color:var(--text-label)}
+  .hero h1{margin:0;font-size:52px;font-weight:600;letter-spacing:-.02em;line-height:1.05;color:var(--text-strong)}
+  .hero p{margin:0;font-size:17px;color:var(--text-muted);line-height:1.6;max-width:540px}
+  .cta{display:flex;gap:12px}
+  .logos{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;padding:8px 0 10px;font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text-label-2)}
+  .feat{max-width:1080px;margin:0 auto;padding:40px 28px 70px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .fcard{padding:24px 22px}
+  .ficon{width:38px;height:38px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;margin-bottom:14px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 24%,transparent)}
+  .fcard h3{margin:0 0 7px;font-size:16px;font-weight:600;color:var(--text-heading)}
+  .fcard p{margin:0;font-size:13.5px;color:var(--text-muted);line-height:1.6}
+  @media(max-width:900px){.feat{grid-template-columns:1fr}.hero h1{font-size:38px}.links{display:none}}
+</style></head>
+<body>
+<div class="wrap" id="root">
+  <div class="grid-bg"></div>
+  <nav>
+    <img src="../../assets/predixion-logo.png" alt="Predixion AI">
+    <div class="links"><a>Product</a><a>Solutions</a><a>Pricing</a><a>Docs</a></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="pd-toggle" id="toggle">
+        <button data-theme="light" aria-label="Light"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+        <button data-theme="dark" aria-pressed="true" aria-label="Dark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
+      </div>
+      <button class="pd-btn pd-btn--primary pd-btn--sm">Book a demo</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="pd-orb orb-blue speaking"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <span class="eyebrow">VOICE AI FOR THE ENTERPRISE</span>
+    <h1>Voice agents that<br>sound human</h1>
+    <p>Predixion builds AI voice agents for collections, sales, and support — empathetic, compliant, and live 24/7. Deploy in days, not quarters.</p>
+    <div class="cta">
+      <button class="pd-btn pd-btn--primary">Book a demo ➜</button>
+      <button class="pd-btn pd-btn--secondary">Hear a live call</button>
+    </div>
+    <div class="logos"><span>NORTHWIND</span><span>ACME FINANCIAL</span><span>MERIDIAN</span><span>CASCADE</span><span>VERTEX</span></div>
+  </section>
+
+  <section class="feat">
+    <div class="pd-card fcard">
+      <div class="ficon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg></div>
+      <h3>Natural conversations</h3>
+      <p>Sub-second latency and human-like turn-taking. Customers can't tell it's AI — and they don't mind when they can.</p>
+    </div>
+    <div class="pd-card fcard">
+      <div class="ficon" style="--accent:var(--pd-emerald)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></div>
+      <h3>Compliant by design</h3>
+      <p>Guardrails, disclosures, and full transcripts on every call. Built for regulated collections and finance teams.</p>
+    </div>
+    <div class="pd-card fcard">
+      <div class="ficon" style="--accent:var(--pd-violet)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+      <h3>Measurable outcomes</h3>
+      <p>Live dashboards, sentiment, and resolution analytics. Know exactly what every conversation delivered.</p>
+    </div>
+  </section>
+</div>
+<script>
+  document.getElementById("toggle").addEventListener("click",e=>{const b=e.target.closest("[data-theme]");if(!b)return;document.querySelector("html").setAttribute("data-pd-theme",b.dataset.theme);[...e.currentTarget.children].forEach(x=>x.removeAttribute("aria-pressed"));b.setAttribute("aria-pressed","true");});
+</script>
+</body></html>

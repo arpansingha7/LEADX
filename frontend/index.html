@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-pd-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="theme.js"></script>
   <title>LeadX — AI Lead Qualification & Conversion Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.0.2">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Lucide Icons CDN -->
@@ -45,38 +46,43 @@
     <!-- Main Workspace Container -->
     <div class="lx-body">
       <!-- Sidebar Navigation -->
-      <aside class="lx-sidebar">
+      <aside class="lx-sidebar" style="display: flex; flex-direction: column;">
         <div class="lx-sidebar-section">Main Operations</div>
         <div class="lx-sidebar-item active" data-page="home">
-          <i data-lucide="layout-dashboard" class="lx-icon"></i> Dashboard
+          <i data-lucide="layout-dashboard" class="lx-icon"></i> <span>Dashboard</span>
         </div>
-        <div class="lx-sidebar-item" data-page="onboarding">
-          <i data-lucide="clipboard-list" class="lx-icon"></i> Onboarding
+        <div class="lx-sidebar-item" data-page="onboarding" style="display: none;">
+          <i data-lucide="clipboard-list" class="lx-icon"></i> <span>Onboarding</span>
         </div>
         <div class="lx-sidebar-item" data-page="script-editor">
-          <i data-lucide="file-text" class="lx-icon"></i> Script Editor
+          <i data-lucide="file-text" class="lx-icon"></i> <span>Script Editor</span>
         </div>
         <div class="lx-sidebar-item" data-page="campaigns">
-          <i data-lucide="target" class="lx-icon"></i> Campaigns
+          <i data-lucide="target" class="lx-icon"></i> <span>Campaigns</span>
         </div>
         <div class="lx-sidebar-item" data-page="leads">
-          <i data-lucide="zap" class="lx-icon"></i> Lead Intelligence
+          <i data-lucide="zap" class="lx-icon"></i> <span>Lead Intelligence</span>
           <span class="count" id="sidebarLeadsCount">0</span>
         </div>
         <div class="lx-sidebar-item" data-page="agents">
-          <i data-lucide="users" class="lx-icon"></i> VOIZ Roster
+          <i data-lucide="users" class="lx-icon"></i> <span>VOIZ Roster</span>
         </div>
         <div class="lx-sidebar-item" data-page="crm">
-          <i data-lucide="link-2" class="lx-icon"></i> CRM Sync
+          <i data-lucide="link-2" class="lx-icon"></i> <span>CRM Sync</span>
         </div>
         <div class="lx-sidebar-section">Real-Time</div>
         <div class="lx-sidebar-item" data-page="monitor">
-          <i data-lucide="radio" class="lx-icon"></i> Live Monitor
+          <i data-lucide="radio" class="lx-icon"></i> <span>Live Monitor</span>
           <span class="count badge-green" style="background: rgba(46, 204, 138, 0.2); animation: pulse 2s infinite;" id="liveCallCount">0</span>
         </div>
         <div class="lx-sidebar-section">Reports & Shares</div>
         <div class="lx-sidebar-item" data-page="client">
-          <i data-lucide="briefcase" class="lx-icon"></i> Client Portal
+          <i data-lucide="briefcase" class="lx-icon"></i> <span>Client Portal</span>
+        </div>
+        <div style="flex: 1;"></div>
+        <div class="pd-toggle" id="themeToggleGroup" style="align-self: flex-start; margin: 16px; display: inline-flex;">
+          <button data-theme="light" aria-label="Light" id="themeLightBtn"><i data-lucide="sun" style="width: 14px; height: 14px; pointer-events: none;"></i></button>
+          <button data-theme="dark" aria-pressed="true" aria-label="Dark" id="themeDarkBtn"><i data-lucide="moon" style="width: 14px; height: 14px; pointer-events: none;"></i></button>
         </div>
       </aside>
 
@@ -105,7 +111,7 @@
           </div>
 
           <!-- KPI Strip -->
-          <div class="lx-row" style="grid-template-columns: repeat(5, 1fr);">
+          <div class="lx-row lx-grid-stats-5">
             <div class="lx-stat">
               <div class="lx-stat-label">TOTAL CALLS TODAY</div>
               <div class="lx-stat-val" id="kpi-total-calls">-</div>
@@ -134,7 +140,7 @@
           </div>
 
           <!-- Funnel & Lists Layout -->
-          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-top: 4px;">
+          <div class="lx-grid-2col-split" style="margin-top: 4px;">
             <!-- Left Panel: Campaign Funnel -->
             <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
               <div>
@@ -197,7 +203,7 @@
               </div>
               
               <!-- Conversion Metrics Grid -->
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 16px;">
+              <div class="lx-grid-3col" style="gap: 10px; border-top: 1px solid var(--lx-border); padding-top: 12px; margin-top: 16px;">
                 <div style="text-align: center;">
                   <div style="font-size: 11px; color: var(--lx-muted); margin-bottom: 2px;">INGEST TO CONNECT</div>
                   <strong style="font-size: 16px; color: var(--lx-text); font-family: var(--lx-mono);">42.4%</strong>
@@ -240,7 +246,7 @@
           </div>
 
           <!-- Analytics Charts Row -->
-          <div class="lx-row" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
+          <div class="lx-row lx-grid-stats-3" style="gap: 12px; margin-top: 12px;">
             <div class="lx-card" style="display: flex; flex-direction: column;">
               <div class="lx-section-title" style="margin-bottom: 8px;">
                 Connect Rate Trend
@@ -305,7 +311,7 @@
             <!-- Step 1 Layout: Questionnaire -->
             <div class="wizard-step-content show" id="wcontent-1">
               <div class="form-section-title" style="margin-top:0;">Discovery Questionnaire</div>
-              <div class="li-single-form" style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div class="li-single-form lx-grid-2col" style="margin-top: 12px; gap: 20px;">
                 <div class="li-form-col">
                   <div class="form-group">
                     <label for="wizardIndustry">Target Industry Segment *</label>
@@ -331,8 +337,11 @@
                   </div>
                 </div>
               </div>
-              <div class="wizard-actions" style="margin-top:20px; text-align:right;">
-                <button class="lx-btn primary" onclick="goToStep(2)">Proceed to Data Upload</button>
+              <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+                <button class="lx-btn" onclick="document.querySelector('.lx-sidebar-item[data-page=\'campaigns\']').click()" style="margin:0; display:inline-flex; align-items:center; gap:6px;">
+                  <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Back to Campaigns
+                </button>
+                <button class="lx-btn primary" onclick="goToStep(2)" style="margin:0;">Proceed to Data Upload</button>
               </div>
             </div>
 
@@ -372,7 +381,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 <p style="font-size:12px; color:var(--lx-muted); margin-bottom:12px;">
                   Select a connected CRM to query lists and pull contact records directly.
                 </p>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; background: rgba(0,0,0,0.15); border:1px solid var(--lx-border); padding:16px; border-radius:10px;">
+                <div class="lx-grid-2col" style="gap:16px; background: rgba(0,0,0,0.15); border:1px solid var(--lx-border); padding:16px; border-radius:10px;">
                   <div class="form-group">
                     <label for="wizardCrmSourceSelect">CRM Provider *</label>
                     <select id="wizardCrmSourceSelect" class="lx-input" onchange="onWizardCrmProviderChange()">
@@ -410,7 +419,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             <!-- Step 3 Layout: Column Mapping & Verification -->
             <div class="wizard-step-content" id="wcontent-3">
               <div class="form-section-title" style="margin-top:0;">Column Mapping Engine</div>
-              <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1.5fr; gap:20px;">
+              <div class="lx-grid-onboarding-split" style="margin-top:12px; gap:20px;">
                 <div>
                   <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px;">Ingestion Mapping (CRM -> LeadX)</div>
                   <p style="font-size:11.5px; color:var(--lx-muted); margin-bottom:12px; line-height:1.4;">
@@ -431,7 +440,12 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   </div>
                 </div>
                 <div style="min-width: 0;">
-                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">User Mapping Verification Preview</div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size:12px; font-weight:700; color:var(--lx-text);">User Mapping Verification Preview</div>
+                    <button class="lx-btn lx-btn-small" id="maximizePreviewBtn" style="padding: 2px 6px; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                      <i data-lucide="maximize-2" style="width: 12px; height: 12px;"></i> Maximize
+                    </button>
+                  </div>
                   <div style="overflow: auto; max-height: 500px; max-width: 100%; border:1px solid var(--lx-border); border-radius:6px;">
                     <table class="lx-table" style="font-size:11px; margin:0; width: 100%; table-layout: auto;">
                       <thead id="mappingPreviewHead"></thead>
@@ -449,7 +463,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             <!-- Step 4 Layout: Handoff & Synchronization Settings -->
             <div class="wizard-step-content" id="wcontent-4">
               <div class="form-section-title" style="margin-top:0;">System Integration & Handoff Settings</div>
-              <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+              <div class="lx-grid-2col" style="margin-top:12px; gap:20px;">
                 <div>
                   <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">DNC Validation Checks</div>
                   <div class="config-row" style="padding: 6px 0;">
@@ -505,7 +519,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             <span class="sub">Author scripts, configure escalation triggers, and validate graph flow</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
+          <div class="lx-grid-script-split">
             <!-- Left Side: JSON Editor & Meta -->
             <div class="lx-card" style="display: flex; flex-direction: column; gap: 12px;">
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--lx-border); padding-bottom: 8px;">
@@ -587,7 +601,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             </button>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+          <div class="lx-grid-2col-split">
             <!-- Left Side: Campaigns list -->
             <div>
               <div class="lx-pill-tabs" id="campaign-mode-tabs">
@@ -737,7 +751,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </div>
 
           <!-- Roster Cards Grid -->
-          <div class="lx-row" style="grid-template-columns: repeat(4, 1fr);" id="agents-roster-grid">
+          <div class="lx-row lx-grid-stats-4" id="agents-roster-grid">
             <div style="grid-column: span 4; text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13px;">No agents active</div>
           </div>
 
@@ -936,7 +950,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             <span class="sub">View real-time dialing queues and active waveforms</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px;">
+          <div class="lx-grid-2col-split">
             <!-- Left Panel: Live call grid -->
             <div>
               <div class="lx-section-title" style="margin-bottom: 8px;">
@@ -1020,7 +1034,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 <button class="lx-btn lx-btn-small primary" id="forceRetryDialerBtn" onclick="triggerForceRetryDialer()" style="margin:0;"><i data-lucide="refresh-cw" style="width:11px; height:11px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>Force Retry</button>
               </div>
               
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+              <div class="lx-grid-2col" style="gap: 8px; margin-bottom: 12px;">
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 8px; border-radius: 6px; text-align: center;">
                   <div style="font-size: 10px; color: var(--lx-muted);">QUEUED</div>
                   <strong style="font-size: 18px; color: var(--lx-text);" id="queue-stat-queued">0</strong>
@@ -1115,7 +1129,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </div>
 
           <!-- Rollup Metrics -->
-          <div class="lx-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="lx-row lx-grid-stats-4">
             <div class="lx-stat" style="background: var(--lx-card2);">
               <div class="lx-stat-label">TOTAL LEADS RECEIVED</div>
               <div class="lx-stat-val">10,000</div>
@@ -1139,7 +1153,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </div>
 
           <!-- Chart & Health Row -->
-          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-top: 4px;">
+          <div class="lx-grid-2col-split" style="margin-top: 4px;">
             <!-- Chart Panel -->
             <div class="lx-card">
               <div class="lx-section-title">
@@ -1218,7 +1232,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </div>
 
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px;">
+          <div class="lx-grid-3col" style="margin-top: 4px;">
             <!-- Left Card: HubSpot Integration Panel -->
             <div class="lx-card" style="display: flex; flex-direction: column; justify-content: space-between;">
               <div>
@@ -1513,6 +1527,91 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
       </div>
       <div id="leadDetailsModalContent" style="display: flex; flex-direction: column; gap: 16px; font-size: 13px;">
         <!-- Filled dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Maximized Preview Modal -->
+  <div id="maximizePreviewModal" class="lx-modal" style="display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+    <div class="lx-modal-content" style="background: var(--lx-card); border: 1px solid var(--lx-border); padding: 24px; border-radius: 12px; width: 90%; max-width: 1200px; height: 80vh; max-height: 80vh; display: flex; flex-direction: column; gap: 16px; margin: 5% auto; box-shadow: var(--shadow-modal);">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--lx-border); padding-bottom: 12px;">
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--lx-text); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="table" style="color: var(--lx-accent); width:18px; height:18px;"></i> User Mapping Verification Preview (Maximized)
+          </h3>
+          <span style="font-size: 11px; color: var(--lx-muted); margin-top: 2px; display: block;" id="maximizedPreviewCount">Showing all rows</span>
+        </div>
+        <button id="closeMaximizePreviewModal" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer; padding: 4px;">&times;</button>
+      </div>
+      <div style="overflow: auto; flex: 1; border: 1px solid var(--lx-border); border-radius: 8px;">
+        <table class="lx-table" style="font-size:11.5px; margin:0; width: 100%; table-layout: auto;">
+          <thead id="maximizedPreviewHead"></thead>
+          <tbody id="maximizedPreviewBody"></tbody>
+        </table>
+      </div>
+      <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--lx-border); padding-top: 12px;">
+        <button class="lx-btn primary" id="closeMaximizePreviewModalBtn">Close Window</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BEFORE-YOU-START MODAL -->
+  <div class="modal-scrim hidden" id="scrim" style="display: none; position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 1000; padding: 22px;">
+    <div class="modal" style="width: 100%; max-width: 430px; background: var(--panel); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); padding: 28px 30px; display: flex; flex-direction: column; gap: 18px; box-shadow: var(--shadow-modal);">
+      <div class="mh" style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; color: var(--text-muted);"><span style="display: flex; align-items: center; gap: 9px;"><span style="color: var(--accent);">ⓘ</span> BEFORE YOU START</span><button class="x" id="closeModal" style="background: none; border: none; color: var(--text-label); cursor: pointer; font-size: 15px;">✕</button></div>
+      <div class="step" style="display: flex; gap: 13px; align-items: flex-start;"><span class="n" style="flex: none; width: 25px; height: 25px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; font-weight: 600;">1</span><span style="font-size: 14px; color: var(--text-soft); line-height: 1.55;">Allow microphone access when your browser prompts you.</span></div>
+      <div class="step" style="display: flex; gap: 13px; align-items: flex-start;"><span class="n" style="flex: none; width: 25px; height: 25px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; font-weight: 600;">2</span><span style="font-size: 14px; color: var(--text-soft); line-height: 1.55;">Close other apps that may be using your microphone.</span></div>
+      <div class="step" style="display: flex; gap: 13px; align-items: flex-start;"><span class="n" style="flex: none; width: 25px; height: 25px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; font-weight: 600;">3</span><span style="font-size: 14px; color: var(--text-soft); line-height: 1.55;">Find a quiet space — voice quality depends on your connection.</span></div>
+      <button class="pd-btn pd-btn--primary" id="proceedBtn" style="width: 100%;">Proceed <i data-lucide="arrow-right" style="width: 14px; height: 14px; margin-left: 4px; display: inline-block; vertical-align: middle;"></i></button>
+    </div>
+  </div>
+
+  <!-- SIMULATED VOICE CALL MODAL -->
+  <div class="modal-scrim hidden" id="simulatedCallModal" style="display: none; position: fixed; inset: 0; background: var(--overlay); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 1000; padding: 22px;">
+    <div class="callwrap" id="callwrap" style="width: 100%; max-width: 912px; display: flex; align-items: flex-start; gap: 22px; margin: 0 auto;">
+      <!-- Call Active Card -->
+      <div class="callcard" style="flex: 1 1 0; min-width: 0; max-width: 452px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 24px 30px 32px; display: flex; flex-direction: column; align-items: center; box-shadow: var(--shadow-card-inner);">
+        <div id="callOrb" style="padding: 32px;"></div>
+        <h2 id="callName" style="margin: 0; font-size: 25px; font-weight: 600; color: var(--text-heading);">Aria</h2>
+        <span class="pd-chip" id="callChip" style="margin-top: 8px;">COLLECTIONS & RECOVERY</span>
+        
+        <div id="liveBlock" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+          <p class="live-status" id="liveStatus" style="margin: 16px 0 0; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .16em; color: var(--text-label); height: 14px;">ARIA IS SPEAKING</p>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; margin-top: 18px;">
+            <span class="timer" style="display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 13px; letter-spacing: .12em; color: var(--accent);"><span class="pd-status-dot"></span><span id="callTimer">0:00</span></span>
+            <button class="pd-btn pd-btn--danger" id="endCallBtn" style="padding: 10px 20px; font-size: 13.5px;">✕ End call</button>
+          </div>
+        </div>
+        
+        <div id="endedBlock" class="hidden" style="width: 100%; display: none;">
+          <div class="summary" style="width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-top: 24px;">
+            <div class="lab" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .18em; color: var(--text-label);"><span style="color: var(--accent)">▦</span> CALL SUMMARY</div>
+            <p id="summaryText" style="margin: 0; font-size: 14px; line-height: 1.72; color: var(--text-soft);"></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Feedback Card -->
+      <div class="fb" id="fbCard" style="flex: 1 1 0; min-width: 0; max-width: 452px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 26px; display: none; flex-direction: column;">
+        <p class="eye" style="margin: 0 0 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; color: var(--text-label);">YOUR FEEDBACK</p>
+        <h3 style="margin: 0 0 16px; font-size: 17px; font-weight: 600; color: var(--text-heading);">How was your conversation?</h3>
+        <div class="stars" id="callStars" style="display: flex; gap: 10px; margin-bottom: 20px;"></div>
+        
+        <div class="fblabel" style="font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .12em; color: var(--text-label); margin-bottom: 8px;">TELL US MORE <span style="color: var(--text-placeholder);">(OPTIONAL)</span></div>
+        <textarea class="pd-textarea" id="feedbackText" placeholder="What went well? What could be better?" style="margin-bottom: 14px; width: 100%; min-height: 84px;"></textarea>
+        
+        <div style="display: flex; gap: 11px;">
+          <button class="pd-btn pd-btn--back" id="backToAgentsBtn" style="padding: 10px 18px; font-size: 12.5px;"><i data-lucide="arrow-left" style="width: 14px; height: 14px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i> Close</button>
+          <button class="pd-btn pd-btn--primary" id="submitFeedbackBtn" style="flex: 1; padding: 10px 18px; font-size: 12.5px;">Submit feedback</button>
+        </div>
+      </div>
+      
+      <!-- Success Thanks Card -->
+      <div class="fb" id="thanksCard" style="flex: 1 1 0; min-width: 0; max-width: 452px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 26px; display: none; flex-direction: column; align-items: center; text-align: center; gap: 8px;">
+        <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(62,207,142,.1); border: 1px solid rgba(62,207,142,.35); display: flex; align-items: center; justify-content: center; color: var(--pd-success); font-size: 24px;">✓</div>
+        <p style="margin: 8px 0 0; font-size: 17px; font-weight: 600; color: var(--text-heading);">Thank you for your feedback</p>
+        <p style="margin: 0 0 12px; font-size: 13.5px; color: var(--text-muted); line-height: 1.6; max-width: 300px;">Your input goes straight to our product team.</p>
+        <button class="pd-btn pd-btn--primary" id="thanksBackBtn" style="padding: 10px 18px; font-size: 12.5px;">Back to agents</button>
       </div>
     </div>
   </div>

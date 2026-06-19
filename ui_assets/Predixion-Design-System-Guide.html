@@ -1,0 +1,361 @@
+<!doctype html>
+<html data-pd-theme="dark" lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predixion AI — Design System Guide</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:1.6}
+  .page{max-width:880px;margin:0 auto;padding:54px 54px 44px}
+  h1{font-size:34px;font-weight:600;letter-spacing:-.02em;color:var(--text-strong);margin:0 0 8px}
+  h2{font-size:20px;font-weight:600;color:var(--text-heading);margin:34px 0 6px;padding-bottom:9px;border-bottom:1px solid var(--border-soft)}
+  h2:first-of-type{margin-top:0}
+  h3{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;color:var(--text-label);margin:20px 0 10px}
+  p{margin:0 0 12px;color:var(--text-muted)}
+  code{font-family:var(--font-mono);font-size:12px;background:var(--input-bg);border:1px solid var(--border-input);border-radius:5px;padding:1px 6px;color:var(--text-soft)}
+  pre{background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:15px 18px;overflow:auto;font-family:var(--font-mono);font-size:12px;color:var(--text-soft);line-height:1.6}
+  .eyebrow{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.22em;color:var(--text-label);margin:0 0 14px}
+  .lead{font-size:16px;color:var(--text-soft);max-width:560px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 14px}
+  th{text-align:left;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;color:var(--text-label);padding:9px 12px;border-bottom:1px solid var(--border-soft)}
+  td{padding:9px 12px;border-bottom:1px solid var(--border-soft);color:var(--text-soft);vertical-align:middle}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 14px}
+  .demo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl);box-shadow:var(--shadow-card-inner);padding:20px;margin:6px 0 14px}
+  .demo.col{flex-direction:column;align-items:stretch}
+  .sw{display:flex;flex-direction:column;gap:6px}
+  .sw .chip{width:92px;height:40px;border-radius:var(--radius-md);border:1px solid var(--border-strong)}
+  .sw .nm{font-size:11px;color:var(--text-soft)}
+  .sw .hx{font-family:var(--font-mono);font-size:9px;color:var(--text-label)}
+  .ic{width:42px;height:42px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--text-soft)}
+  .iclab{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .iclab .t{font-family:var(--font-mono);font-size:7.5px;letter-spacing:.04em;color:var(--text-label-2)}
+  .cover{min-height:58vh;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+  .cover h1{margin:6px 0 18px;font-size:42px;line-height:1.1}
+  .cover .orbrow{display:flex;gap:16px;margin:22px 0}
+  .meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text-label)}
+  .callout{background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);border-radius:var(--radius-lg);padding:13px 16px;margin:6px 0 14px;font-size:13px;color:var(--text-soft)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .toc{columns:2;gap:30px;font-size:13.5px;color:var(--text-soft)}
+  .toc div{margin-bottom:7px;break-inside:avoid}
+  .toc .n{font-family:var(--font-mono);color:var(--text-label);margin-right:8px}
+  @media print{
+    @page{margin:0}
+    html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .page{padding:40px 44px}
+    .page-break{page-break-before:always}
+    pre,table,.demo,.row,.grid2{page-break-inside:avoid}
+    h2{page-break-after:avoid}
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="page"><div class="cover">
+  <img src="assets/predixion-logo.png" alt="Predixion AI" style="height:54px;margin-bottom:14px">
+  <p class="eyebrow">DESIGN SYSTEM · DEVELOPER GUIDE · v1.1</p>
+  <h1>Build every Predixion product from one system.</h1>
+  <p class="lead">A dark-first, fully responsive design system for voice-AI products — color, type, spacing, motion, iconography, components, charts, and full product layouts. Zero emoji; line-SVG icons only.</p>
+  <div class="orbrow">
+    <div class="pd-orb orb-blue sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <div class="pd-orb orb-emerald sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <div class="pd-orb orb-violet sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <div class="pd-orb orb-amber sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <div class="pd-orb orb-rose sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+    <div class="pd-orb orb-cyan sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+  </div>
+  <div class="meta"><span>HELVETICA NEUE + IBM PLEX MONO</span><span>DARK BY DEFAULT</span><span>RESPONSIVE</span><span>NO EMOJI</span></div>
+</div></div>
+
+<!-- CONTENTS + QUICK START -->
+<div class="page page-break">
+  <h2>Contents</h2>
+  <div class="toc">
+    <div><span class="n">01</span>Quick start &amp; theming</div>
+    <div><span class="n">02</span>Color — neutrals, accents, status</div>
+    <div><span class="n">03</span>Typography</div>
+    <div><span class="n">04</span>Spacing, radius, elevation, motion</div>
+    <div><span class="n">05</span>Iconography (full set)</div>
+    <div><span class="n">06</span>Buttons, chips &amp; pills</div>
+    <div><span class="n">07</span>Form controls</div>
+    <div><span class="n">08</span>Dropdowns &amp; menus</div>
+    <div><span class="n">09</span>Orbs &amp; agent card</div>
+    <div><span class="n">10</span>Charts</div>
+    <div><span class="n">11</span>Status cards &amp; app shell</div>
+    <div><span class="n">12</span>Responsive &amp; dependencies</div>
+  </div>
+
+  <h2>01 · Quick start &amp; theming</h2>
+  <pre>&lt;html data-pd-theme="dark"&gt;            &lt;!-- DARK IS DEFAULT --&gt;
+  &lt;head&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+    &lt;script src="theme.js"&gt;&lt;/script&gt;        &lt;!-- optional persistence --&gt;
+    &lt;link rel="stylesheet" href="styles.css"&gt;  &lt;!-- the ONLY stylesheet --&gt;
+  &lt;/head&gt;</pre>
+  <div class="callout">The whole system flips on one attribute — <code>data-pd-theme="dark"</code> (default) or <code>"light"</code>. Use semantic variables (<code>var(--text)</code>, <code>var(--surface)</code>, <code>var(--accent)</code>) in product code; never hard-code hex. No build step, no npm, no CSS framework.</div>
+</div>
+
+<!-- COLOR -->
+<div class="page page-break">
+  <h2>02 · Color</h2>
+  <h3>NEUTRALS · DARK</h3>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--pd-black)"></div><span class="nm">bg</span><span class="hx">08080B</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-ink-850)"></div><span class="nm">panel</span><span class="hx">0D0D11</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-ink-800)"></div><span class="nm">input</span><span class="hx">131318</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-ink-700)"></div><span class="nm">charcoal</span><span class="hx">2B2B33</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-gray-500)"></div><span class="nm">label</span><span class="hx">6E6E78</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-gray-300)"></div><span class="nm">muted</span><span class="hx">9A9AA3</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-gray-100)"></div><span class="nm">text</span><span class="hx">E9E9EE</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-white)"></div><span class="nm">white</span><span class="hx">FFFFFF</span></div>
+  </div>
+  <h3>AGENT ACCENTS · SOLID (top) · TINT (bottom)</h3>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--pd-blue)"></div><div class="chip" style="background:var(--pd-blue-200);height:18px"></div><span class="nm">Blue</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-emerald)"></div><div class="chip" style="background:var(--pd-emerald-200);height:18px"></div><span class="nm">Emerald</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-violet)"></div><div class="chip" style="background:var(--pd-violet-200);height:18px"></div><span class="nm">Violet</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-amber)"></div><div class="chip" style="background:var(--pd-amber-200);height:18px"></div><span class="nm">Amber</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-rose)"></div><div class="chip" style="background:var(--pd-rose-200);height:18px"></div><span class="nm">Rose</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-cyan)"></div><div class="chip" style="background:var(--pd-cyan-200);height:18px"></div><span class="nm">Cyan</span></div>
+  </div>
+  <h3>STATUS</h3>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--pd-success)"></div><span class="nm">Success</span><span class="hx">3ECF8E</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-warning)"></div><span class="nm">Warning</span><span class="hx">F0B35B</span></div>
+    <div class="sw"><div class="chip" style="background:var(--pd-danger)"></div><span class="nm">Danger</span><span class="hx">F43F5E</span></div>
+  </div>
+  <p style="font-size:12.5px">Light theme uses near-white paper <code>#FCFCFE</code> + white surfaces; accents switch to their solid value. All themed via the semantic aliases in <code>tokens/colors.css</code>.</p>
+</div>
+
+<!-- TYPOGRAPHY -->
+<div class="page page-break">
+  <h2>03 · Typography</h2>
+  <p>UI/body: <strong>Helvetica Neue</strong> (<code>--font-sans</code>). Labels/timers: <strong>IBM Plex Mono</strong> (<code>--font-mono</code>), UPPERCASE + tracked. Weights 400/500/600 only.</p>
+  <div class="demo col" style="gap:14px">
+    <div style="font-size:30px;font-weight:600;letter-spacing:-.01em;color:var(--text-strong)">Headline · 30 / 600</div>
+    <div style="font-size:25px;font-weight:600;color:var(--text-heading)">Agent name (call) · 25 / 600</div>
+    <div style="font-size:20px;font-weight:600;color:var(--text-heading)">Card heading · 20 / 600</div>
+    <div style="font-size:17px;font-weight:600;color:var(--text-heading)">Section title · 17 / 600</div>
+    <div style="font-size:15px;color:var(--text-soft)">Lead paragraph · 15 / 400 · line-height 1.6</div>
+    <div style="font-size:14px;color:var(--text-soft)">Body copy · 14 / 400 — calm, precise, enterprise.</div>
+    <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.22em;color:var(--text-label)">EYEBROW · MONO 10.5 · TRACKING .22EM</div>
+    <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;color:var(--text-label-2)">MICRO LABEL · MONO 9.5 · TRACKING .14EM</div>
+  </div>
+  <table>
+    <tr><th>Token</th><th>px</th><th>Use</th></tr>
+    <tr><td>--text-4xl</td><td>30</td><td>Page headline</td></tr>
+    <tr><td>--text-3xl / 2xl</td><td>25 / 20</td><td>Agent name / card heading</td></tr>
+    <tr><td>--text-xl / lg</td><td>17 / 15</td><td>Section title / lead</td></tr>
+    <tr><td>--text-base / md / sm</td><td>14 / 13.5 / 12.5</td><td>Body / buttons / small</td></tr>
+    <tr><td>--text-xs / 2xs</td><td>10.5 / 9.5</td><td>Mono eyebrow / micro-label</td></tr>
+  </table>
+</div>
+
+<!-- SPACING / RADIUS / ELEVATION / MOTION -->
+<div class="page page-break">
+  <h2>04 · Spacing, radius, elevation &amp; motion</h2>
+  <h3>RADIUS</h3>
+  <div class="row">
+    <div class="iclab"><div style="width:58px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm)"></div><span class="t">SM · 9</span></div>
+    <div class="iclab"><div style="width:58px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-md)"></div><span class="t">MD · 10</span></div>
+    <div class="iclab"><div style="width:58px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg)"></div><span class="t">LG · 14</span></div>
+    <div class="iclab"><div style="width:58px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-xl)"></div><span class="t">XL · 18</span></div>
+    <div class="iclab"><div style="width:58px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-2xl)"></div><span class="t">2XL · 20</span></div>
+    <div class="iclab"><div style="width:70px;height:34px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-pill)"></div><span class="t">PILL</span></div>
+    <div class="iclab"><div style="width:40px;height:40px;background:var(--surface);border:1px solid var(--border-strong);border-radius:50%"></div><span class="t">CIRCLE</span></div>
+  </div>
+  <h3>ELEVATION &amp; BORDERS</h3>
+  <div class="row">
+    <div class="iclab"><div style="width:120px;height:54px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg);box-shadow:var(--shadow-card-inner)"></div><span class="t">CARD · INNER SHEEN</span></div>
+    <div class="iclab"><div style="width:120px;height:54px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg)"></div><span class="t">PANEL · FLAT</span></div>
+    <div class="iclab"><div style="width:120px;height:54px;background:var(--panel);border:1px solid var(--border-strong);border-radius:var(--radius-lg);box-shadow:var(--shadow-modal)"></div><span class="t">MODAL · SHADOW</span></div>
+  </div>
+  <div class="grid2">
+    <table><tr><th>Spacing (4px grid)</th></tr><tr><td>2·4·6·8·10·12·16·20·24·28·32·40·48·56</td></tr><tr><th>Control heights</th></tr><tr><td>sm 36 · md 42 · lg 48 · min tap 44</td></tr></table>
+    <table><tr><th>Motion</th></tr><tr><td>UI 150–180ms · theme 320ms · orb 500ms</td></tr><tr><th>Loops</th></tr><tr><td>float 6.5s · sheen 16s · rings 2.6s · blink 1.3s</td></tr></table>
+  </div>
+</div>
+
+<!-- ICONOGRAPHY -->
+<div class="page page-break">
+  <h2>05 · Iconography</h2>
+  <p>Inline line SVGs, 1.9px stroke, rounded caps. <strong>No emoji anywhere</strong> — including CTAs (use the <code>mic</code> icon). Full set below; extend via Lucide paths.</p>
+  <div class="row" id="iconGrid"></div>
+</div>
+
+<!-- BUTTONS -->
+<div class="page page-break">
+  <h2>06 · Buttons, chips &amp; pills</h2>
+  <h3>BUTTON VARIANTS</h3>
+  <div class="demo" id="btnVariants"></div>
+  <h3>STATES &amp; SIZES</h3>
+  <div class="demo">
+    <button class="pd-btn pd-btn--primary">Default</button>
+    <button class="pd-btn pd-btn--primary" style="transform:translateY(-1px);background:var(--btn-primary-bg-hover)">Hover</button>
+    <button class="pd-btn pd-btn--primary" disabled>Disabled</button>
+    <button class="pd-btn pd-btn--primary pd-btn--sm" id="smBtn">Small</button>
+  </div>
+  <h3>CHIPS · STATUS PILLS</h3>
+  <div class="demo">
+    <span class="pd-chip" style="--acc:var(--pd-blue)">COLLECTIONS</span>
+    <span class="pd-chip" style="--acc:var(--pd-emerald)">SALES</span>
+    <span class="pd-chip" style="--acc:var(--pd-violet)">APPOINTMENTS</span>
+    <span class="pd-pill-status pd-pill-live"><span class="pd-status-dot" style="width:6px;height:6px"></span>LIVE</span>
+    <span class="pd-pill-status pd-pill-paused">PAUSED</span>
+    <span class="pd-pill-status pd-pill-draft">DRAFT</span>
+  </div>
+</div>
+
+<!-- FORMS -->
+<div class="page page-break">
+  <h2>07 · Form controls</h2>
+  <div class="grid2">
+    <div>
+      <h3>INPUTS · SIZES · STATES</h3>
+      <div class="demo col" style="gap:10px">
+        <input class="pd-input" value="Default input">
+        <input class="pd-input pd-input--sm" placeholder="Small">
+        <input class="pd-input invalid" value="Invalid"><span class="pd-error" style="margin-top:-4px">ENTER A VALID VALUE</span>
+        <input class="pd-input" value="Disabled" disabled>
+        <select class="pd-select"><option>Native select</option></select>
+      </div>
+    </div>
+    <div>
+      <h3>TOGGLES · CHOICES · SEARCH</h3>
+      <div class="demo col" style="gap:13px">
+        <label class="pd-check"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Checkbox</label>
+        <label class="pd-check pd-radio"><input type="radio" name="r" checked><span class="box"></span>Radio</label>
+        <label class="pd-switch" style="gap:10px"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span><span style="margin-left:10px;font-size:13px;color:var(--text-soft)">Switch</span></label>
+        <div class="pd-segment"><button>24h</button><button class="active">7d</button><button>30d</button></div>
+        <div class="pd-search-lg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Search…"><kbd>⌘K</kbd></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DROPDOWNS -->
+<div class="page page-break">
+  <h2>08 · Dropdowns &amp; menus</h2>
+  <p>Click-to-open popover for actions or rich option lists — section labels, icon items, separators, danger item, and an active-state checkmark. (Shown open below.)</p>
+  <div class="demo" style="align-items:flex-start;min-height:240px">
+    <div class="pd-dropdown" data-open style="position:static">
+      <button class="pd-dropdown-trigger"><span style="display:flex;align-items:center;gap:9px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>Agent actions</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="pd-menu" style="position:static;margin-top:8px;opacity:1;transform:none;visibility:visible;pointer-events:auto">
+        <div class="pd-menu-label">MANAGE</div>
+        <button class="pd-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>Edit configuration</button>
+        <button class="pd-menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Test call</button>
+        <div class="pd-menu-sep"></div>
+        <button class="pd-menu-item danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete agent</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ORBS -->
+<div class="page page-break">
+  <h2>09 · Orbs &amp; agent card</h2>
+  <p>The signature voice visual — six hues, three states (idle float, speaking glow + rings, calm). One hue per agent.</p>
+  <div class="demo" id="orbRow" style="gap:22px"></div>
+  <h3>AGENT CARD</h3>
+  <div class="demo" style="max-width:280px">
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;width:100%">
+      <div class="pd-orb orb-emerald sm"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>
+      <div style="font-size:20px;font-weight:600;color:var(--text-heading)">Max</div>
+      <span class="pd-chip" style="--acc:var(--pd-emerald)">SALES QUALIFICATION</span>
+      <p style="font-size:13px;margin:0">Qualifies inbound leads and books meetings, 24/7.</p>
+      <button class="pd-talk" style="--acc:var(--pd-emerald)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to Max</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="page page-break">
+  <h2>10 · Charts</h2>
+  <h3>LINE / AREA · DOTTED GRIDLINES</h3>
+  <div class="demo col">
+    <div class="pd-chart" style="padding:8px 0 0"><div class="pd-chart-plot" style="height:150px;padding-left:30px">
+      <div class="pd-chart-yaxis"><span>1.5k</span><span>1.0k</span><span>0.5k</span><span>0</span></div>
+      <div class="pd-chart-grid" style="left:30px"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line solid"></div></div>
+      <svg class="pd-line-svg" viewBox="0 0 300 160" preserveAspectRatio="none" style="position:absolute;left:30px;right:0;top:0;bottom:0;width:calc(100% - 30px);height:100%">
+        <defs><linearGradient id="pdAreaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--pd-blue)" stop-opacity=".28"/><stop offset="100%" stop-color="var(--pd-blue)" stop-opacity="0"/></linearGradient></defs>
+        <path class="pd-line-area" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84 L300,160 L0,160 Z"/>
+        <path class="pd-line-stroke dashed" style="stroke:var(--text-muted)" d="M0,130 L50,118 L100,110 L150,96 L200,90 L250,100 L300,96"/>
+        <path class="pd-line-stroke" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84"/>
+        <circle class="pd-line-dot" cx="200" cy="40" r="4"/>
+      </svg>
+    </div></div>
+  </div>
+  <div class="grid2">
+    <div><h3>GROUPED BARS</h3><div class="demo"><div class="pd-bars" style="height:120px;width:100%">
+      <div class="col"><div class="grp"><div class="fill" style="height:60%"></div><div class="fill g2" style="height:40%"></div></div><span class="lab">ARIA</span></div>
+      <div class="col"><div class="grp"><div class="fill" style="height:48%"></div><div class="fill g2" style="height:72%"></div></div><span class="lab">MAX</span></div>
+      <div class="col"><div class="grp"><div class="fill" style="height:84%"></div><div class="fill g2" style="height:30%"></div></div><span class="lab">SOL</span></div>
+    </div></div></div>
+    <div><h3>DONUT · METERS · SPARK</h3><div class="demo col" style="gap:12px">
+      <div style="display:flex;align-items:center;gap:16px"><div class="pd-donut" style="width:80px;height:80px;background:conic-gradient(var(--pd-success) 0 68%,var(--pd-warning) 68% 86%,var(--pd-danger) 86% 100%)"><div class="pd-donut-center"><span class="v" style="font-size:14px">68%</span></div></div>
+      <svg class="pd-spark" viewBox="0 0 84 26"><path d="M2,20 L14,16 L26,18 L38,10 L50,12 L62,6 L74,8 L82,4"/></svg></div>
+      <div class="pd-meter success"><div class="bar" style="width:82%"></div></div>
+      <div class="pd-meter"><div class="bar" style="width:92%"></div></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- STATUS CARDS + APP SHELL -->
+<div class="page page-break">
+  <h2>11 · Status cards &amp; app shell</h2>
+  <h3>STATUS CARDS</h3>
+  <div class="row" style="gap:12px">
+    <div class="pd-card" style="flex:1;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px"><div style="width:44px;height:44px;border-radius:50%;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.35);display:flex;align-items:center;justify-content:center;color:var(--pd-success)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div style="font-size:15px;font-weight:600;color:var(--text-heading)">Success</div></div>
+    <div class="pd-card" style="flex:1;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px"><div style="width:44px;height:44px;border-radius:var(--radius-lg);background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);display:flex;align-items:center;justify-content:center;color:var(--pd-danger-fg-dark);font-size:22px;font-weight:700">!</div><div style="font-size:15px;font-weight:600;color:var(--text-heading)">Error</div></div>
+    <div class="pd-card" style="flex:1;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px"><div style="width:44px;height:44px;border-radius:50%;background:var(--input-bg);border:1px solid var(--border-input);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:20px">∅</div><div style="font-size:15px;font-weight:600;color:var(--text-heading)">Empty</div></div>
+  </div>
+  <h3>STAT TILES</h3>
+  <div class="pd-stats" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="pd-stat"><div class="k"><span class="pd-status-dot"></span>LIVE CALLS</div><div class="v">27</div><div class="d"><span class="pd-delta-up">▲ 12%</span></div></div>
+    <div class="pd-stat"><div class="k">RESOLUTION</div><div class="v">91%</div><div class="d"><span class="pd-delta-up">▲ 2.1%</span></div></div>
+    <div class="pd-stat"><div class="k">CSAT</div><div class="v">4.6</div><div class="d"><span class="pd-delta-up">▲ 0.2</span></div></div>
+  </div>
+  <h3>TABLE</h3>
+  <div class="pd-section"><table class="pd-table"><thead><tr><th>Agent</th><th>Status</th><th>Calls</th></tr></thead><tbody>
+    <tr><td class="pd-cell-strong">Aria</td><td><span class="pd-pill-status pd-pill-live"><span class="pd-status-dot" style="width:6px;height:6px"></span>LIVE</span></td><td>412</td></tr>
+    <tr><td class="pd-cell-strong">Max</td><td><span class="pd-pill-status pd-pill-live"><span class="pd-status-dot" style="width:6px;height:6px"></span>LIVE</span></td><td>388</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- RESPONSIVE + DEPS -->
+<div class="page page-break">
+  <h2>12 · Responsive &amp; dependencies</h2>
+  <p>Responsive by default — always include the viewport meta. Breakpoints: <code>900px</code> tablet, <code>600px</code> mobile, <code>380px</code> small.</p>
+  <table>
+    <tr><th>Surface</th><th>Behavior</th></tr>
+    <tr><td>App shell</td><td>Full sidebar ≥900 → icon rail 600–900 → top nav &lt;600</td></tr>
+    <tr><td>Stat grids</td><td>Auto-fit → 2-up → 1-up</td></tr>
+    <tr><td>Tables</td><td>Scroll horizontally inside their card &lt;600</td></tr>
+    <tr><td>Cards / orbs / charts</td><td>Stack &amp; scale down; tap targets ≥44px</td></tr>
+  </table>
+  <h3>DEPENDENCIES &amp; FALLBACKS</h3>
+  <table>
+    <tr><th>Dependency</th><th>Fallback</th></tr>
+    <tr><td>IBM Plex Mono (Google Fonts)</td><td>system mono · self-host for offline/CSP</td></tr>
+    <tr><td>Helvetica Neue (system font)</td><td>Arial / system-ui · self-host for exact rendering</td></tr>
+    <tr><td>CSS color-mix()</td><td>evergreen browsers; precomputed *-200 tints for old targets</td></tr>
+    <tr><td>CSS custom properties</td><td>evergreen only (no IE)</td></tr>
+    <tr><td>React</td><td>only for .jsx components; pd-* classes are framework-free</td></tr>
+  </table>
+  <div class="callout">No build step · no npm · no CSS framework. <code>styles.css</code> + <code>assets/</code> is the entire runtime. Full text reference in <code>DOCUMENTATION.md</code>; AI rules in <code>AI_CONTEXT.md</code> / <code>CLAUDE.md</code> / <code>.cursorrules</code>.</div>
+  <p style="margin-top:22px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text-label)">PREDIXION AI · DESIGN SYSTEM v1.1 · harshal@predixion.ai</p>
+</div>
+
+<script>
+  // icon grid
+  var ICON={overview:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',mic:'<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/>',analytics:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9 2 2 0 1 1-2.7 2.7 1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5 2 2 0 1 1-4 0 1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3 2 2 0 1 1-2.7-2.8 1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1 2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9 2 2 0 1 1 2.8-2.7 1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.5 2 2 0 1 1 4 0 1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3 2 2 0 1 1 2.7 2.8 1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.5 1 2 2 0 1 1 0 4 1.7 1.7 0 0 0-1.5 1Z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',integration:'<path d="M10 3H6a2 2 0 0 0-2 2v4M14 3h4a2 2 0 0 1 2 2v4M10 21H6a2 2 0 0 1-2-2v-4M14 21h4a2 2 0 0 0 2-2v-4"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>',plug:'<path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0Z"/><path d="M12 17v5"/>',webhook:'<path d="M9 8a3 3 0 1 1 4 2.8L9.5 17H16"/><path d="M7.5 12.5 5 17a3 3 0 1 0 3.5 4"/><path d="M15.5 10.5 18 15a3 3 0 1 1-2 5.5"/>',api:'<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"/>',code:'<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',terminal:'<path d="m4 17 6-5-6-5M12 19h8"/>',key:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M17 5l3 3M14 8l3 3"/>',secret:'<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/>',lock:'<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',unlock:'<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',token:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H9"/>',shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>',link:'<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',externalLink:'<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',eyeOff:'<path d="M9.9 4.2A10 10 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-3 3.7M6.6 6.6A18 18 0 0 0 2 11s3.5 7 10 7a10 10 0 0 0 4-.8"/><path d="M9.5 9.5a3 3 0 0 0 4.2 4.2M2 2l20 20"/>',arrowRight:'<path d="M5 12h14M13 6l6 6-6 6"/>',arrowLeft:'<path d="M19 12H5M11 18l-6-6 6-6"/>',forward:'<path d="m15 17 5-5-5-5M4 18v-2a4 4 0 0 1 4-4h12"/>',back:'<path d="m9 17-5-5 5-5M20 18v-2a4 4 0 0 0-4-4H4"/>',chevronDown:'<path d="m6 9 6 6 6-6"/>',accept:'<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',reject:'<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>',check:'<path d="M20 6 9 17l-5-5"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',plus:'<path d="M12 5v14M5 12h14"/>',info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>',download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 8l5-5 5 5M12 3v12"/>',send:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/>',trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/>',more:'<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',filter:'<path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3Z"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>',calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 3 5.2 2 2 0 0 1 5 3h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',play:'<path d="M6 4v16l14-8L6 4Z"/>',pause:'<path d="M8 4v16M16 4v16"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>',star:'<path d="M12 2l2.9 6.26 6.6.86-4.9 4.6 1.27 6.78L12 17.9 6.13 20.5 7.4 13.72 2.5 9.12l6.6-.86L12 2z"/>'};
+  document.getElementById("iconGrid").innerHTML=Object.keys(ICON).map(function(k){return '<div class="iclab"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+ICON[k]+'</svg></div><span class="t">'+k+'</span></div>';}).join("");
+  // button variants
+  document.getElementById("btnVariants").innerHTML='<button class="pd-btn pd-btn--primary">Primary</button><button class="pd-btn pd-btn--secondary">Secondary</button><button class="pd-btn pd-btn--back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back</button><button class="pd-btn pd-btn--danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M18 6 6 18M6 6l12 12"/></svg>End call</button><button class="pd-talk" style="--acc:var(--pd-blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:-2px"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>Talk to Aria</button>';
+  // orb states
+  function orb(c,cls){return '<div class="iclab"><div class="pd-orb orb-'+c+' sm '+cls+'"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div><span class="t">'+(cls||'idle').toUpperCase()+'</span></div>';}
+  document.getElementById("orbRow").innerHTML=orb('blue','speaking')+orb('violet','')+orb('amber','calm')+orb('rose','')+orb('cyan','');
+</script>
+</body>
+</html>

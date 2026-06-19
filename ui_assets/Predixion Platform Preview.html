@@ -1,0 +1,160 @@
+<!DOCTYPE html><html data-pd-theme="dark" lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predixion Console — Platform Preview</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  html,body{margin:0}
+  .view{display:none;animation:fade .3s ease both}
+  .view.on{display:block}
+  @keyframes fade{from{transform:translateY(6px)}to{transform:none}}
+  .bars{display:flex;align-items:flex-end;gap:10px;height:190px;padding:20px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .bar .fill{width:100%;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--pd-blue-200),var(--pd-blue));opacity:.9}
+  .bar .lab{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;color:var(--text-label)}
+  .donut{width:140px;height:140px;border-radius:50%;background:conic-gradient(var(--pd-success) 0 68%,var(--pd-warning) 68% 86%,var(--pd-danger) 86% 100%);position:relative;flex:none}
+  .donut::after{content:"";position:absolute;inset:22px;border-radius:50%;background:var(--surface)}
+  .donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle}
+  .twocol{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+  .agentgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .agentcard{padding:26px 22px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+  .agentcard h2{margin:0;font-size:19px;font-weight:600;color:var(--text-heading)}
+  .agentcard p{margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.55;flex:1}
+  /* live-call slide-over */
+  .scrim{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(6px);z-index:80;display:none;align-items:center;justify-content:center;padding:24px}
+  .scrim.on{display:flex}
+  .callpanel{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-2xl);box-shadow:var(--shadow-modal);padding:30px 30px 28px;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative}
+  .callpanel .close{position:absolute;top:16px;right:16px}
+  @media(max-width:1000px){.twocol{grid-template-columns:1fr}}
+</style></head>
+<body>
+<div class="pd-app" id="root">
+  <aside class="pd-sidebar">
+    <div class="brand"><img src="assets/predixion-logo.png" alt="Predixion AI"></div>
+    <div class="pd-navsec">CONSOLE</div>
+    <div class="pd-nav active" data-v="overview"><i data-i="overview"></i>Overview</div>
+    <div class="pd-nav" data-v="agents"><i data-i="mic"></i>Agents</div>
+    <div class="pd-nav" data-v="analytics"><i data-i="analytics"></i>Analytics</div>
+    <div class="pd-nav" data-v="conversations"><i data-i="chat"></i>Conversations</div>
+    <div class="pd-navsec">WORKSPACE</div>
+    <div class="pd-nav" data-v="team"><i data-i="users"></i>Team</div>
+    <div class="pd-nav" data-v="settings"><i data-i="settings"></i>Settings</div>
+    <div style="flex:1"></div>
+    <div class="pd-toggle" id="toggle" style="align-self:flex-start;margin:8px">
+      <button data-theme="light" aria-label="Light"><i data-i="sun" data-sz="15"></i></button>
+      <button data-theme="dark" aria-pressed="true" aria-label="Dark"><i data-i="moon" data-sz="15"></i></button>
+    </div>
+  </aside>
+
+  <div class="pd-content">
+    <div class="pd-topbar">
+      <div class="pd-search"><i data-i="search" data-sz="14"></i><input placeholder="Search agents, conversations…"></div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="pd-btn pd-btn--primary pd-btn--sm" id="newAgent"><i data-i="plus" data-sz="15"></i> New agent</button>
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--avatar-chip);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:12px;color:var(--text-muted)">AF</div>
+      </div>
+    </div>
+
+    <div class="pd-main-pad">
+      <!-- OVERVIEW -->
+      <section class="view on" data-view="overview">
+        <div class="pd-pagehead"><div><p class="eyebrow">OVERVIEW</p><h1>Good morning, Acme</h1><p>3 agents live · 1,284 conversations this week</p></div></div>
+        <div class="pd-stats" style="margin-top:20px">
+          <div class="pd-stat"><div class="k"><span class="pd-status-dot"></span>LIVE CALLS</div><div class="v">27</div><div class="d"><span class="pd-delta-up">▲ 12%</span> vs last hour</div></div>
+          <div class="pd-stat"><div class="k">CONVERSATIONS · 7D</div><div class="v">1,284</div><div class="d"><span class="pd-delta-up">▲ 8.4%</span> vs prior week</div></div>
+          <div class="pd-stat"><div class="k">AVG HANDLE TIME</div><div class="v">2:41</div><div class="d"><span class="pd-delta-down">▲ 6s</span> vs prior week</div></div>
+          <div class="pd-stat"><div class="k">RESOLUTION</div><div class="v">91%</div><div class="d"><span class="pd-delta-up">▲ 2.1%</span> vs prior week</div></div>
+        </div>
+        <div class="pd-section" style="margin-top:22px">
+          <div class="pd-section-head"><h3>Agents</h3><div class="pd-tabs"><button class="pd-tab active">All</button><button class="pd-tab">Live</button></div></div>
+          <table class="pd-table"><thead><tr><th>Agent</th><th>Objective</th><th>Status</th><th>Calls · 24h</th><th>Resolution</th></tr></thead><tbody id="ovRows"></tbody></table>
+        </div>
+      </section>
+
+      <!-- AGENTS -->
+      <section class="view" data-view="agents">
+        <div class="pd-pagehead"><div><p class="eyebrow">AGENTS</p><h1>Your voice agents</h1><p>Click an agent to start a live test call.</p></div></div>
+        <div class="agentgrid" id="agentGrid" style="margin-top:20px"></div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="view" data-view="analytics">
+        <div class="pd-pagehead"><div><p class="eyebrow">ANALYTICS</p><h1>Conversation insights</h1></div><div class="pd-tabs"><button class="pd-tab">24h</button><button class="pd-tab active">7d</button><button class="pd-tab">30d</button></div></div>
+        <div class="pd-stats" style="margin-top:20px">
+          <div class="pd-stat"><div class="k">TOTAL</div><div class="v">1,284</div><div class="d"><span class="pd-delta-up">▲ 8.4%</span></div></div>
+          <div class="pd-stat"><div class="k">CONTAINMENT</div><div class="v">82%</div><div class="d"><span class="pd-delta-up">▲ 3.0%</span></div></div>
+          <div class="pd-stat"><div class="k">CSAT</div><div class="v">4.6</div><div class="d"><span class="pd-delta-up">▲ 0.2</span></div></div>
+        </div>
+        <div class="twocol" style="margin-top:18px">
+          <div class="pd-section"><div class="pd-section-head"><h3>Volume</h3><span class="pd-legend"><span style="color:var(--pd-blue)"><span class="dot" style="background:var(--pd-blue)"></span>This week</span><span style="color:var(--text-muted)"><span class="dash"></span>Last week</span></span></div>
+            <div class="pd-chart"><div class="pd-chart-plot" style="height:188px;padding-left:30px">
+              <div class="pd-chart-yaxis"><span>1.5k</span><span>1.0k</span><span>0.5k</span><span>0</span></div>
+              <div class="pd-chart-grid" style="left:30px"><div class="line"></div><div class="line"></div><div class="line"></div><div class="line solid"></div></div>
+              <svg class="pd-line-svg" viewBox="0 0 300 160" preserveAspectRatio="none" style="position:absolute;left:30px;right:0;top:0;bottom:0;width:calc(100% - 30px);height:100%">
+                <defs><linearGradient id="pdAreaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--pd-blue)" stop-opacity=".28"/><stop offset="100%" stop-color="var(--pd-blue)" stop-opacity="0"/></linearGradient></defs>
+                <path class="pd-line-area" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84 L300,160 L0,160 Z"/>
+                <path class="pd-line-stroke dashed" style="stroke:var(--text-muted)" d="M0,130 L50,118 L100,110 L150,96 L200,90 L250,100 L300,96"/>
+                <path class="pd-line-stroke" d="M0,120 L50,96 L100,104 L150,60 L200,40 L250,72 L300,84"/>
+                <circle class="pd-line-dot" cx="200" cy="40" r="4"/>
+              </svg>
+            </div><div class="pd-chart-xaxis" style="padding-left:30px"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div></div>
+          </div>
+          <div class="pd-section"><div class="pd-section-head"><h3>Outcomes</h3></div>
+            <div style="display:flex;align-items:center;gap:22px;padding:22px 20px">
+              <div class="donut"><div class="donut-c"><span style="font-size:20px;font-weight:600;color:var(--text-strong)">68%</span><span style="font-family:var(--font-mono);font-size:8px;letter-spacing:.12em;color:var(--text-label)">RESOLVED</span></div></div>
+              <div style="display:flex;flex-direction:column;gap:11px;font-size:13px;color:var(--text-soft)"><span><span class="dot" style="background:var(--pd-success)"></span>Resolved · 68%</span><span><span class="dot" style="background:var(--pd-warning)"></span>Escalated · 18%</span><span><span class="dot" style="background:var(--pd-danger)"></span>Dropped · 14%</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- placeholder views -->
+      <section class="view" data-view="conversations"><div class="pd-pagehead"><div><p class="eyebrow">CONVERSATIONS</p><h1>Transcripts</h1><p>Every call, fully transcribed and searchable.</p></div></div></section>
+      <section class="view" data-view="team"><div class="pd-pagehead"><div><p class="eyebrow">TEAM</p><h1>Members</h1></div></div></section>
+      <section class="view" data-view="settings"><div class="pd-pagehead"><div><p class="eyebrow">SETTINGS</p><h1>Workspace settings</h1></div></div></section>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE CALL slide-over -->
+<div class="scrim" id="scrim">
+  <div class="callpanel">
+    <button class="pd-btn pd-btn--secondary pd-btn--sm close" id="closeCall" style="padding:8px 10px"><i data-i="x" data-sz="14"></i></button>
+    <span style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;color:var(--text-label)">LIVE TEST CALL</span>
+    <div id="callOrb" style="padding:14px"></div>
+    <h2 style="margin:0;font-size:23px;font-weight:600;color:var(--text-heading)" id="callName">Aria</h2>
+    <span class="pd-chip" id="callChip" style="--acc:var(--pd-blue)">COLLECTIONS &amp; RECOVERY</span>
+    <span style="display:inline-flex;align-items:center;gap:9px;font-family:var(--font-mono);font-size:13px;letter-spacing:.12em;color:var(--accent);margin-top:4px"><span class="pd-status-dot"></span><span id="callTimer">0:00</span></span>
+    <button class="pd-btn pd-btn--danger" id="endCall" style="margin-top:6px"><i data-i="x" data-sz="14"></i> End call</button>
+  </div>
+</div>
+
+<script>
+const ICON={overview:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',mic:'<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/>',analytics:'<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9 2 2 0 1 1-2.7 2.7 1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5 2 2 0 1 1-4 0 1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3 2 2 0 1 1-2.7-2.8 1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1 2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9 2 2 0 1 1 2.8-2.7 1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.5 2 2 0 1 1 4 0 1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3 2 2 0 1 1 2.7 2.8 1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.5 1 2 2 0 1 1 0 4 1.7 1.7 0 0 0-1.5 1Z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>'};
+function paintIcons(){document.querySelectorAll("i[data-i]").forEach(el=>{const n=el.dataset.i,s=el.dataset.sz||16;el.outerHTML=`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON[n]||""}</svg>`;});}
+const AGENTS=[{name:"Aria",color:"blue",obj:"Collections & Recovery",desc:"Empathetic outreach for early-stage delinquencies.",calls:412,res:"93%"},{name:"Max",color:"emerald",obj:"Sales Qualification",desc:"Qualifies leads and books meetings, 24/7.",calls:388,res:"88%"},{name:"Sol",color:"violet",obj:"Appointments & Reminders",desc:"Confirms, reschedules, cuts no-shows.",calls:301,res:"95%"}];
+const ACC={blue:"var(--pd-blue)",emerald:"var(--pd-emerald)",violet:"var(--pd-violet)"};
+const dotBg={blue:"radial-gradient(circle at 35% 30%,#BFDBFE,#3B82F6 70%,#1E3A8A)",emerald:"radial-gradient(circle at 35% 30%,#A7F3D0,#10B981 70%,#065F46)",violet:"radial-gradient(circle at 35% 30%,#DDD6FE,#8B5CF6 70%,#4C1D95)"};
+const orb=(c,cls)=>`<div class="pd-orb orb-${c} ${cls}"><div class="r1"></div><div class="r2"></div><div class="sphere"><div class="bA"></div><div class="bB"></div><div class="bC"></div><div class="sheen"></div></div></div>`;
+const $=s=>document.querySelector(s);
+
+$("#ovRows").innerHTML=AGENTS.map(a=>`<tr><td><div style="display:flex;align-items:center;gap:11px"><span class="pd-agentdot" style="background:${dotBg[a.color]}"></span><span class="pd-cell-strong">${a.name}</span></div></td><td>${a.obj}</td><td><span class="pd-pill-status pd-pill-live"><span class="pd-status-dot" style="width:6px;height:6px"></span>LIVE</span></td><td>${a.calls}</td><td>${a.res}</td></tr>`).join("");
+$("#agentGrid").innerHTML=AGENTS.map((a,i)=>`<div class="pd-card agentcard">${orb(a.color,"sm")}<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px"><h2>${a.name}</h2><span class="pd-chip" style="--acc:${ACC[a.color]}">${a.obj.toUpperCase()}</span></div><p>${a.desc}</p><button class="pd-talk" style="--acc:${ACC[a.color]};margin-top:6px" data-call="${i}">Test call</button></div>`).join("");
+
+// nav switching
+document.querySelectorAll(".pd-nav").forEach(n=>n.onclick=()=>{document.querySelectorAll(".pd-nav").forEach(x=>x.classList.remove("active"));n.classList.add("active");const v=n.dataset.v;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.dataset.view===v));});
+document.querySelectorAll(".pd-tabs").forEach(g=>g.addEventListener("click",e=>{const t=e.target.closest(".pd-tab");if(!t)return;g.querySelectorAll(".pd-tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");}));
+// theme
+$("#toggle").addEventListener("click",e=>{const b=e.target.closest("[data-theme]");if(!b)return;document.querySelector("html").setAttribute("data-pd-theme",b.dataset.theme);[...$("#toggle").children].forEach(x=>x.removeAttribute("aria-pressed"));b.setAttribute("aria-pressed","true");});
+// live call
+let tId=null,spId=null,secs=0;
+function openCall(i){const a=AGENTS[i];$("#callOrb").innerHTML=orb(a.color,"speaking");$("#callName").textContent=a.name;$("#callChip").textContent=a.obj.toUpperCase();$("#callChip").style.setProperty("--acc",ACC[a.color]);secs=0;$("#callTimer").textContent="0:00";$("#scrim").classList.add("on");
+  tId=setInterval(()=>{secs++;$("#callTimer").textContent=Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");},1000);
+  let sp=true;spId=setInterval(()=>{sp=!sp;const o=$("#callOrb .pd-orb");o&&o.classList.toggle("speaking",sp);},2600);}
+function closeCall(){clearInterval(tId);clearInterval(spId);$("#scrim").classList.remove("on");}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-call]");if(b)openCall(+b.dataset.call);});
+$("#closeCall").onclick=closeCall;$("#endCall").onclick=closeCall;$("#newAgent").onclick=()=>{document.querySelector('.pd-nav[data-v="agents"]').click();};
+$("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeCall();});
+paintIcons();
+</script>
+</body></html>
