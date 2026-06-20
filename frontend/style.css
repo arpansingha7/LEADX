@@ -520,6 +520,49 @@ body {
   background: rgba(255, 255, 255, 0.01);
 }
 
+/* Premium Theme Toggle */
+.pd-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--lx-border);
+  border-radius: 30px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: var(--transition);
+}
+
+[data-pd-theme="light"] .pd-toggle {
+  background: rgba(200, 200, 210, 0.3);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.pd-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--lx-muted);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pd-toggle button:hover {
+  color: var(--lx-text);
+  transform: scale(1.1);
+}
+
+.pd-toggle button[aria-pressed="true"] {
+  background: var(--lx-primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.4);
+  transform: scale(1);
+}
+
 /* Pill Tabs switcher */
 .lx-pill-tabs {
   display: flex;
