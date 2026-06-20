@@ -8,7 +8,7 @@ Welcome, Intern / Junior Software Engineer! This guide explains the technical de
 
 Once our voice agents complete a call, they capture valuable information (e.g. *customer is interested, budget is 50 Lacs, scheduled follow-up*). 
 To make this information useful, we must sync it back to the client's internal sales platform (CRM) immediately:
-1.  **Multiple CRM Integration Support:** Different clients use different CRMs. *Muthoot Finance* might use Salesforce, while another client uses HubSpot or LeadSquared.
+1.  **Multiple CRM Integration Support:** Different clients use different CRMs. *upGrad School of Technology* might use Salesforce, while another client uses HubSpot or LeadSquared.
     *   *Our Solution:* We build a unified interface using the **Adapter Pattern** so our core application can interact with any CRM in the exact same way.
 2.  **Real-Time Lead Ingestion (Webhooks):** Instead of clients manually uploading CSV files every morning, they want leads to flow into LEADX instantly as soon as a customer registers on their website.
     *   *Our Solution:* We build a webhook receiver endpoint that accepts lead payloads in real time.

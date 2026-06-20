@@ -1213,7 +1213,7 @@ async function fetchAuditTrail() {
             } else if (log.event_type === 'batch_leads_ingested') {
               details = `Batch processed: ${log.details?.accepted || 0} accepted for campaign: "${log.details?.campaign_name}".`;
             } else if (log.event_type === 'onboarding_config_updated') {
-              details = log.details?.message || `Client onboarding configuration updated for segment: ${log.details?.industry || 'BFSI'}.`;
+              details = log.details?.message || `Client onboarding configuration updated for segment: ${log.details?.industry || 'Scholarships'}.`;
               dotClass = 'sd-amber';
             } else if (log.event_type === 'call_initiated') {
               details = `Call dial session initiated (Voiz ID: ${log.details?.voiz_session_id || 'Session'}).`;
@@ -1260,7 +1260,7 @@ window.triggerMockHandoff = function(leadId, leadName) {
     return;
   }
 
-  showToast('Warm Handoff', `Routing high-intent lead ${leadName} to Muthoot Finance specialist...`, 'users');
+  showToast('Warm Handoff', `Routing high-intent lead ${leadName} to upGrad School of Technology specialist...`, 'users');
   logActivityFeed(`Warm handoff triggered for <strong>${leadName}</strong>. Routing to specialist queue.`);
 
   setTimeout(() => {
@@ -1311,9 +1311,9 @@ window.preflightVerifyCampaign = function() {
 
 // 15. Client portal interactions
 window.exportClientReport = function() {
-  showToast('Exporting Report', 'Compiling Muthoot Finance performance sheets...', 'folder');
+  showToast('Exporting Report', 'Compiling upGrad School of Technology performance sheets...', 'folder');
   setTimeout(() => {
-    showToast('Download Ready', 'LeadX_Muthoot_Report_June.pdf has been generated.', 'upload');
+    showToast('Download Ready', 'LeadX_uGSOT_Report_June.pdf has been generated.', 'upload');
   }, 1500);
 };
 
@@ -1347,25 +1347,25 @@ window.loadCSVTemplate = function(templateType) {
     csv = `Full Name,Mobile Number,Email,Age,Property Location,Budget
 Rahul Sen,+919999988888,rahul.sen@example.com,30,Mumbai,8500000
 Priya Nair,+919999977777,priya.nair@example.com,27,Bangalore,12000000`;
-    document.getElementById('wizardCampaignName').value = 'Real Estate Brokerage Q3';
+    document.getElementById('wizardCampaignName').value = 'B.Tech Admissions Brokerage Q3';
     document.getElementById('wizardDatasetId').value = 'ds-realestate-03';
     const indSelect = document.getElementById('wizardIndustry');
-    if (indSelect) indSelect.value = 'Real Estate';
-  } else if (templateType === 'bfsi') {
+    if (indSelect) indSelect.value = 'B.Tech Admissions';
+  } else if (templateType === 'scholarships') {
     csv = `Customer Name,Contact Phone,Email Address,Age,Monthly Income,Credit Score
 Karan Shah,+919999966666,karan.shah@example.com,35,75000,740
 Neha Malhotra,+919999955555,neha.malhotra@example.com,29,52000,680`;
-    document.getElementById('wizardCampaignName').value = 'BFSI Loan Ingest June';
-    document.getElementById('wizardDatasetId').value = 'ds-bfsi-june-02';
+    document.getElementById('wizardCampaignName').value = 'Scholarships Loan Ingest June';
+    document.getElementById('wizardDatasetId').value = 'ds-scholarships-june-02';
     const indSelect = document.getElementById('wizardIndustry');
-    if (indSelect) indSelect.value = 'BFSI';
+    if (indSelect) indSelect.value = 'Scholarships';
   }
   document.getElementById('wizardUploadArea').value = csv;
   showToast('Sample Loaded', 'Loaded sample CSV data template.', 'clipboard');
 };
 
 const targetFieldsMap = {
-  bfsi: [
+  scholarships: [
     { key: 'client_id', label: 'Client CRM ID', importance: 'compulsory', desc: 'Required unique ID from client CRM' },
     { key: 'phone', label: 'Phone Number', importance: 'compulsory', desc: 'Required for dialing pipeline' },
     { key: 'name', label: 'Full Name', importance: 'compulsory', desc: 'Used for agent greetings' },
@@ -2882,14 +2882,14 @@ window.triggerManualLeadSync = async function(leadId, leadName) {
 // Mock CRM list data
 const CRM_MOCK_LISTS = {
   hubspot: [
-    { id: 'hs-list-1', name: 'Muthoot Inbound Leads Q3', count: 150 },
+    { id: 'hs-list-1', name: 'uGSOT Inbound Leads Q3', count: 150 },
     { id: 'hs-list-2', name: 'High Intent Callbacks', count: 45 },
     { id: 'hs-list-3', name: 'Website Enquiries', count: 85 }
   ],
   leadsquared: [
     { id: 'lsq-list-1', name: 'LSQ Campaign Lead Group 1', count: 210 },
     { id: 'lsq-list-2', name: 'Mckinsey Personal Loan Interest List', count: 90 },
-    { id: 'lsq-list-3', name: 'LSQ Gold Loan Registrants', count: 180 }
+    { id: 'lsq-list-3', name: 'LSQ AI-First B.Tech Registrants', count: 180 }
   ]
 };
 
@@ -3203,10 +3203,10 @@ function getActiveIndustry() {
   }
 
   const nameLower = selectedCampaign.toLowerCase();
-  if (nameLower.includes('real estate') || nameLower.includes('realestate') || nameLower.includes('property') || nameLower.includes('home') || nameLower.includes('housing')) {
-    return 'Real Estate';
-  } else if (nameLower.includes('bfsi') || nameLower.includes('bank') || nameLower.includes('loan') || nameLower.includes('gold loan') || nameLower.includes('credit') || nameLower.includes('finance')) {
-    return 'BFSI';
+  if (nameLower.includes('b.tech admissions') || nameLower.includes('realestate') || nameLower.includes('property') || nameLower.includes('home') || nameLower.includes('housing')) {
+    return 'B.Tech Admissions';
+  } else if (nameLower.includes('scholarships') || nameLower.includes('bank') || nameLower.includes('loan') || nameLower.includes('AI-First B.Tech') || nameLower.includes('credit') || nameLower.includes('finance')) {
+    return 'Scholarships';
   } else if (nameLower.includes('education') || nameLower.includes('course') || nameLower.includes('college') || nameLower.includes('school') || nameLower.includes('enrollment')) {
     return 'Education';
   }
@@ -3219,7 +3219,7 @@ function getActiveIndustry() {
     return campaigns.includes(selectedCampaign);
   });
   let hasRealEstate = false;
-  let hasBFSI = false;
+  let hasScholarships = false;
   let hasEducation = false;
   
   for (const lead of campaignLeads) {
@@ -3229,7 +3229,7 @@ function getActiveIndustry() {
       break;
     }
     if (raw.credit_score !== undefined || raw.monthly_income !== undefined || raw.loan_amount !== undefined || raw.desired_loan !== undefined) {
-      hasBFSI = true;
+      hasScholarships = true;
       break;
     }
     if (raw.course_interest !== undefined || raw.qualification !== undefined || raw.year_of_graduation !== undefined) {
@@ -3238,8 +3238,8 @@ function getActiveIndustry() {
     }
   }
 
-  if (hasRealEstate) return 'Real Estate';
-  if (hasBFSI) return 'BFSI';
+  if (hasRealEstate) return 'B.Tech Admissions';
+  if (hasScholarships) return 'Scholarships';
   if (hasEducation) return 'Education';
 
   return 'General';
@@ -3253,7 +3253,7 @@ function getActiveSliderKeysForIndustry(industry) {
       { key: 'property_type', label: 'BHK Fit', defaultWeight: 0.33 },
       { key: 'location_preference', label: 'Location Fit', defaultWeight: 0.34 }
     ];
-  } else if (indNormalized === 'bfsi') {
+  } else if (indNormalized === 'scholarships') {
     return [
       { key: 'monthly_income', label: 'Income Fit', defaultWeight: 0.33 },
       { key: 'credit_score', label: 'Credit Score Fit', defaultWeight: 0.33 },
@@ -3393,11 +3393,11 @@ function renderCampaigns(campaigns) {
       <div class="campaign-card">
         <div class="cc-top">
           <div>
-            <div class="cc-name">Muthoot Gold Loan RT Ingestion</div>
+            <div class="cc-name">uGSOT AI-First B.Tech RT Ingestion</div>
             <div class="cc-sub">Mode: Real-Time Dialing | Tenant: ${currentTenant}</div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Gold Loan RT Ingestion')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT AI-First B.Tech RT Ingestion')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
             <span class="lx-badge badge-green">ACTIVE</span>
           </div>
         </div>
@@ -3432,11 +3432,11 @@ function renderCampaigns(campaigns) {
       <div class="campaign-card">
         <div class="cc-top">
           <div>
-            <div class="cc-name">Muthoot Home Loan Re-engagement</div>
+            <div class="cc-name">uGSOT B.Tech Admissions Re-engagement</div>
             <div class="cc-sub">Mode: Real-Time Triggers | Tenant: ${currentTenant}</div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Home Loan Re-engagement')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT B.Tech Admissions Re-engagement')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
             <span class="lx-badge badge-green">ACTIVE</span>
           </div>
         </div>
@@ -3478,11 +3478,11 @@ function renderCampaigns(campaigns) {
       <div class="campaign-card">
         <div class="cc-top">
           <div>
-            <div class="cc-name">Muthoot Finance Personal Loan Batch</div>
+            <div class="cc-name">upGrad School of Technology Scholarship Batch</div>
             <div class="cc-sub">Mode: Non-RT Batch Outbound | Concurrency: 15</div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Finance Personal Loan Batch')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <button class="lx-btn primary" onclick="viewCampaignScores('upGrad School of Technology Scholarship Batch')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
             <span class="lx-badge badge-amber">PAUSED</span>
           </div>
         </div>
@@ -3524,11 +3524,11 @@ function renderCampaigns(campaigns) {
       <div class="campaign-card">
         <div class="cc-top">
           <div>
-            <div class="cc-name">Muthoot Gold Ingest Scheduled Q3</div>
+            <div class="cc-name">uGSOT B.Tech Admissions Scheduled Q3</div>
             <div class="cc-sub">Mode: Scheduled Outbound | Starts: Tomorrow 10:00 AM</div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('Muthoot Gold Ingest Scheduled Q3')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
+            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT B.Tech Admissions Scheduled Q3')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
             <span class="lx-badge badge-gray">SCHEDULED</span>
           </div>
         </div>
@@ -3572,7 +3572,7 @@ function renderCampaigns(campaigns) {
 
 function renderCampaignCardHtml(camp) {
   let agentsAssigned = 4;
-  if (camp.name.toLowerCase().includes('real estate')) agentsAssigned = 6;
+  if (camp.name.toLowerCase().includes('b.tech admissions')) agentsAssigned = 6;
   else if (camp.name.toLowerCase().includes('gold')) agentsAssigned = 8;
   
   const progressPercent = camp.ingested > 0 ? Math.min(Math.round((camp.attempted / camp.ingested) * 100), 100) : 0;
@@ -4065,7 +4065,7 @@ window.loadScriptTemplate = function(type) {
       "nodes": [
         {
           "id": "greeting",
-          "prompt": "Hello! I am calling from Muthoot Finance. I saw you recently checked our Gold Loan interest rates online. Are you interested in getting a quick valuation of your gold jewelry today?",
+          "prompt": "Hello! I am calling from upGrad School of Technology. I saw you recently checked our AI-First B.Tech interest rates online. Are you interested in getting a quick valuation of your gold jewelry today?",
           "expected_intents": ["yes", "no", "later"],
           "branches": {
             "yes": "loan_amount",
@@ -4111,7 +4111,7 @@ window.loadScriptTemplate = function(type) {
         },
         {
           "id": "doorstep_booking",
-          "prompt": "Fantastic. I am scheduling the doorstep evaluation. Our representative will contact you to confirm the time. Thank you for choosing Muthoot Finance!",
+          "prompt": "Fantastic. I am scheduling the doorstep evaluation. Our representative will contact you to confirm the time. Thank you for choosing upGrad School of Technology!",
           "expected_intents": [],
           "branches": {},
           "is_terminal": true
@@ -5064,9 +5064,9 @@ window.viewLeadDetails = async function(leadId) {
 // VOIZ Roster & Demo Call Simulation
 // ==========================================
 const VOICE_AGENTS = [
-  { name: "Aria", color: "blue", objective: "Collections & Recovery", desc: "Empathetic, compliant outreach for early-stage delinquencies — sets up flexible payment arrangements.", summary: "Jordan reached out about an outstanding balance and asked to arrange a flexible repayment plan. Aria verified the account, presented monthly options, and the customer agreed to proceed. A confirmation email will follow." },
-  { name: "Max", color: "emerald", objective: "Sales Qualification", desc: "Qualifies inbound leads, answers product questions, and books meetings with your team, 24/7.", summary: "The caller was evaluating Predixion for outbound sales and asked about pricing and integrations. Max answered the questions, confirmed a strong fit, and booked a follow-up demo for next week." },
-  { name: "Sol", color: "violet", objective: "Appointments & Reminders", desc: "Confirms, reschedules, and sends reminders — keeps your calendar full and no-shows low.", summary: "The customer called to move an upcoming appointment. Sol located the booking, offered nearby openings, and rescheduled to their preferred time. A calendar invite and reminder were sent." }
+  { name: "Aria", color: "blue", objective: "Career Counselling", desc: "Empathetic, structured outreach to guide students on admissions and career paths.", summary: "Jordan reached out about the AI-First B.Tech program and asked about scholarship opportunities. Aria verified the eligibility criteria, presented available scholarship tiers, and the student agreed to proceed with the uGNET application. A confirmation email will follow." },
+  { name: "Max", color: "emerald", objective: "uGNET Admissions Qualification", desc: "Qualifies prospective students, answers AI-First B.Tech questions, and books counselling sessions.", summary: "The caller was evaluating the upGrad B.Tech program and asked about the curriculum. Max answered the questions, confirmed eligibility, and booked a counselling session." },
+  { name: "Sol", color: "violet", objective: "uGNET Test Reminders", desc: "Confirms, reschedules, and sends reminders for the uGNET entrance test to reduce no-shows.", summary: "The student called to move an upcoming uGNET test slot. Sol located the booking, offered nearby openings, and rescheduled to their preferred time. A calendar invite was sent." }
 ];
 
 function renderVoizRoster() {

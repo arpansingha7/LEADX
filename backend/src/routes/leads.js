@@ -1391,7 +1391,7 @@ router.get('/:id/sessions', async (req, res, next) => {
         type: 'whatsapp',
         direction: 'sent',
         sender: 'system',
-        body: `Hello ${name}, thank you for your interest in our real estate campaigns. A representative will contact you shortly on ${phone}.`,
+        body: `Hello ${name}, thank you for your interest in our B.Tech Admissions programs. A representative will contact you shortly on ${phone}.`,
         timestamp: new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString(),
         status: 'read'
       });

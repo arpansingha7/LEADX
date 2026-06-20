@@ -15,7 +15,7 @@ However, **not all leads are created equal**:
 If sales agents call every single lead in the order they arrive, they waste **70% of their time** calling cold or fake prospects. 
 **LEADX solves this problem** by:
 1.  Normalizing and validating contact numbers to guarantee that dialers can reach them.
-2.  Dynamically scoring every lead based on custom rules (BFSI, Real Estate, etc.) so that the sales team only dials the most promising leads first.
+2.  Dynamically scoring every lead based on custom rules (Scholarships, B.Tech Admissions, etc.) so that the sales team only dials the most promising leads first.
 3.  Preventing duplicate records to ensure multiple agents do not call the same customer.
 
 ---

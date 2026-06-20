@@ -21,6 +21,8 @@
   --lx-red: var(--pd-danger);
   --lx-teal: var(--pd-cyan-200);
   
+  --font-sans: 'Rethink Sans', 'Roboto', 'Segoe UI', sans-serif;
+  --font-mono: 'Roboto Mono', Consolas, "Courier New", monospace;
   --lx-font: var(--font-sans);
   --lx-mono: var(--font-mono);
   --transition: var(--dur-base) var(--ease-out);

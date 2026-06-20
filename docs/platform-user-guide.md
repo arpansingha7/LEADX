@@ -30,7 +30,7 @@ flowchart TD
 ### 1. Onboarding & Tenant Settings
 *   **Action:** Open the **Client Onboarding Questionnaire** tab in the sidebar.
 *   **How to Use:**
-    1. Select the industry sector (e.g., **BFSI**, **Real Estate**, or **Education**).
+    1. Select the industry sector (e.g., **Scholarships**, **B.Tech Admissions**, or **Education**).
     2. Input the business details, maximum concurrency limits (default: 5 lines), and localized timezone configs.
     3. Click **Initialize Client Profile** to generate a unique `tenant_id`.
 *   **Next Steps:** Proceed to customize lead scoring weights. If you want to know about column schemas and sector templates, refer to [Module 2 Onboarding & Column Mapper Guide](file:///c:/Users/arpan/OneDrive/Desktop/LEADX/docs/module2_documentation.md).
