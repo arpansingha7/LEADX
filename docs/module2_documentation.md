@@ -6,7 +6,7 @@ Welcome, Intern / Junior Software Engineer! This guide explains the technical de
 
 ## 1. The Business Purpose (Why we built this)
 
-When a new business client (for example, *Muthoot Finance*) joins LEADX to qualify their leads, they face two major friction points:
+When a new business client (for example, *upGrad School of Technology*) joins LEADX to qualify their leads, they face two major friction points:
 1.  **Non-Standard Lead Formats:** Every business stores lead spreadsheets differently. One client might name columns `First Name`, `Phone`, and `Monthly Income`. Another might name them `cust_name`, `mobile_no`, and `income_pm`.
     *   *Old Way:* An engineer has to write a custom script to parse every new client sheet. This is slow and doesn't scale.
     *   *LEADX Way:* We build a **Self-Serve Column Mapper** that lets clients upload their spreadsheet and map their custom headers to our database keys in 30 seconds.
@@ -69,8 +69,8 @@ Check out these files to see the implementation:
 ## 5. Manual Sandbox Verification Steps (How to use)
 
 1.  Click the **Onboarding** tab in the sidebar.
-2.  Select the **BFSI** template and proceed.
-3.  Click **Load BFSI CSV Sample**. The system parses the headers and displays the column mapper dropdowns.
+2.  Select the **Scholarships** template and proceed.
+3.  Click **Load Scholarships CSV Sample**. The system parses the headers and displays the column mapper dropdowns.
 4.  Map the columns (e.g. `Client Name` to Name, `Mobile` to Phone) and click **Finalize & Ingest**.
 5.  Go to the **CRM Sync** page. Click **Connect HubSpot CRM**.
 6.  Click **Approve Connection** in the mock popup window. Notice the HubSpot node status updates to `CONNECTED`.

@@ -23,7 +23,7 @@ flowchart TD
     C -->|Unique Phone| E{DNC Screen}
     E -->|Blocked| F[DNC Status & Slack Alert]
     E -->|Allowed| G[Scoring Engine v2]
-    G -->|2. Compute Score BFSI/RE/Edu| H[Dual-Mode Database Adapter]
+    G -->|2. Compute Score Scholarships/RE/Edu| H[Dual-Mode Database Adapter]
     H -->|Supabase Configured| I[(Live Supabase Cloud DB)]
     H -->|Supabase Offline| J[(In-Memory Sandbox DB)]
     I & J -->|3. Live Refresh| K[Glassmorphic Control Center UI]
@@ -43,7 +43,7 @@ flowchart TD
 *   **Multi-Factor Scoring (v2):** Config-driven scoring rules with dynamic delta validations protecting against floating-point math errors.
 
 ### 2. Client Onboarding & Spreadsheet Mapper (Module 2)
-*   **Domain-Specific Questionnaire:** Clients select templates (**BFSI**, **Real Estate**, or **Education**) mapping custom configurations and guidelines.
+*   **Domain-Specific Questionnaire:** Clients select templates (**Scholarships**, **B.Tech Admissions**, or **Education**) mapping custom configurations and guidelines.
 *   **Self-Serve Column Mapper:** Ingests raw CSV sheets in the browser, allowing users to map their headers dynamically to internal schema keys.
 
 ### 3. Dialer Queue & Priority Call Orchestrator (Module 3)

@@ -283,7 +283,7 @@ test('POST /leads/onboard - Save onboarding questionnaire config', async () => {
   const payload = {
     tenant_id: 'test-tenant',
     onboarding_config: {
-      industry: 'BFSI',
+      industry: 'Scholarships',
       objective: 'Verify credit card fit',
       agent_focus: 'Salary validation and background fit',
       dnc_validation_ownership: 'platform',
@@ -300,7 +300,7 @@ test('POST /leads/onboard - Save onboarding questionnaire config', async () => {
   assert.strictEqual(response.status, 200);
   const data = await response.json();
   assert.strictEqual(data.success, true);
-  assert.strictEqual(data.onboarding_config.industry, 'BFSI');
+  assert.strictEqual(data.onboarding_config.industry, 'Scholarships');
 });
 
 test('GET /leads/onboard - Retrieve onboarding config', async () => {
@@ -308,7 +308,7 @@ test('GET /leads/onboard - Retrieve onboarding config', async () => {
   assert.strictEqual(response.status, 200);
   const data = await response.json();
   assert.strictEqual(data.success, true);
-  assert.strictEqual(data.onboarding_config.industry, 'BFSI');
+  assert.strictEqual(data.onboarding_config.industry, 'Scholarships');
 });
 
 test('GET /leads/audit-trail - Retrieve system audit trail logs', async () => {

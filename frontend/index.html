@@ -7,7 +7,7 @@
   <title>LeadX — AI Lead Qualification & Conversion Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:ital,wght@0,400..800;1,400..800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=1.0.2">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -37,7 +37,7 @@
       <div class="lx-topbar-right">
         <div class="lx-client-badge" id="clientBadgeLink" title="View Shareable Client Dashboard">
           <span class="lx-dot"></span>
-          <span>Client: Muthoot Finance</span>
+          <span>Client: upGrad (uGSOT)</span>
         </div>
         <div class="lx-avatar">AF</div>
       </div>
@@ -151,14 +151,14 @@
                 <!-- 7 Stage Funnel -->
                 <div class="lx-funnel">
                   <div class="funnel-stage">
-                    <span class="funnel-label">1. Ingested</span>
+                    <span class="funnel-label">1. New Lead</span>
                     <div class="funnel-bar-wrap">
                       <div class="funnel-fill" style="width: 0%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">-</div>
                     </div>
                     <span class="funnel-count">-</span>
                   </div>
                   <div class="funnel-stage">
-                    <span class="funnel-label">2. Scrubbed (DNC)</span>
+                    <span class="funnel-label">2. Scrubbed</span>
                     <div class="funnel-bar-wrap">
                       <div class="funnel-fill" style="width: 0%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">-</div>
                     </div>
@@ -172,7 +172,7 @@
                     <span class="funnel-count">-</span>
                   </div>
                   <div class="funnel-stage">
-                    <span class="funnel-label">4. Queued</span>
+                    <span class="funnel-label">4. uGNET Reg.</span>
                     <div class="funnel-bar-wrap">
                       <div class="funnel-fill" style="width: 0%; background: linear-gradient(90deg, #6c72f8, #8b6cf7);">-</div>
                     </div>
@@ -193,7 +193,7 @@
                     <span class="funnel-count">-</span>
                   </div>
                   <div class="funnel-stage">
-                    <span class="funnel-label">7. Qualified</span>
+                    <span class="funnel-label">7. Enrolled/Qual.</span>
                     <div class="funnel-bar-wrap">
                       <div class="funnel-fill" style="width: 0%; background: linear-gradient(90deg, #1ec9b7, #2ecc8a);">-</div>
                     </div>
@@ -316,14 +316,14 @@
                   <div class="form-group">
                     <label for="wizardIndustry">Target Industry Segment *</label>
                     <select id="wizardIndustry" class="lx-input">
-                      <option value="Real Estate">Real Estate Outbound Qualification</option>
-                      <option value="Education">Educational Program Enrollment</option>
-                      <option value="BFSI">BFSI Credit & Financial Products</option>
+                      <option value="B.Tech Admissions">B.Tech Admissions</option>
+                      <option value="Scholarship Applications">Scholarship Applications</option>
+                      <option value="Career Transformation">Career Transformation</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label for="wizardObjective">Campaign Objectives *</label>
-                    <input type="text" id="wizardObjective" class="lx-input" placeholder="e.g. Qualify users expressing interest in Gold Loans">
+                    <input type="text" id="wizardObjective" class="lx-input" placeholder="e.g. Qualify users expressing interest in AI-First B.Techs">
                   </div>
                 </div>
                 <div class="li-form-col">
@@ -367,8 +367,8 @@ Rahul Roy,+919999911111,rahul@mail.com,29,50000
 Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:8px;">
-                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('realestate')">Load Real Estate CSV Sample</button>
-                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('bfsi')">Load BFSI CSV Sample</button>
+                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('realestate')">Load B.Tech Admissions CSV Sample</button>
+                  <button class="lx-btn" style="flex:1;" onclick="loadCSVTemplate('scholarships')">Load Scholarships CSV Sample</button>
                 </div>
                 <div class="wizard-actions" style="margin-top:20px; display:flex; justify-content:space-between;">
                   <button class="lx-btn" onclick="goToStep(1)">Back</button>
@@ -496,11 +496,11 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:8px;">Traceability Data Labels</div>
                   <div class="form-group">
                     <label for="wizardCampaignName">Campaign Label Name</label>
-                    <input type="text" id="wizardCampaignName" class="lx-input" value="Muthoot Ingestion Campaign Q3">
+                    <input type="text" id="wizardCampaignName" class="lx-input" value="uGSOT Ingestion Campaign Q3">
                   </div>
                   <div class="form-group">
                     <label for="wizardDatasetId">Dataset Reference Identifier</label>
-                    <input type="text" id="wizardDatasetId" class="lx-input" value="ds-realestate-m2-01">
+                    <input type="text" id="wizardDatasetId" class="lx-input" value="ds-btech-m2-01">
                   </div>
                 </div>
               </div>
@@ -716,13 +716,13 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   <div class="form-group">
                     <label>Campaign Name</label>
-                    <input type="text" placeholder="e.g. Muthoot Gold Loan Q4" class="lx-input" id="cfg-sch-name">
+                    <input type="text" placeholder="e.g. uGSOT Batch 2026 Admissions" class="lx-input" id="cfg-sch-name">
                   </div>
                   <div class="form-group">
                     <label>Target Audience (Lead List)</label>
                     <select class="lx-input" id="cfg-sch-source">
-                      <option value="muthoot_facebook_ads">Muthoot Facebook Ads June</option>
-                      <option value="muthoot_google_search">Google Search High Intent</option>
+                      <option value="upgrad_facebook_ads">upGrad Facebook Ads June</option>
+                      <option value="upgrad_google_search">Google Search High Intent</option>
                       <option value="dormant_users">Re-activation List</option>
                     </select>
                   </div>
@@ -1120,7 +1120,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           <!-- Client Header Bar -->
           <div style="background: linear-gradient(135deg, #a4812f, #d2a43a); color: #000; padding: 18px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
-              <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">MUTHOOT FINANCE CO-BRANDED PORTAL</div>
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">upGrad uGSOT CO-BRANDED PORTAL</div>
               <h2 style="font-size: 20px; font-weight: 700; margin-top: 2px; letter-spacing: -0.3px;">LeadX Ingestion & Dialing Rolldown</h2>
             </div>
             <div style="display:flex; gap: 8px;">
@@ -1157,7 +1157,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             <!-- Chart Panel -->
             <div class="lx-card">
               <div class="lx-section-title">
-                WoW Lead Ingestion Trend (Muthoot Gold Loan)
+                WoW Lead Ingestion Trend (uGSOT AI-First B.Tech)
                 <span class="sub">Week-over-Week volume breakdown</span>
               </div>
               

@@ -609,21 +609,32 @@ export async function getCRMLists(tenantId, provider) {
     }
 
     if (!isMock) {
-      const response = await fetch('https://api.hubapi.com/contacts/v1/lists', {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      if (!response.ok) {
-        throw new Error(`HubSpot API responded with status ${response.status}`);
+      let lists = [];
+      try {
+        const response = await fetch('https://api.hubapi.com/contacts/v1/lists', {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!response.ok) {
+          throw new Error(`HubSpot API responded with status ${response.status}`);
+        }
+        const data = await response.json();
+        lists = (data.lists || []).map(l => ({
+          id: String(l.listId),
+          name: l.name,
+          count: l.metaData ? l.metaData.size : 0
+        }));
+      } catch (err) {
+        console.warn('HubSpot Lists fetch failed. Falling back to All Contacts synthetic list:', err.message);
       }
-      const data = await response.json();
-      return (data.lists || []).map(l => ({
-        id: String(l.listId),
-        name: l.name,
-        count: l.metaData ? l.metaData.size : 0
-      }));
+      
+      // If no lists returned (or it threw 403), inject a synthetic list to pull all contacts directly
+      if (lists.length === 0) {
+        lists.push({ id: 'all-contacts', name: 'All CRM Contacts (Fallback)', count: 'All' });
+      }
+      return lists;
     } else {
       return [
-        { id: "all-contacts", name: "Muthoot Inbound Leads Q3", count: 150 },
+        { id: "all-contacts", name: "uGSOT Inbound Leads Q3", count: 150 },
         { id: "hot-leads", name: "High Intent Callbacks", count: 45 },
         { id: "website-enquiries", name: "Website Enquiries", count: 85 }
       ];
@@ -698,27 +709,49 @@ export async function getCRMContactsFromList(tenantId, provider, listId) {
       }
 
       // 2. Fetch contacts with all dynamic properties appended
-      const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100${propertyQuery}`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      if (!response.ok) {
-        throw new Error(`HubSpot list contacts fetch failed: status ${response.status}`);
-      }
-      const data = await response.json();
-      const contactsArray = (data.contacts || []).map(c => {
-        const props = c.properties || {};
-        const flat = {};
-        Object.keys(props).forEach(k => {
-          const label = propMap[k] || k;
-          flat[label] = props[k]?.value || '';
+      let contactsArray = [];
+      if (listId === 'all-contacts') {
+        const v3Props = propertyQuery.replace(/&property=/g, ',').replace(/^,/, '');
+        const response = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=${v3Props}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-        flat["Customer Name"] = `${props.firstname?.value || ''} ${props.lastname?.value || ''}`.trim();
-        flat["Contact Phone"] = props.phone?.value || '';
-        flat["Email Address"] = props.email?.value || '';
-        flat.hubspot_id = String(c.vid || c.id || '');
-        flat["Record ID"] = flat.hubspot_id;
-        return flat;
-      });
+        if (!response.ok) throw new Error(`HubSpot CRM contacts fetch failed: status ${response.status}`);
+        const data = await response.json();
+        contactsArray = (data.results || []).map(c => {
+          const props = c.properties || {};
+          const flat = {};
+          Object.keys(props).forEach(k => {
+            const label = propMap[k] || k;
+            flat[label] = props[k] || '';
+          });
+          flat["Customer Name"] = `${props.firstname || ''} ${props.lastname || ''}`.trim();
+          flat["Contact Phone"] = props.phone || '';
+          flat["Email Address"] = props.email || '';
+          flat.hubspot_id = String(c.id || '');
+          flat["Record ID"] = flat.hubspot_id;
+          return flat;
+        });
+      } else {
+        const response = await fetch(`https://api.hubapi.com/contacts/v1/lists/${listId}/contacts/all?count=100${propertyQuery}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!response.ok) throw new Error(`HubSpot list contacts fetch failed: status ${response.status}`);
+        const data = await response.json();
+        contactsArray = (data.contacts || []).map(c => {
+          const props = c.properties || {};
+          const flat = {};
+          Object.keys(props).forEach(k => {
+            const label = propMap[k] || k;
+            flat[label] = props[k]?.value || '';
+          });
+          flat["Customer Name"] = `${props.firstname?.value || ''} ${props.lastname?.value || ''}`.trim();
+          flat["Contact Phone"] = props.phone?.value || '';
+          flat["Email Address"] = props.email?.value || '';
+          flat.hubspot_id = String(c.vid || c.id || '');
+          flat["Record ID"] = flat.hubspot_id;
+          return flat;
+        });
+      }
       contactsArray.propertiesSchema = allProperties;
       return contactsArray;
     } else {
@@ -760,3 +793,4 @@ export default {
   getCRMContactsFromList,
   getCRMConnector
 };
+// Forced reload to pick up new env keys

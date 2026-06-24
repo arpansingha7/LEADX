@@ -11,12 +11,12 @@ export function computeLeadScore(lead, weights) {
 
   // Determine industry
   let industry = 'General';
-  if (nameLower.includes('real estate') || nameLower.includes('realestate') || nameLower.includes('property') || nameLower.includes('home') || nameLower.includes('housing') ||
+  if (nameLower.includes('b.tech admissions') || nameLower.includes('realestate') || nameLower.includes('property') || nameLower.includes('home') || nameLower.includes('housing') ||
       rawData.budget !== undefined || rawData.property_type !== undefined || rawData.location_preference !== undefined) {
-    industry = 'Real Estate';
-  } else if (nameLower.includes('bfsi') || nameLower.includes('bank') || nameLower.includes('loan') || nameLower.includes('gold loan') || nameLower.includes('credit') || nameLower.includes('finance') ||
+    industry = 'B.Tech Admissions';
+  } else if (nameLower.includes('scholarships') || nameLower.includes('bank') || nameLower.includes('loan') || nameLower.includes('AI-First B.Tech') || nameLower.includes('credit') || nameLower.includes('finance') ||
              rawData.monthly_income !== undefined || rawData.credit_score !== undefined || rawData.loan_amount !== undefined) {
-    industry = 'BFSI';
+    industry = 'Scholarships';
   } else if (nameLower.includes('education') || nameLower.includes('course') || nameLower.includes('college') || nameLower.includes('school') || nameLower.includes('enrollment') ||
              rawData.course_interest !== undefined || rawData.qualification !== undefined) {
     industry = 'Education';
@@ -24,9 +24,9 @@ export function computeLeadScore(lead, weights) {
 
   // Get active demographic factor keys for this industry
   let demoKeys = [];
-  if (industry === 'Real Estate') {
+  if (industry === 'B.Tech Admissions') {
     demoKeys = ['budget', 'property_type', 'location_preference'];
-  } else if (industry === 'BFSI') {
+  } else if (industry === 'Scholarships') {
     demoKeys = ['monthly_income', 'credit_score', 'loan_amount'];
   } else if (industry === 'Education') {
     demoKeys = ['course_interest', 'qualification'];
@@ -84,7 +84,7 @@ export function computeLeadScore(lead, weights) {
   if (useFallbackdemographicFit) {
     const subscores = [];
 
-    // BFSI parameters
+    // Scholarships parameters
     if (rawData.monthly_income !== undefined && rawData.monthly_income !== null) {
       const inc = Number(rawData.monthly_income);
       subscores.push(inc >= 85000 ? 100 : inc >= 45000 ? 80 : 50);
@@ -98,7 +98,7 @@ export function computeLeadScore(lead, weights) {
       subscores.push(la >= 100000 && la <= 1500000 ? 100 : 70);
     }
 
-    // Real Estate parameters
+    // B.Tech Admissions parameters
     if (rawData.budget !== undefined && rawData.budget !== null) {
       const b = Number(rawData.budget);
       subscores.push(b >= 5000000 ? 100 : b >= 2500000 ? 80 : 50);
