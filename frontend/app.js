@@ -149,39 +149,11 @@ function setupThemeToggle() {
 // 1. Navigation Panel Handler
 function setupNavigation() {
   const sidebarItems = document.querySelectorAll('.lx-sidebar-item');
-  const pages = document.querySelectorAll('.lx-page');
-
   sidebarItems.forEach(item => {
     item.addEventListener('click', () => {
       const pageId = item.getAttribute('data-page');
-      if (!pageId) return;
-
-      // Update sidebar active class
-      sidebarItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      // Show/Hide pages
-      pages.forEach(p => p.classList.remove('show'));
-      const activePage = document.getElementById(`page-${pageId}`);
-      if (activePage) {
-        activePage.classList.add('show');
-      }
-
-      // Page specific loaders
-      if (pageId === 'crm') {
-        loadCrmPageData();
-      } else if (pageId === 'campaigns') {
-        fetchCampaignsList();
-      } else if (pageId === 'script-editor') {
-        loadScriptEditorData();
-      } else if (pageId === 'home') {
-        loadDashboardAnalytics();
-      } else if (pageId === 'onboarding') {
-        if (typeof onWizardCrmProviderChange === 'function') {
-          onWizardCrmProviderChange();
-        }
-      } else if (pageId === 'agents') {
-        renderVoizRoster();
+      if (pageId) {
+        window.goToPage(pageId);
       }
     });
   });
@@ -196,6 +168,49 @@ function setupNavigation() {
     });
   }
 }
+
+window.goToPage = function(pageId) {
+  const sidebarItems = document.querySelectorAll('.lx-sidebar-item');
+  const pages = document.querySelectorAll('.lx-page');
+
+  sidebarItems.forEach(i => {
+    const dataPage = i.getAttribute('data-page');
+    if (pageId === 'campaign-lifecycle' && dataPage === 'campaigns') {
+      i.classList.add('active');
+    } else if (dataPage === pageId) {
+      i.classList.add('active');
+    } else {
+      i.classList.remove('active');
+    }
+  });
+
+  pages.forEach(p => p.classList.remove('show'));
+  const activePage = document.getElementById(`page-${pageId}`);
+  if (activePage) {
+    activePage.classList.add('show');
+  }
+
+  // Page specific loaders
+  if (pageId === 'crm') {
+    loadCrmPageData();
+  } else if (pageId === 'campaigns') {
+    fetchCampaignsList();
+  } else if (pageId === 'script-editor') {
+    loadScriptEditorData();
+  } else if (pageId === 'home') {
+    loadDashboardAnalytics();
+  } else if (pageId === 'onboarding') {
+    if (typeof onWizardCrmProviderChange === 'function') {
+      onWizardCrmProviderChange();
+    }
+  } else if (pageId === 'agents') {
+    renderVoizRoster();
+  }
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+};
 
 
 // 2. Set Up Event Listeners
@@ -455,6 +470,9 @@ function setupEventListeners() {
       if (drawer) drawer.style.display = 'none';
     });
   }
+
+  // Initialize Voice Agent Selection Details
+  updateWizardVoiceAgentDesc();
 }
 
 // 3. Dynamic Weight Calculation & Delta Checking
@@ -718,7 +736,7 @@ function renderLeads(leads) {
       <tr id="lead-tr-${lead.id}" class="${tierClass}" style="cursor: pointer;" onclick="if(event.target.tagName !== 'BUTTON' && !event.target.closest('.lx-action-row')) viewLeadDetails('${lead.id}')">
         <td>
           <div class="lead-name-strong">${lead.name || 'Anonymous'}</div>
-          <div class="lead-meta-sub">Location: ${city} | Age: ${age}</div>
+          <div class="lead-meta-sub" style="font-family: var(--lx-mono); font-size: 10px; color: var(--lx-muted);">ID: ${lead.id}</div>
         </td>
         <td><span style="font-family:var(--lx-mono);font-size:12px;">${maskedPhone}</span></td>
         <td><span class="lx-source-badge src-${srcKey}">${srcLabel}</span></td>
@@ -743,7 +761,6 @@ function renderLeads(leads) {
 function updateDashboardKPIs(leads) {
   const hotLeads = leads.filter(l => l.score >= 80);
 
-
   // Render Hot Leads rings strip on Home page
   const ringList = document.getElementById('hot-leads-ring-list');
   if (ringList) {
@@ -753,36 +770,164 @@ function updateDashboardKPIs(leads) {
           No high-intent leads recorded yet.
         </div>
       `;
-      return;
+    } else {
+      const topHot = [...hotLeads].sort((a,b) => b.score - a.score).slice(0, 3);
+      ringList.innerHTML = topHot.map(lead => {
+        const score = lead.score;
+        const pctOffset = 131.9 - (131.9 * score) / 100;
+        
+        const rawPhone = lead.phone || '';
+        let maskedPhone = rawPhone;
+        if (rawPhone.length > 6) {
+          maskedPhone = rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2);
+        }
+
+        return `
+          <div class="hotlead-row">
+            <div class="hlr-name">
+              <strong>${lead.name || 'Hot Lead'}</strong>
+              <div class="hlr-meta">Phone: ${maskedPhone} | ${lead.raw_data?.city || 'India'}</div>
+            </div>
+            <div class="score-ring">
+              <svg width="52" height="52" viewBox="0 0 52 52">
+                <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="3"></circle>
+                <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="3.5" stroke-dasharray="131.9" stroke-dashoffset="${pctOffset}" transform="rotate(-90 26 26)"></circle>
+              </svg>
+              <div class="score-num" style="color: var(--lx-green)">${score}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Render dynamic campaign analytics grid
+  const dashboardCampaignsGrid = document.getElementById('dashboardCampaignsGrid');
+  const campaignsCountEl = document.getElementById('dashboard-campaigns-count');
+  if (dashboardCampaignsGrid) {
+    // Group leads by campaign_name
+    const campaignsMap = {};
+    leads.forEach(l => {
+      const names = l.campaign_name
+        ? l.campaign_name.split(',').map(c => c.trim()).filter(Boolean)
+        : ['Manual Ingests'];
+      
+      names.forEach(name => {
+        if (!campaignsMap[name]) {
+          campaignsMap[name] = {
+            name,
+            leads: [],
+            connected: 0,
+            qualified: 0,
+            source: 'CSV Import'
+          };
+        }
+        campaignsMap[name].leads.push(l);
+        if (l.last_call_at) {
+          campaignsMap[name].connected++;
+        }
+        if (l.score >= 65) {
+          campaignsMap[name].qualified++;
+        }
+        // Deduce source from lead source properties
+        if (l.source && (l.source.toLowerCase().includes('hubspot') || l.source.toLowerCase().includes('crm'))) {
+          campaignsMap[name].source = 'CRM Sync';
+        }
+      });
+    });
+
+    // Remove empty 'Manual Ingests' if there are other campaigns, or filter appropriately
+    const activeCampaignKeys = Object.keys(campaignsMap).filter(k => k !== 'Manual Ingests' || campaignsMap[k].leads.length > 0);
+    
+    if (campaignsCountEl) {
+      campaignsCountEl.textContent = `${activeCampaignKeys.length} Ingested Dataset${activeCampaignKeys.length === 1 ? '' : 's'}`;
     }
 
-    const topHot = [...hotLeads].sort((a,b) => b.score - a.score).slice(0, 3);
-    ringList.innerHTML = topHot.map(lead => {
-      const score = lead.score;
-      const pctOffset = 131.9 - (131.9 * score) / 100;
-      
-      const rawPhone = lead.phone || '';
-      let maskedPhone = rawPhone;
-      if (rawPhone.length > 6) {
-        maskedPhone = rawPhone.substring(0, rawPhone.length - 5) + '***' + rawPhone.substring(rawPhone.length - 2);
-      }
+    if (activeCampaignKeys.length === 0) {
+      dashboardCampaignsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--lx-muted); background: var(--lx-card2); border: 1px dashed var(--lx-border); border-radius: 12px; font-size: 13px;">
+          No active campaigns ingested in this tenant.
+        </div>`;
+    } else {
+      dashboardCampaignsGrid.innerHTML = activeCampaignKeys.map(key => {
+        const camp = campaignsMap[key];
+        const total = camp.leads.length;
+        const connected = camp.connected;
+        const qualified = camp.qualified;
+        
+        const connectRate = total > 0 ? ((connected / total) * 100) : 0;
+        const recoveryRate = total > 0 ? ((qualified / total) * 100) : 0;
 
-      return `
-        <div class="hotlead-row">
-          <div class="hlr-name">
-            <strong>${lead.name || 'Hot Lead'}</strong>
-            <div class="hlr-meta">Phone: ${maskedPhone} | ${lead.raw_data?.city || 'India'}</div>
+        // Progress bar color based on connect rate
+        let barColor = 'var(--lx-red)';
+        if (connectRate >= 50) {
+          barColor = 'var(--lx-green)';
+        } else if (connectRate >= 20) {
+          barColor = 'var(--lx-amber)';
+        }
+
+        // Status Badge matching Kollect style
+        let badgeClass = 'badge-red';
+        let statusText = 'UNDERPERFORMING';
+        if (recoveryRate >= 60) {
+          badgeClass = 'badge-green';
+          statusText = 'HIGH PERFORMING';
+        } else if (recoveryRate >= 30) {
+          badgeClass = 'badge-teal';
+          statusText = 'ACTIVE';
+        } else {
+          badgeClass = 'badge-amber';
+          statusText = 'NEED OUTREACH';
+        }
+
+        // Icon for source
+        const sourceIcon = camp.source === 'CRM Sync' ? 'refresh-cw' : 'file-text';
+
+        return `
+          <div class="campaign-card" onclick="window.viewCampaignLifecycle('${camp.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+            <div class="campaign-card-header">
+              <div class="campaign-card-name">${camp.name}</div>
+              <span class="lx-badge ${badgeClass}" style="font-size: 8.5px; padding: 2px 6px;">${statusText}</span>
+            </div>
+            
+            <div class="campaign-card-metrics">
+              <div class="campaign-card-main-val">
+                ${connectRate.toFixed(1)}%
+                <span class="campaign-card-main-label">Connect Rate</span>
+              </div>
+              
+              <div class="campaign-card-progress-bar">
+                <div class="campaign-card-progress-fill" style="width: ${connectRate}%; background: ${barColor};"></div>
+              </div>
+            </div>
+            
+            <div class="campaign-card-footer">
+              <div class="campaign-card-stat-group">
+                <div class="campaign-card-stat">
+                  <span class="campaign-card-stat-lbl">Leads</span>
+                  <span class="campaign-card-stat-val">${total}</span>
+                </div>
+                <div class="campaign-card-stat" style="border-left: 1px solid var(--lx-border-soft); padding-left: 8px;">
+                  <span class="campaign-card-stat-lbl">Connected</span>
+                  <span class="campaign-card-stat-val">${connected}</span>
+                </div>
+                <div class="campaign-card-stat" style="border-left: 1px solid var(--lx-border-soft); padding-left: 8px;">
+                  <span class="campaign-card-stat-lbl">Success</span>
+                  <span class="campaign-card-stat-val" style="color: var(--lx-green);">${recoveryRate.toFixed(1)}%</span>
+                </div>
+              </div>
+              
+              <div style="display:flex; align-items:center; gap:4px; color: var(--lx-muted); font-size:10px;">
+                <i data-lucide="${sourceIcon}" style="width:11px; height:11px;"></i>
+                <span>${camp.source}</span>
+              </div>
+            </div>
           </div>
-          <div class="score-ring">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-border)" stroke-width="3"></circle>
-              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--lx-green)" stroke-width="3.5" stroke-dasharray="131.9" stroke-dashoffset="${pctOffset}" transform="rotate(-90 26 26)"></circle>
-            </svg>
-            <div class="score-num" style="color: var(--lx-green)">${score}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+      // Re-trigger lucide icons rendering for the new cards
+      lucide.createIcons();
+    }
   }
 }
 
@@ -1319,7 +1464,7 @@ window.exportClientReport = function() {
 
 // 16. Onboarding Wizard Actions
 window.goToStep = function(stepNum) {
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 5; i++) {
     const indicator = document.getElementById(`wstep-${i}`);
     const content = document.getElementById(`wcontent-${i}`);
     if (indicator) {
@@ -1339,6 +1484,47 @@ window.goToStep = function(stepNum) {
       }
     }
   }
+};
+
+window.updateWizardVoiceAgentDesc = function() {
+  const select = document.getElementById('wizardVoiceAgentSelect');
+  const descBox = document.getElementById('wizardVoiceAgentDescBox');
+  if (!select || !descBox) return;
+
+  const agentName = select.value;
+  let desc = '', successRate = '', sentiment = '', voiceTone = '', activeHours = '';
+  
+  if (agentName === 'Aria') {
+    desc = 'Aria is empathetic and structured. Best suited for soft outreach, general advisory, and friendly check-ins.';
+    successRate = '89%';
+    sentiment = '94% Positive';
+    voiceTone = 'Empathetic / Warm';
+    activeHours = '10:00 AM - 5:00 PM';
+  } else if (agentName === 'Max') {
+    desc = 'Max is professional and persistent. Highly focused on qualifying prospect details, booking slots, and capturing caller intent.';
+    successRate = '85%';
+    sentiment = '89% Positive';
+    voiceTone = 'Direct / Professional';
+    activeHours = '9:30 AM - 6:00 PM';
+  } else if (agentName === 'Sol') {
+    desc = 'Sol is polite and clear. Designed for automated slot confirmations, calendar reminders, and date/time rescheduling requests.';
+    successRate = '92%';
+    sentiment = '96% Positive';
+    voiceTone = 'Polite / Informative';
+    activeHours = '10:00 AM - 4:30 PM';
+  }
+  
+  descBox.innerHTML = `
+    <div style="font-size: 12px; color: var(--lx-text); margin-bottom: 8px; line-height: 1.4;">
+      <strong>Description:</strong> ${desc}
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; border-top: 1px solid var(--lx-border); padding-top: 8px; font-size: 11px;">
+      <div><span style="color: var(--lx-muted);">Success Recovery Rate:</span> <strong style="color: var(--lx-green); font-family: var(--lx-mono);">${successRate}</strong></div>
+      <div><span style="color: var(--lx-muted);">Sentiment Score:</span> <strong style="color: var(--lx-teal); font-family: var(--lx-mono);">${sentiment}</strong></div>
+      <div><span style="color: var(--lx-muted);">Tone Profile:</span> <strong style="color: var(--lx-accent);">${voiceTone}</strong></div>
+      <div><span style="color: var(--lx-muted);">Peak Dial Window:</span> <strong style="color: var(--lx-text); font-family: var(--lx-mono);">${activeHours}</strong></div>
+    </div>
+  `;
 };
 
 window.loadCSVTemplate = function(templateType) {
@@ -1869,7 +2055,119 @@ window.validateMappingAndProceed = function() {
     }
   }
 
+  // Populate the test lead select options for Step 4 Testing
+  const leadSelect = document.getElementById('wizardTestLeadSelect');
+  if (leadSelect) {
+    if (parsedCsvRows && parsedCsvRows.length > 0) {
+      const nameKey = document.getElementById('map-target-name')?.value || '';
+      const phoneKey = document.getElementById('map-target-phone')?.value || '';
+      
+      leadSelect.innerHTML = parsedCsvRows.map((row, idx) => {
+        const nameVal = nameKey ? row[nameKey] : `Lead #${idx + 1}`;
+        const phoneVal = phoneKey ? row[phoneKey] : 'Unknown Phone';
+        return `<option value="${idx}">${nameVal} (${phoneVal})</option>`;
+      }).join('');
+    } else {
+      leadSelect.innerHTML = '<option value="">No leads parsed</option>';
+    }
+  }
+
   goToStep(4);
+};
+
+window.toggleWizardTestLeadSource = function() {
+  const mode = document.getElementById('wizardTestMode').value;
+  const customInputs = document.getElementById('wtest-custom-inputs');
+  const parsedInputs = document.getElementById('wtest-parsed-inputs');
+  if (mode === 'custom') {
+    customInputs.style.display = 'flex';
+    parsedInputs.style.display = 'none';
+  } else {
+    customInputs.style.display = 'none';
+    parsedInputs.style.display = 'flex';
+  }
+};
+
+window.triggerWizardTestCall = function() {
+  const mode = document.getElementById('wizardTestMode').value;
+  let name = '';
+  let phone = '';
+  
+  if (mode === 'custom') {
+    name = document.getElementById('wizardTestName').value.trim() || 'Test User';
+    phone = document.getElementById('wizardTestPhone').value.trim();
+    if (!phone) {
+      showToast('Validation Error', 'Please enter a test phone number.', 'alert-triangle', 'error');
+      return;
+    }
+  } else {
+    const select = document.getElementById('wizardTestLeadSelect');
+    if (!select || !select.value) {
+      showToast('Validation Error', 'No parsed lead is selected for testing.', 'alert-triangle', 'error');
+      return;
+    }
+    const idx = parseInt(select.value);
+    const row = parsedCsvRows[idx];
+    const nameKey = document.getElementById('map-target-name')?.value || '';
+    const phoneKey = document.getElementById('map-target-phone')?.value || '';
+    name = nameKey ? row[nameKey] : `Lead #${idx + 1}`;
+    phone = phoneKey ? row[phoneKey] : '';
+    if (!phone) {
+      showToast('Validation Error', 'Selected lead has no valid phone number.', 'alert-triangle', 'error');
+      return;
+    }
+  }
+
+  const selectedAgent = document.getElementById('wizardVoiceAgentSelect').value || 'Max';
+  const consoleEl = document.getElementById('wizardTestConsole');
+  const btn = document.getElementById('wizardTriggerTestCallBtn');
+
+  btn.disabled = true;
+  btn.innerHTML = `<i data-lucide="loader" class="spin" style="width:16px; height:16px; display:inline-block; vertical-align:middle; margin-right:4px;"></i> Initiating Call...`;
+  lucide.createIcons();
+
+  consoleEl.innerHTML = `
+    <div class="call-wave" style="margin-bottom:8px; display:flex; justify-content:center; gap:3px;">
+      <span style="background: var(--lx-accent); height: 16px; width:4px; display:inline-block;"></span>
+      <span style="background: var(--lx-accent); height: 24px; width:4px; display:inline-block;"></span>
+      <span style="background: var(--lx-accent); height: 12px; width:4px; display:inline-block;"></span>
+      <span style="background: var(--lx-accent); height: 20px; width:4px; display:inline-block;"></span>
+      <span style="background: var(--lx-accent); height: 14px; width:4px; display:inline-block;"></span>
+    </div>
+    <div style="font-size: 13px; font-weight: 700; color: var(--lx-accent);">Dialing ${name} (${phone})...</div>
+    <div style="font-size: 11px; color: var(--lx-muted);">Routing through VOIZ using Agent "${selectedAgent}"</div>
+  `;
+
+  // Simulate call progression
+  setTimeout(() => {
+    consoleEl.innerHTML = `
+      <div class="call-wave" style="margin-bottom:8px; display:flex; justify-content:center; gap:3px;">
+        <span style="background: var(--lx-green); height: 20px; width:4px; display:inline-block;"></span>
+        <span style="background: var(--lx-green); height: 32px; width:4px; display:inline-block;"></span>
+        <span style="background: var(--lx-green); height: 16px; width:4px; display:inline-block;"></span>
+        <span style="background: var(--lx-green); height: 28px; width:4px; display:inline-block;"></span>
+        <span style="background: var(--lx-green); height: 22px; width:4px; display:inline-block;"></span>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--lx-green);">Call Answered | Agent "${selectedAgent}" Speaking</div>
+      <div style="font-size: 11px; color: var(--lx-text); font-style: italic; margin-top: 6px; border:1px solid var(--lx-border); padding:6px; border-radius:6px; background:rgba(255,255,255,0.01);">
+        "Hello ${name}, this is ${selectedAgent} calling on behalf of our team. Am I speaking with ${name}?"
+      </div>
+    `;
+  }, 2000);
+
+  setTimeout(() => {
+    consoleEl.innerHTML = `
+      <div style="font-size: 18px; color: var(--lx-green); margin-bottom: 6px;"><i data-lucide="check-circle" style="width: 24px; height: 24px; display:inline-block; vertical-align:middle;"></i></div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--lx-text);">Call Completed Successfully</div>
+      <div style="font-size: 11.5px; color: var(--lx-muted); line-height:1.4;">
+        Agent persona verification passed. Voice response pipeline active.
+      </div>
+    `;
+    btn.disabled = false;
+    btn.innerHTML = `<i data-lucide="phone-call" style="width:16px; height:16px;"></i> Trigger Test Outbound Call`;
+    lucide.createIcons();
+    showToast('Verification Successful', `Voice recovery agent ${selectedAgent} successfully dialed ${name}.`, 'check', 'success');
+  }, 6000);
 };
 
 window.commitWizardData = function() {
@@ -1906,7 +2204,7 @@ window.commitWizardData = function() {
   const objective = document.getElementById('wizardObjective').value.trim();
   const agentFocus = document.getElementById('wizardFocus').value.trim();
   const handoffRules = document.getElementById('wizardHandoff').value.trim();
-  const dncCheck = document.getElementById('wizardDncCheck').checked;
+  const dncCheck = document.getElementById('wizardDncCheck') ? document.getElementById('wizardDncCheck').checked : true;
   const crmTarget = document.getElementById('wizardCrmSelector').value;
 
   const mappedLeads = parsedCsvRows.map(row => {
@@ -3362,263 +3660,91 @@ window.fetchCampaignsList = async function() {
 };
 
 function renderCampaigns(campaigns) {
-  const rtContainer = document.getElementById('camp-content-rt');
-  const nonrtContainer = document.getElementById('camp-content-nonrt');
-  const scheduledContainer = document.getElementById('camp-content-scheduled');
+  const gridContainer = document.getElementById('campaigns-grid-container');
+  if (!gridContainer) return;
 
-  if (!rtContainer || !nonrtContainer || !scheduledContainer) return;
+  gridContainer.innerHTML = '';
 
-  rtContainer.innerHTML = '';
-  nonrtContainer.innerHTML = '';
-  scheduledContainer.innerHTML = '';
-
-  const rtCamps = [];
-  const nonrtCamps = [];
-  const scheduledCamps = [];
-
-  campaigns.forEach(camp => {
-    const nameLower = camp.name.toLowerCase();
-    if (nameLower.includes('scheduled')) {
-      scheduledCamps.push(camp);
-    } else if (nameLower.includes('batch') || nameLower.includes('csv') || nameLower.includes('json') || nameLower.includes('upload')) {
-      nonrtCamps.push(camp);
-    } else {
-      rtCamps.push(camp);
-    }
+  // Map dynamic campaigns
+  const formattedDynamic = campaigns.map(camp => {
+    const isScheduled = camp.name.toLowerCase().includes('scheduled');
+    const isBatch = camp.name.toLowerCase().includes('batch') || camp.name.toLowerCase().includes('csv') || camp.name.toLowerCase().includes('json') || camp.name.toLowerCase().includes('upload');
+    
+    return {
+      name: camp.name,
+      status: isScheduled ? 'draft' : 'active',
+      statusClass: isScheduled ? 'badge-gray' : 'badge-green',
+      cycle: 'Cycle 1',
+      mode: isBatch ? 'Auto' : 'Voice Only',
+      modeClass: isBatch ? 'badge-teal' : 'badge-blue',
+      date: 'Just Ingested',
+      target: camp.ingested || 0,
+      connected: camp.connected || 0,
+      icon: isBatch ? 'share-2' : 'phone'
+    };
   });
 
-  // Render dynamic list or placeholders
-  if (rtCamps.length === 0) {
-    rtContainer.innerHTML = `
-      <div class="campaign-card">
-        <div class="cc-top">
-          <div>
-            <div class="cc-name">uGSOT AI-First B.Tech RT Ingestion</div>
-            <div class="cc-sub">Mode: Real-Time Dialing | Tenant: ${currentTenant}</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT AI-First B.Tech RT Ingestion')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
-            <span class="lx-badge badge-green">ACTIVE</span>
-          </div>
-        </div>
-        <div class="cc-stats">
-          <div class="cc-stat">
-            <div class="cc-stat-val">12,450</div>
-            <div class="cc-stat-label">Ingested</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">9,870</div>
-            <div class="cc-stat-label">Attempted</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">8,204</div>
-            <div class="cc-stat-label">Connected</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">82.6%</div>
-            <div class="cc-stat-label">Connect Rate</div>
-          </div>
-        </div>
-        <div class="cc-progress">
-          <div class="cc-progress-label">
-            <span>Roster: 8 VOIZ agents assigned</span>
-            <span>Progress: 79%</span>
-          </div>
-          <div class="lx-progress-bar">
-            <div class="lx-progress-fill" style="width: 79%; background: var(--lx-accent);"></div>
-          </div>
-        </div>
-      </div>
-      <div class="campaign-card">
-        <div class="cc-top">
-          <div>
-            <div class="cc-name">uGSOT B.Tech Admissions Re-engagement</div>
-            <div class="cc-sub">Mode: Real-Time Triggers | Tenant: ${currentTenant}</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT B.Tech Admissions Re-engagement')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
-            <span class="lx-badge badge-green">ACTIVE</span>
-          </div>
-        </div>
-        <div class="cc-stats">
-          <div class="cc-stat">
-            <div class="cc-stat-val">2,142</div>
-            <div class="cc-stat-label">Ingested</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">1,209</div>
-            <div class="cc-stat-label">Attempted</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">812</div>
-            <div class="cc-stat-label">Connected</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">67.1%</div>
-            <div class="cc-stat-label">Connect Rate</div>
-          </div>
-        </div>
-        <div class="cc-progress">
-          <div class="cc-progress-label">
-            <span>Roster: 4 VOIZ agents assigned</span>
-            <span>Progress: 56%</span>
-          </div>
-          <div class="lx-progress-bar">
-            <div class="lx-progress-fill" style="width: 56%; background: var(--lx-accent);"></div>
-          </div>
-        </div>
+  const allCamps = formattedDynamic.filter(camp => camp.name !== 'Manual Ingests');
+
+  if (allCamps.length === 0) {
+    gridContainer.innerHTML = `
+      <div style="grid-column: span 3; text-align: center; padding: 40px; color: var(--lx-muted); font-size: 13.5px; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%;">
+        <i data-lucide="folder-open" style="width: 32px; height: 32px; color: var(--lx-muted);"></i>
+        <div>No campaigns ingested or uploaded yet. Go to Onboarding or Lead Ingestion to upload a list.</div>
       </div>
     `;
-  } else {
-    rtContainer.innerHTML = rtCamps.map(renderCampaignCardHtml).join('');
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+    return;
   }
 
-  if (nonrtCamps.length === 0) {
-    nonrtContainer.innerHTML = `
-      <div class="campaign-card">
-        <div class="cc-top">
+  gridContainer.innerHTML = allCamps.map(camp => {
+    const statusText = camp.status.charAt(0).toUpperCase() + camp.status.slice(1);
+    
+    return `
+      <div class="lx-campaign-card" onclick="viewCampaignLifecycle('${camp.name}')">
+        <div class="lx-campaign-card-top">
+          <div class="lx-campaign-card-icon">
+            <i data-lucide="${camp.icon}" style="width: 20px; height: 20px;"></i>
+          </div>
+          <div class="lx-campaign-card-info">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+              <div class="lx-campaign-card-title">${camp.name}</div>
+              <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-top: 2px;">
+                <i data-lucide="zap" style="width: 14px; height: 14px; color: var(--lx-accent); cursor: pointer; opacity: 0.8;" onclick="event.stopPropagation(); viewCampaignScores('${camp.name}')" title="View Lead Scores"></i>
+                <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--lx-red); cursor: pointer; opacity: 0.8;" onclick="event.stopPropagation(); deleteCampaignPrompt('${camp.name}')" title="Delete Campaign"></i>
+              </div>
+            </div>
+            <div class="lx-campaign-card-pills">
+              <span class="lx-campaign-card-pill ${camp.statusClass}">${statusText}</span>
+              <span class="lx-campaign-card-pill badge-gray">${camp.cycle}</span>
+              <span class="lx-campaign-card-pill ${camp.modeClass}">${camp.mode}</span>
+            </div>
+            <div class="lx-campaign-card-date">Cycle started: ${camp.date}</div>
+          </div>
+        </div>
+        <div class="lx-campaign-card-bottom">
           <div>
-            <div class="cc-name">upGrad School of Technology Scholarship Batch</div>
-            <div class="cc-sub">Mode: Non-RT Batch Outbound | Concurrency: 15</div>
+            <div class="lx-campaign-card-metric-label">
+              <i data-lucide="target" style="width: 12px; height: 12px;"></i> Target
+            </div>
+            <div class="lx-campaign-card-metric-value">${camp.target.toLocaleString()}</div>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('upGrad School of Technology Scholarship Batch')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
-            <span class="lx-badge badge-amber">PAUSED</span>
-          </div>
-        </div>
-        <div class="cc-stats">
-          <div class="cc-stat">
-            <div class="cc-stat-val">5,000</div>
-            <div class="cc-stat-label">Batch Size</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">3,120</div>
-            <div class="cc-stat-label">Attempted</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">1,822</div>
-            <div class="cc-stat-label">Connected</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">58.4%</div>
-            <div class="cc-stat-label">Connect Rate</div>
-          </div>
-        </div>
-        <div class="cc-progress">
-          <div class="cc-progress-label">
-            <span>Roster: 6 VOIZ agents assigned</span>
-            <span>Progress: 62%</span>
-          </div>
-          <div class="lx-progress-bar">
-            <div class="lx-progress-fill" style="width: 62%; background: var(--lx-amber);"></div>
+          <div>
+            <div class="lx-campaign-card-metric-label">
+              <i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--lx-green);"></i> Connected
+            </div>
+            <div class="lx-campaign-card-metric-value" style="color: var(--lx-green);">${camp.connected.toLocaleString()}</div>
           </div>
         </div>
       </div>
     `;
-  } else {
-    nonrtContainer.innerHTML = nonrtCamps.map(renderCampaignCardHtml).join('');
-  }
-
-  if (scheduledCamps.length === 0) {
-    scheduledContainer.innerHTML = `
-      <div class="campaign-card">
-        <div class="cc-top">
-          <div>
-            <div class="cc-name">uGSOT B.Tech Admissions Scheduled Q3</div>
-            <div class="cc-sub">Mode: Scheduled Outbound | Starts: Tomorrow 10:00 AM</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="lx-btn primary" onclick="viewCampaignScores('uGSOT B.Tech Admissions Scheduled Q3')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
-            <span class="lx-badge badge-gray">SCHEDULED</span>
-          </div>
-        </div>
-        <div class="cc-stats">
-          <div class="cc-stat">
-            <div class="cc-stat-val">8,500</div>
-            <div class="cc-stat-label">Expected Leads</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">0</div>
-            <div class="cc-stat-label">Attempted</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">0</div>
-            <div class="cc-stat-label">Connected</div>
-          </div>
-          <div class="cc-stat">
-            <div class="cc-stat-val">0%</div>
-            <div class="cc-stat-label">Connect Rate</div>
-          </div>
-        </div>
-        <div class="cc-progress">
-          <div class="cc-progress-label">
-            <span>Roster: 10 VOIZ agents reserved</span>
-            <span>Progress: 0%</span>
-          </div>
-          <div class="lx-progress-bar">
-            <div class="lx-progress-fill" style="width: 0%; background: var(--lx-border);"></div>
-          </div>
-        </div>
-      </div>
-    `;
-  } else {
-    scheduledContainer.innerHTML = scheduledCamps.map(renderCampaignCardHtml).join('');
-  }
+  }).join('');
 
   if (window.lucide) {
     window.lucide.createIcons();
   }
-}
-
-function renderCampaignCardHtml(camp) {
-  let agentsAssigned = 4;
-  if (camp.name.toLowerCase().includes('b.tech admissions')) agentsAssigned = 6;
-  else if (camp.name.toLowerCase().includes('gold')) agentsAssigned = 8;
-  
-  const progressPercent = camp.ingested > 0 ? Math.min(Math.round((camp.attempted / camp.ingested) * 100), 100) : 0;
-  
-  return `
-    <div class="campaign-card">
-      <div class="cc-top">
-        <div>
-          <div class="cc-name">${camp.name}</div>
-          <div class="cc-sub">Leads Active | Tenant: ${currentTenant}</div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="lx-btn primary" onclick="viewCampaignScores('${camp.name}')" style="padding: 4px 10px; font-size: 11px; margin: 0;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>View Scores</button>
-          <button class="lx-btn" onclick="deleteCampaignPrompt('${camp.name}')" style="padding: 4px 10px; font-size: 11px; margin: 0; background: var(--lx-red); border-color: var(--lx-red); color: white;"><i data-lucide="trash-2" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:3px;"></i>Delete</button>
-          <span class="lx-badge badge-green">ACTIVE</span>
-        </div>
-      </div>
-      <div class="cc-stats">
-        <div class="cc-stat">
-          <div class="cc-stat-val">${camp.ingested.toLocaleString()}</div>
-          <div class="cc-stat-label">Ingested</div>
-        </div>
-        <div class="cc-stat">
-          <div class="cc-stat-val">${camp.attempted.toLocaleString()}</div>
-          <div class="cc-stat-label">Attempted</div>
-        </div>
-        <div class="cc-stat">
-          <div class="cc-stat-val">${camp.connected.toLocaleString()}</div>
-          <div class="cc-stat-label">Connected</div>
-        </div>
-        <div class="cc-stat">
-          <div class="cc-stat-val">${camp.connect_rate}%</div>
-          <div class="cc-stat-label">Connect Rate</div>
-        </div>
-      </div>
-      <div class="cc-progress">
-        <div class="cc-progress-label">
-          <span>Roster: ${agentsAssigned} VOIZ agents assigned</span>
-          <span>Progress: ${progressPercent}%</span>
-        </div>
-        <div class="lx-progress-bar">
-          <div class="lx-progress-fill" style="width: ${progressPercent}%; background: var(--lx-accent);"></div>
-        </div>
-      </div>
-    </div>
-  `;
 }
 
 window.viewCampaignScores = function(campaignName) {
@@ -4577,6 +4703,10 @@ async function loadDashboardAnalytics() {
 }
 
 function renderAnalyticsCharts(data) {
+  const isLight = window.PredixionTheme.get() === 'light';
+  const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+  const labelColor = isLight ? '#63636e' : '#a4b0be';
+
   // 1. Connect Rate Trend
   const crCanvas = document.getElementById('connectRateChart');
   if (crCanvas) {
@@ -4592,7 +4722,7 @@ function renderAnalyticsCharts(data) {
           label: 'Connect Rate (%)',
           data: data.connect_rate_trend.map(t => t.connect_rate),
           borderColor: '#6c72f8',
-          backgroundColor: 'rgba(108, 114, 248, 0.15)',
+          backgroundColor: isLight ? 'rgba(108, 114, 248, 0.08)' : 'rgba(108, 114, 248, 0.15)',
           borderWidth: 2.5,
           fill: true,
           tension: 0.3
@@ -4606,14 +4736,14 @@ function renderAnalyticsCharts(data) {
         },
         scales: {
           x: {
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#a4b0be', font: { size: 10 } }
+            grid: { color: gridColor },
+            ticks: { color: labelColor, font: { size: 10 } }
           },
           y: {
             min: 0,
             max: 100,
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#a4b0be', font: { size: 10 } }
+            grid: { color: gridColor },
+            ticks: { color: labelColor, font: { size: 10 } }
           }
         }
       }
@@ -4645,7 +4775,7 @@ function renderAnalyticsCharts(data) {
         plugins: {
           legend: {
             position: 'right',
-            labels: { color: '#a4b0be', font: { size: 10 } }
+            labels: { color: labelColor, font: { size: 10 } }
           }
         }
       }
@@ -4679,12 +4809,63 @@ function renderAnalyticsCharts(data) {
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: '#a4b0be', font: { size: 10 } }
+            ticks: { color: labelColor, font: { size: 10 } }
           },
           y: {
             beginAtZero: true,
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#a4b0be', font: { size: 10 } }
+            grid: { color: gridColor },
+            ticks: { color: labelColor, font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  // 4. AI Cost vs Manual Equivalent
+  const costSavingsCanvas = document.getElementById('costSavingsChart');
+  if (costSavingsCanvas) {
+    if (window.costSavingsChartInstance) {
+      window.costSavingsChartInstance.destroy();
+    }
+    const ctx = costSavingsCanvas.getContext('2d');
+    window.costSavingsChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5'],
+        datasets: [
+          {
+            label: 'AI Cost ($)',
+            data: [320, 410, 380, 520, 480],
+            backgroundColor: 'var(--lx-green)',
+            borderWidth: 0
+          },
+          {
+            label: 'Manual Cost ($)',
+            data: [2400, 3100, 2900, 4100, 3800],
+            backgroundColor: 'rgba(244, 63, 94, 0.7)',
+            borderWidth: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: { color: labelColor, font: { size: 9 } }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: labelColor, font: { size: 10 } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: gridColor },
+            ticks: { color: labelColor, font: { size: 10 } }
           }
         }
       }
@@ -5064,9 +5245,9 @@ window.viewLeadDetails = async function(leadId) {
 // VOIZ Roster & Demo Call Simulation
 // ==========================================
 const VOICE_AGENTS = [
-  { name: "Aria", color: "blue", objective: "Career Counselling", desc: "Empathetic, structured outreach to guide students on admissions and career paths.", summary: "Jordan reached out about the AI-First B.Tech program and asked about scholarship opportunities. Aria verified the eligibility criteria, presented available scholarship tiers, and the student agreed to proceed with the uGNET application. A confirmation email will follow." },
-  { name: "Max", color: "emerald", objective: "uGNET Admissions Qualification", desc: "Qualifies prospective students, answers AI-First B.Tech questions, and books counselling sessions.", summary: "The caller was evaluating the upGrad B.Tech program and asked about the curriculum. Max answered the questions, confirmed eligibility, and booked a counselling session." },
-  { name: "Sol", color: "violet", objective: "uGNET Test Reminders", desc: "Confirms, reschedules, and sends reminders for the uGNET entrance test to reduce no-shows.", summary: "The student called to move an upcoming uGNET test slot. Sol located the booking, offered nearby openings, and rescheduled to their preferred time. A calendar invite was sent." }
+  { name: "Aria", color: "blue", objective: "General Advisory", desc: "Empathetic and structured agent. Best suited for soft outreach, customer relations, and friendly account check-ins.", summary: "Jordan reached out to inquire about custom service options and account details. Aria verified the client profile, explained the available service tiers and benefits, and Jordan agreed to schedule a follow-up. A confirmation email was sent." },
+  { name: "Max", color: "emerald", objective: "Lead Qualification", desc: "Direct and professional agent. Qualifies prospect details, determines client intent, and schedules callback slots.", summary: "The caller was evaluating product features and requested custom integration details. Max verified their technical constraints, confirmed qualification alignment, and booked a consultation session." },
+  { name: "Sol", color: "violet", objective: "Appointment Reminders", desc: "Polite and structured agent. Confirms schedules, manages calendar reminders, and processes rescheduling requests.", summary: "The contact called to adjust an upcoming appointment slot. Sol verified the schedule, offered alternative open slots, and successfully rescheduled to their preferred time. A calendar invite was updated." }
 ];
 
 function renderVoizRoster() {
@@ -5338,6 +5519,360 @@ function closeDemoCallModal() {
 }
 
 // Make functions globally available
+// Make functions globally available
 window.triggerVoiceCallDemo = triggerVoiceCallDemo;
 window.renderVoizRoster = renderVoizRoster;
+
+/* ── CAMPAIGN DETAILED VIEW (ANALYTICS & LEADS) ── */
+let lcAttemptsChartInstance = null;
+let lcMigrationChartInstance = null;
+let lcSuccessChartInstance = null;
+let lcFunnelChartInstance = null;
+
+window.viewCampaignLifecycle = function(campaignName) {
+  // Navigate to campaign-lifecycle subpage
+  window.goToPage('campaign-lifecycle');
+
+  // Bind campaign name header
+  const nameEl = document.getElementById('lifecycle-campaign-name');
+  if (nameEl) nameEl.textContent = campaignName;
+
+  // Filter actual leads from the global `allLeads` array matching this campaignName
+  const campaignLeads = allLeads.filter(lead => {
+    if (!lead.campaign_name) return false;
+    const campaigns = lead.campaign_name.split(',').map(c => c.trim().toLowerCase());
+    return campaigns.includes(campaignName.toLowerCase());
+  });
+
+  // Calculate dynamic metrics based on actual leads
+  const targetLeads = campaignLeads.length;
+  const activeLeads = campaignLeads.filter(l => l.status === 'calling' || l.status === 'queued' || l.status === 're-queued').length;
+  const attemptsToday = campaignLeads.filter(l => l.status && l.status !== 'ingested').length;
+  const connectedDials = campaignLeads.filter(l => l.status === 'hot_escalated' || l.status === 'completed' || l.status === 'interested' || l.status === 'enrolled').length;
+
+  const connectRate = attemptsToday > 0 ? Math.round((connectedDials / attemptsToday) * 100) : 0;
+  const conversionRate = targetLeads > 0 ? Math.round((campaignLeads.filter(l => l.score >= 80).length / targetLeads) * 100) : 0;
+
+  const isScheduled = campaignName.toLowerCase().includes('scheduled');
+  const isBatch = campaignName.toLowerCase().includes('batch') || campaignName.toLowerCase().includes('csv') || campaignName.toLowerCase().includes('json') || campaignName.toLowerCase().includes('upload');
+  
+  const statusText = isScheduled ? 'Draft' : 'Active';
+  const statusClass = isScheduled ? 'badge-gray' : 'badge-green';
+  const modeText = isBatch ? 'Auto' : 'Voice Only';
+  const dateRange = 'Just Ingested';
+
+  // Update top bar details
+  const statusBadge = document.getElementById('lifecycle-status-badge');
+  if (statusBadge) {
+    statusBadge.textContent = statusText;
+    statusBadge.className = `lx-badge ${statusClass}`;
+  }
+  const modeTextEl = document.getElementById('lifecycle-mode-text');
+  if (modeTextEl) modeTextEl.textContent = modeText;
+  const dateRangeEl = document.getElementById('lifecycle-date-range');
+  if (dateRangeEl) dateRangeEl.textContent = dateRange;
+
+  // Render sub-views default tab
+  window.switchLifecycleTab('performance');
+
+  // Update KPI Cards Block
+  const statActive = document.getElementById('lc-stat-active');
+  if (statActive) statActive.textContent = activeLeads.toLocaleString();
+  const statAttempts = document.getElementById('lc-stat-attempts');
+  if (statAttempts) statAttempts.textContent = attemptsToday.toLocaleString();
+  const statConnect = document.getElementById('lc-stat-connect');
+  if (statConnect) statConnect.textContent = `${connectRate}%`;
+  const statConversion = document.getElementById('lc-stat-conversion');
+  if (statConversion) statConversion.textContent = `${conversionRate}%`;
+
+  // Draw Horizontal Bar Chart for Conversion Funnel
+  const funnelCtx = document.getElementById('lc-funnel-chart');
+  if (funnelCtx) {
+    if (lcFunnelChartInstance) lcFunnelChartInstance.destroy();
+    
+    // Funnel progression stages
+    const pitched = Math.round(connectedDials * 0.8);
+    const interested = Math.round(connectedDials * 0.5);
+    const enrolled = Math.round(connectedDials * 0.35);
+
+    lcFunnelChartInstance = new Chart(funnelCtx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Calls Placed', 'Connected Dials', 'Pitched Leads', 'Interested Leads', 'Enrolled Leads'],
+        datasets: [{
+          label: 'Leads Count',
+          data: [targetLeads, connectedDials, pitched, interested, enrolled],
+          backgroundColor: [
+            '#4f46e5', // Placed
+            '#3b82f6', // Connected
+            '#06b6d4', // Pitched
+            '#f59e0b', // Interested
+            '#10b981'  // Enrolled
+          ],
+          borderRadius: 6,
+          barPercentage: 0.55
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Initialize Chart.js visual graphs
+  window.renderLifecycleCharts(campaignName);
+
+  // Populate dynamic Campaign Leads list
+  window.renderCampaignLeadsTable(campaignName);
+};
+
+window.switchLifecycleTab = function(tabName) {
+  const perfTab = document.getElementById('lc-tab-performance');
+  const leadsTab = document.getElementById('lc-tab-leads');
+  const perfBtn = document.getElementById('lc-btn-performance');
+  const leadsBtn = document.getElementById('lc-btn-leads');
+
+  if (!perfTab || !leadsTab || !perfBtn || !leadsBtn) return;
+
+  if (tabName === 'performance') {
+    perfTab.classList.add('show');
+    leadsTab.classList.remove('show');
+    perfBtn.classList.add('active');
+    leadsBtn.classList.remove('active');
+    perfBtn.style.borderBottom = '2px solid var(--lx-accent)';
+    perfBtn.style.color = 'var(--lx-accent)';
+    leadsBtn.style.borderBottom = '2px solid transparent';
+    leadsBtn.style.color = 'var(--lx-muted)';
+  } else {
+    perfTab.classList.remove('show');
+    leadsTab.classList.add('show');
+    perfBtn.classList.remove('active');
+    leadsBtn.classList.add('active');
+    leadsBtn.style.borderBottom = '2px solid var(--lx-accent)';
+    leadsBtn.style.color = 'var(--lx-accent)';
+    perfBtn.style.borderBottom = '2px solid transparent';
+    perfBtn.style.color = 'var(--lx-muted)';
+  }
+};
+
+window.renderLifecycleCharts = function(campaignName) {
+  const attemptsCtx = document.getElementById('lc-attempts-chart');
+  const migrationCtx = document.getElementById('lc-migration-chart');
+  const successCtx = document.getElementById('lc-success-chart');
+
+  if (!attemptsCtx || !migrationCtx || !successCtx) return;
+
+  // Destroy previous instances
+  if (lcAttemptsChartInstance) lcAttemptsChartInstance.destroy();
+  if (lcMigrationChartInstance) lcMigrationChartInstance.destroy();
+  if (lcSuccessChartInstance) lcSuccessChartInstance.destroy();
+
+  // 1. Stacked Bar Chart: Hourly Attempts (SMS, Voice, WhatsApp)
+  lcAttemptsChartInstance = new Chart(attemptsCtx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'],
+      datasets: [
+        {
+          label: 'SMS',
+          data: [15, 18, 20, 19, 14, 11, 16, 21, 25, 30, 28, 19],
+          backgroundColor: '#f59e0b'
+        },
+        {
+          label: 'Voice',
+          data: [20, 32, 48, 44, 31, 26, 37, 41, 52, 56, 51, 33],
+          backgroundColor: '#3b82f6'
+        },
+        {
+          label: 'WhatsApp',
+          data: [10, 19, 28, 27, 21, 18, 24, 29, 35, 38, 34, 22],
+          backgroundColor: '#10b981'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true }
+      },
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+
+  // 2. Stacked Area Chart: Lead Score Migration
+  lcMigrationChartInstance = new Chart(migrationCtx.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [
+        {
+          label: 'Cold (Score < 50)',
+          data: [120, 110, 95, 80, 75, 68, 60],
+          fill: true,
+          backgroundColor: 'rgba(156, 163, 175, 0.15)',
+          borderColor: '#9ca3af'
+        },
+        {
+          label: 'Warm (Score 50-79)',
+          data: [150, 170, 190, 200, 220, 230, 240],
+          fill: true,
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          borderColor: '#3b82f6'
+        },
+        {
+          label: 'Hot (Score >= 80)',
+          data: [180, 220, 240, 270, 290, 310, 345],
+          fill: true,
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          borderColor: '#10b981'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { stacked: true }
+      },
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+
+  // 3. Horizontal Bar Chart: Channel Success Rate (%)
+  lcSuccessChartInstance = new Chart(successCtx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Voice', 'WhatsApp', 'SMS'],
+      datasets: [
+        {
+          label: 'Success Rate (%)',
+          data: [45, 68, 22],
+          backgroundColor: ['#3b82f6', '#10b981', '#f59e0b']
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { max: 100 }
+      }
+    }
+  });
+};
+
+window.renderCampaignLeadsTable = function(campaignName) {
+  const tbody = document.getElementById('lc-leads-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  // Filter actual leads from the global `allLeads` array matching this campaignName
+  const campaignLeads = allLeads.filter(lead => {
+    if (!lead.campaign_name) return false;
+    const campaigns = lead.campaign_name.split(',').map(c => c.trim().toLowerCase());
+    return campaigns.includes(campaignName.toLowerCase());
+  });
+
+  // Calculate dynamic summary stats based on current campaign leads list
+  const totalLeads = campaignLeads.length;
+  const liveAttempts = campaignLeads.filter(l => l.status && l.status !== 'ingested').length;
+  const connectedDials = campaignLeads.filter(l => l.status === 'hot_escalated' || l.status === 'completed' || l.status === 'interested' || l.status === 'enrolled').length;
+  const qualifiedInterest = campaignLeads.filter(l => l.score >= 65).length;
+
+  if (campaignLeads.length === 0) {
+    tbody.innerHTML = `
+      <tr class="lx-empty-row">
+        <td colspan="6" style="text-align: center; color: var(--lx-muted); padding: 30px; font-size: 13px;">
+          No leads registered in this campaign yet.
+        </td>
+      </tr>
+    `;
+  } else {
+    tbody.innerHTML = campaignLeads.map(lead => renderLeadRowHtml(lead)).join('');
+  }
+
+  // Update Stats values
+  const totalEl = document.getElementById('lc-leads-stat-total');
+  if (totalEl) totalEl.textContent = totalLeads.toLocaleString();
+  const attemptsEl = document.getElementById('lc-leads-stat-attempts');
+  if (attemptsEl) attemptsEl.textContent = liveAttempts.toLocaleString();
+  const connectedEl = document.getElementById('lc-leads-stat-connected');
+  if (connectedEl) connectedEl.textContent = connectedDials.toLocaleString();
+  const qualifiedEl = document.getElementById('lc-leads-stat-qualified');
+  if (qualifiedEl) qualifiedEl.textContent = qualifiedInterest.toLocaleString();
+};
+
+function renderLeadRowHtml(lead) {
+  const score = lead.score || 0;
+  let badgeClass = 'badge-gray';
+  let statusText = 'COLD';
+  if (lead.status === 'dnc') {
+    badgeClass = 'badge-red'; statusText = 'DNC BLOCK';
+  } else if (lead.status === 'hot_escalated' || lead.status === 'escalated') {
+    badgeClass = 'badge-teal'; statusText = 'ESCALATED';
+  } else if (score >= 80) {
+    badgeClass = 'badge-green'; statusText = 'HOT';
+  } else if (score >= 65) {
+    badgeClass = 'badge-accent'; statusText = 'QUALIFIED';
+  } else if (score >= 50) {
+    badgeClass = 'badge-amber'; statusText = 'WARM';
+  }
+
+  const lastCall = lead.last_call_at ? new Date(lead.last_call_at).toLocaleString() : 'Never Attempted';
+
+  return `
+    <tr style="cursor: pointer;" onclick="if(event.target.tagName !== 'BUTTON') viewLeadDetails('${lead.id}')">
+      <td style="padding: 12px 16px;">
+        <div style="font-weight: 700; color: var(--lx-text);">${lead.name || 'Unknown'}</div>
+        <div style="font-size: 11px; color: var(--lx-muted);">ID: ${lead.leadx_id || lead.id || '-'}</div>
+      </td>
+      <td style="padding: 12px 16px;"><span style="font-family: var(--lx-mono);">${lead.phone}</span></td>
+      <td style="padding: 12px 16px;">
+        <span class="lx-badge badge-teal" style="font-weight: 700;">${score}</span>
+      </td>
+      <td style="padding: 12px 16px;">
+        <span class="lx-badge ${badgeClass}">${statusText}</span>
+      </td>
+      <td style="padding: 12px 16px; font-size: 12px; color: var(--lx-muted);">${lastCall}</td>
+      <td style="padding: 12px 16px; text-align: right;">
+        <button class="lx-btn" style="padding: 4px 10px; font-size: 11px; margin: 0; background: var(--lx-accent); border-color: var(--lx-accent); color: white;" onclick="event.stopPropagation(); viewBriefModal('${lead.id}')">
+          Brief &amp; Action
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+window.filterLifecycleLeadsTable = function() {
+  const input = document.getElementById('lc-leads-search');
+  const filter = input ? input.value.toLowerCase() : '';
+  const rows = document.querySelectorAll('#lc-leads-tbody tr');
+
+  rows.forEach(row => {
+    if (row.classList.contains('lx-empty-row')) return;
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(filter) ? '' : 'none';
+  });
+};
+
 
