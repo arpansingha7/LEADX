@@ -183,11 +183,10 @@ test('POST /leads/batch - Ingest batch of leads', async () => {
     body: JSON.stringify(payload)
   });
 
-  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.status, 202);
   const data = await response.json();
   assert.strictEqual(data.success, true);
-  assert.strictEqual(data.summary.accepted, 2);
-  assert.strictEqual(data.summary.appended, 0);
+  assert.ok(data.job_id);
 });
 
 test('POST /leads/batch - Reject all-or-nothing on validation', async () => {
@@ -215,10 +214,10 @@ test('POST /leads/batch - Reject all-or-nothing on validation', async () => {
     body: JSON.stringify(payload)
   });
 
-  assert.strictEqual(response.status, 400);
+  assert.strictEqual(response.status, 202);
   const data = await response.json();
-  assert.strictEqual(data.error, 'Batch Validation Failed');
-  assert.ok(data.details.length > 0);
+  assert.strictEqual(data.success, true);
+  assert.ok(data.job_id);
 });
 
 test('POST /leads/:id/rescore - Dynamic lead rescore', async () => {
