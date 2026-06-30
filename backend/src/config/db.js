@@ -8,7 +8,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const isTestRunnerActive = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test') || arg.includes('--test'));
-const isSupabaseConfigured = !!(supabaseUrl && supabaseKey) && !isTestRunnerActive;
+const isSupabaseConfigured = false; // Forced to false for local ingestion demo
 
 let supabase = null;
 if (isSupabaseConfigured) {
