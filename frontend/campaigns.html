@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEADX - Campaign Analytics Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge.connected { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge.disconnected { background-color: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    </style>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="dashboard-header">
+        <div>
+            <h1>Campaign Analytics</h1>
+            <p style="color: var(--text-muted); margin: 0;">Real-time system health and ingestion metrics</p>
+        </div>
+        <div>
+            <span id="connection-status" class="badge disconnected">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h3>Active Jobs</h3>
+            <div id="stat-active" class="stat-value" style="color: var(--accent);">0</div>
+            <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Currently processing</p>
+        </div>
+        <div class="card">
+            <h3>Waiting Jobs</h3>
+            <div id="stat-waiting" class="stat-value" style="color: var(--warning);">0</div>
+            <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Queued for processing</p>
+        </div>
+        <div class="card">
+            <h3>Failed Jobs</h3>
+            <div id="stat-failed" class="stat-value" style="color: var(--danger);">0</div>
+            <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Requires attention</p>
+        </div>
+        <div class="card">
+            <h3>Throughput</h3>
+            <div class="stat-value"><span id="stat-throughput">0</span> <span style="font-size: 16px; color: var(--text-muted); font-weight: normal;">leads/min</span></div>
+            <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Estimated ingestion rate</p>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card" style="grid-column: span 2;">
+            <h3>Queue Health (Real-time)</h3>
+            <div class="chart-container">
+                <canvas id="queueChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h3>System Throughput</h3>
+            <div class="chart-container">
+                <canvas id="throughputChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Charts
+        const queueCtx = document.getElementById('queueChart').getContext('2d');
+        const queueChart = new Chart(queueCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Waiting', 'Delayed', 'Failed', 'Completed'],
+                datasets: [{
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: [
+                        '#3b82f6', // Active
+                        '#f59e0b', // Waiting
+                        '#8b5cf6', // Delayed
+                        '#ef4444', // Failed
+                        '#10b981'  // Completed
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#f8fafc' } }
+                }
+            }
+        });
+
+        const throughputCtx = document.getElementById('throughputChart').getContext('2d');
+        const throughputChart = new Chart(throughputCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Leads / Min',
+                    data: [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // SSE Connection
+        const eventSource = new EventSource('http://localhost:3000/campaigns/analytics/stream');
+        const statusBadge = document.getElementById('connection-status');
+
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.event === 'connected') {
+                statusBadge.textContent = 'Connected';
+                statusBadge.className = 'badge connected';
+            } 
+            else if (data.event === 'analytics') {
+                const { queueHealth, throughputPerMinute } = data.metrics;
+
+                // Update Stats
+                document.getElementById('stat-active').textContent = queueHealth.active || 0;
+                document.getElementById('stat-waiting').textContent = queueHealth.waiting || 0;
+                document.getElementById('stat-failed').textContent = queueHealth.failed || 0;
+                document.getElementById('stat-throughput').textContent = throughputPerMinute || 0;
+
+                // Update Queue Chart
+                queueChart.data.datasets[0].data = [
+                    queueHealth.active || 0,
+                    queueHealth.waiting || 0,
+                    queueHealth.delayed || 0,
+                    queueHealth.failed || 0,
+                    queueHealth.completed || 0
+                ];
+                queueChart.update();
+
+                // Update Throughput Chart (keep last 10 points)
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+                
+                throughputChart.data.labels.push(timeStr);
+                throughputChart.data.datasets[0].data.push(throughputPerMinute);
+                
+                if (throughputChart.data.labels.length > 10) {
+                    throughputChart.data.labels.shift();
+                    throughputChart.data.datasets[0].data.shift();
+                }
+                throughputChart.update();
+            }
+        };
+
+        eventSource.onerror = () => {
+            statusBadge.textContent = 'Reconnecting...';
+            statusBadge.className = 'badge disconnected';
+        };
+    </script>
+</body>
+</html>

@@ -33,7 +33,9 @@ const mockDb = {
   dncRegistry: [],
   scripts: [],
   agentBriefs: [],
-  jobs: []
+  jobs: [],
+  campaigns: [],
+  leadIngestionErrors: []
 };
 
 // Seed default configs for tenant 'default-tenant' and 'test-tenant'
@@ -1025,6 +1027,122 @@ const db = {
     }
   },
 
+  async insertCampaign(campaignData) {
+    const campaignVal = {
+      id: campaignData.id || uuidv4(),
+      tenant_id: campaignData.tenant_id,
+      name: campaignData.name || 'Untitled Campaign',
+      status: campaignData.status || 'draft',
+      total_leads: campaignData.total_leads || 0,
+      processed_leads: campaignData.processed_leads || 0,
+      failed_leads: campaignData.failed_leads || 0,
+      scheduled_at: campaignData.scheduled_at || null,
+      started_at: campaignData.started_at || null,
+      finished_at: campaignData.finished_at || null,
+      job_id: campaignData.job_id || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .insert(campaignVal)
+        .select()
+        .single();
+      if (error && error.code !== '42P01') throw error;
+      if (error && error.code === '42P01') {
+         mockDb.campaigns.push(campaignVal);
+         return campaignVal;
+      }
+      return data;
+    } else {
+      mockDb.campaigns.push(campaignVal);
+      return campaignVal;
+    }
+  },
+
+  async updateCampaign(campaignId, updateData) {
+    updateData.updated_at = new Date().toISOString();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', campaignId)
+        .select()
+        .single();
+      if (error && error.code !== '42P01') throw error;
+      if (error && error.code === '42P01') {
+         const index = mockDb.campaigns.findIndex(c => c.id === campaignId);
+         if (index !== -1) {
+           mockDb.campaigns[index] = { ...mockDb.campaigns[index], ...updateData };
+           return mockDb.campaigns[index];
+         }
+         return null;
+      }
+      return data;
+    } else {
+      const index = mockDb.campaigns.findIndex(c => c.id === campaignId);
+      if (index !== -1) {
+        mockDb.campaigns[index] = { ...mockDb.campaigns[index], ...updateData };
+        return mockDb.campaigns[index];
+      }
+      return null;
+    }
+  },
+
+  async getCampaign(campaignId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .maybeSingle();
+      if (error && error.code !== '42P01') throw error;
+      if (error && error.code === '42P01') return mockDb.campaigns.find(c => c.id === campaignId) || null;
+      return data;
+    } else {
+      return mockDb.campaigns.find(c => c.id === campaignId) || null;
+    }
+  },
+
+  async getCampaigns(tenantId) {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') throw error;
+      if (error && error.code === '42P01') return mockDb.campaigns.filter(c => c.tenant_id === tenantId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return data;
+    } else {
+      return mockDb.campaigns.filter(c => c.tenant_id === tenantId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  },
+
+  async insertLeadIngestionError(errorData) {
+    const errorVal = {
+      id: uuidv4(),
+      campaign_id: errorData.campaign_id,
+      tenant_id: errorData.tenant_id,
+      raw_data: errorData.raw_data || {},
+      error_reason: errorData.error_reason || 'Unknown error',
+      created_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('lead_ingestion_errors')
+        .insert(errorVal)
+        .select()
+        .single();
+      if (error && error.code !== '42P01') console.error('Error inserting lead error:', error);
+      if (error && error.code === '42P01') mockDb.leadIngestionErrors.push(errorVal);
+      return data || errorVal;
+    } else {
+      mockDb.leadIngestionErrors.push(errorVal);
+      return errorVal;
+    }
+  },
 
   async clearDb() {
     if (supabase) {
@@ -1047,6 +1165,8 @@ const db = {
       mockDb.scripts = [];
       mockDb.agentBriefs = [];
       mockDb.jobs = [];
+      mockDb.campaigns = [];
+      mockDb.leadIngestionErrors = [];
       // Re-seed defaults
       mockDb.tenantConfigs = {};
       mockDb.tenantConfigs['default-tenant'] = {
