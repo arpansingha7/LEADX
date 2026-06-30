@@ -1100,11 +1100,10 @@ async function handleBatchIngest() {
     });
 
     const data = await res.json();
-    if (res.ok) {
-      showToast('Batch Complete', `Accepted: ${data.accepted} | Rejected: ${data.rejected} | Duplicates: ${data.duplicates}`, 'check');
+    if (res.ok && data.success) {
+      showToast('Batch Queued', data.message || 'Batch ingestion started in background.', 'check');
       batchJsonArea.value = '';
-      await fetchLeadsList();
-      logActivityFeed(`Batch ingested: <strong>${data.accepted} accepted</strong>, ${data.rejected} rejected, ${data.duplicates} duplicates.`);
+      logActivityFeed(`Batch ingestion started in background. Job ID: <strong>${data.job_id}</strong>`);
     } else {
       showToast('Batch Failed', data.message || 'Validation failed for batch schema.', 'alert-triangle', 'error');
     }
@@ -2292,7 +2291,7 @@ window.commitWizardData = function() {
   .then(res => res.json())
   .then(async batchData => {
     if (batchData.success) {
-      showToast('Wizard Complete', `Uploaded ${batchData.accepted} leads for campaign "${campaignName}"`, 'check');
+      showToast('Wizard Queued', batchData.message || `Campaign "${campaignName}" ingestion started in background.`, 'check');
       goToStep(1);
       document.getElementById('wizardUploadArea').value = '';
       

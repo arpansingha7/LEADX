@@ -32,7 +32,8 @@ const mockDb = {
   auditTrail: [],
   dncRegistry: [],
   scripts: [],
-  agentBriefs: []
+  agentBriefs: [],
+  jobs: []
 };
 
 // Seed default configs for tenant 'default-tenant' and 'test-tenant'
@@ -931,6 +932,99 @@ const db = {
     }
   },
 
+  async insertJob(tenant_id, type, payload) {
+    const job = {
+      id: uuidv4(),
+      tenant_id,
+      job_type: type,
+      status: 'pending',
+      payload,
+      result: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase.from('background_jobs').insert([job]).select().single();
+      if (error) {
+        if (error.code === '42P01') {
+           // relation does not exist, use mock as fallback
+           console.warn('background_jobs table not found in Supabase. Falling back to mock jobs.');
+           mockDb.jobs.push(job);
+           return job;
+        }
+        throw error;
+      }
+      return data;
+    } else {
+      mockDb.jobs.push(job);
+      return job;
+    }
+  },
+
+  async fetchNextPendingJob() {
+    if (supabase) {
+      // Find oldest pending job
+      const { data, error } = await supabase
+        .from('background_jobs')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No rows found
+        if (error.code === '42P01') {
+           // Fallback to mock
+           const job = mockDb.jobs.find(j => j.status === 'pending');
+           return job || null;
+        }
+        console.error('Error fetching next pending job:', error);
+        return null;
+      }
+      return data;
+    } else {
+      const job = mockDb.jobs.find(j => j.status === 'pending');
+      return job || null;
+    }
+  },
+
+  async updateJobStatus(job_id, status, result = null) {
+    const updateData = {
+      status,
+      result,
+      updated_at: new Date().toISOString()
+    };
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('background_jobs')
+        .update(updateData)
+        .eq('id', job_id)
+        .select()
+        .single();
+      
+      if (error) {
+         if (error.code === '42P01') {
+            const index = mockDb.jobs.findIndex(j => j.id === job_id);
+            if (index !== -1) {
+              mockDb.jobs[index] = { ...mockDb.jobs[index], ...updateData };
+              return mockDb.jobs[index];
+            }
+         }
+         console.error('Error updating job status:', error);
+         return null;
+      }
+      return data;
+    } else {
+      const index = mockDb.jobs.findIndex(j => j.id === job_id);
+      if (index !== -1) {
+        mockDb.jobs[index] = { ...mockDb.jobs[index], ...updateData };
+        return mockDb.jobs[index];
+      }
+      return null;
+    }
+  },
+
 
   async clearDb() {
     if (supabase) {
@@ -952,6 +1046,7 @@ const db = {
       mockDb.dncRegistry = [];
       mockDb.scripts = [];
       mockDb.agentBriefs = [];
+      mockDb.jobs = [];
       // Re-seed defaults
       mockDb.tenantConfigs = {};
       mockDb.tenantConfigs['default-tenant'] = {

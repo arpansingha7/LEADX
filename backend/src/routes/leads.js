@@ -7,6 +7,7 @@ import { initSession, normaliseEvent } from '../services/voizAdapter.js';
 import { sendSlackNotification } from '../services/slackService.js';
 import { syncToCRM, getCRMLists, getCRMContactsFromList } from '../services/crmService.js';
 import { enqueueLead, handleCallOutcome, forceRetry, getQueueStats, isCallable } from '../services/queueService.js';
+import { enqueueJob } from '../services/jobQueue.js';
 import { checkEscalation } from '../services/escalationService.js';
 import { handleEscalation } from '../services/handoffService.js';
 
@@ -208,141 +209,13 @@ router.post('/batch', async (req, res, next) => {
       return res.status(400).json({ error: 'Validation Error', message: 'Batch size exceeds the maximum limit of 500 leads' });
     }
 
-    const weights = await db.getWeights(tenant_id);
+    // Enqueue the background job
+    const job = await enqueueJob(tenant_id, 'batch_ingest', { tenant_id, leads, dataset_id, campaign_name });
 
-    // Pre-validation pass (All-or-nothing)
-    const validationErrors = [];
-    const batchPhones = new Set();
-    const leadsToProcess = [];
-
-    for (let i = 0; i < leads.length; i++) {
-      const item = leads[i];
-      const leadPayload = { ...item, tenant_id };
-
-      // Column validation: client_id is required for MVP
-      if (!item.client_id) {
-        validationErrors.push({ index: i, errors: ["Missing required column/mapping: client_id"] });
-        continue;
-      }
-
-      const val = validateLead(leadPayload);
-      if (!val.isValid) {
-        validationErrors.push({ index: i, errors: val.errors });
-        continue;
-      }
-
-      const cleaned = cleanPhone(item.phone);
-      if (batchPhones.has(cleaned)) {
-        validationErrors.push({ index: i, errors: ["Duplicate phone number within the batch"] });
-        continue;
-      }
-      batchPhones.add(cleaned);
-
-      leadPayload.phone = cleaned;
-      leadPayload.dataset_id = dataset_id || 'batch-upload';
-      leadPayload.campaign_name = campaign_name || 'Batch Campaigns';
-      leadPayload.client_id = item.client_id;
-      
-      leadsToProcess.push({ index: i, payload: leadPayload });
-    }
-
-    // If any validation errors exist, reject the entire batch
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: 'Batch Validation Failed',
-        message: 'One or more leads failed validation or had missing columns. The entire batch has been rejected.',
-        details: validationErrors
-      });
-    }
-
-    let accepted = 0;
-    let appended = 0;
-    const details = [];
-
-    // Processing pass (only if validation passed)
-    for (const { index, payload } of leadsToProcess) {
-      try {
-        const existing = await db.findLeadByPhone(tenant_id, payload.phone);
-        if (existing) {
-          const newCampaign = campaign_name || 'Batch Campaigns';
-          const currentCampaigns = existing.campaign_name ? existing.campaign_name.split(',').map(c => c.trim()) : [];
-          
-          existing.raw_data = existing.raw_data || {};
-          if (!existing.raw_data.leadx_id) {
-            existing.raw_data.leadx_id = payload.raw_data?.leadx_id || 'ldx_' + Math.random().toString(36).substr(2, 9);
-          }
-          
-          // Update to the most recent campaign_id
-          const mostRecentCampaignId = payload.raw_data?.campaign_id || 'cmp_' + Math.random().toString(36).substr(2, 9);
-          existing.raw_data.campaign_id = mostRecentCampaignId;
-
-          if (!currentCampaigns.includes(newCampaign)) {
-            currentCampaigns.push(newCampaign);
-            await db.updateLeadCampaignAndData(existing.id, currentCampaigns.join(', '), existing.raw_data);
-            appended++;
-            details.push({ index, phone: payload.phone, status: 'appended', lead_id: existing.id });
-          } else {
-            await db.updateLeadCampaignAndData(existing.id, currentCampaigns.join(', '), existing.raw_data);
-            details.push({ index, phone: payload.phone, status: 'duplicate_skipped' });
-          }
-
-          // Sync duplicate/appended lead back to HubSpot
-          if (existing.raw_data?.hubspot_id || existing.email) {
-            syncToCRM(tenant_id, existing, 'hubspot').catch(err => {
-              console.error('[Ingestion Sync-Back] Failed to sync duplicate lead to HubSpot:', existing.id, err);
-            });
-          }
-          continue;
-        }
-
-        const score = computeLeadScore(payload, weights);
-        payload.score = score;
-
-        // Ensure leadx_id and campaign_id exist
-        payload.raw_data = payload.raw_data || {};
-        if (!payload.raw_data.leadx_id) {
-          payload.raw_data.leadx_id = 'ldx_' + Math.random().toString(36).substr(2, 9);
-        }
-        if (!payload.raw_data.campaign_id) {
-          payload.raw_data.campaign_id = 'cmp_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        const saved = await db.insertLead(payload);
-        
-        // Enqueue in dialer priority queue
-        await enqueueLead(saved.id, score);
-
-        // Asynchronously sync back to CRM if the lead has a HubSpot ID or email
-        if (saved.raw_data?.hubspot_id || saved.email) {
-          syncToCRM(tenant_id, saved, 'hubspot').catch(err => {
-            console.error('[Ingestion Sync-Back] Failed to sync to HubSpot for lead', saved.id, err);
-          });
-        }
-
-        accepted++;
-        details.push({ index, phone: payload.phone, status: 'accepted', lead_id: saved.id, score: saved.score });
-      } catch (dbError) {
-        console.error('Database error in batch processing:', dbError);
-      }
-    }
-
-    await db.insertAuditLog(tenant_id, 'batch_leads_ingested', {
-      dataset_id: dataset_id || 'batch-upload',
-      campaign_name: campaign_name || 'Batch Campaigns',
-      accepted,
-      appended
-    });
-
-    await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${appended} appended for campaign "${campaign_name || 'Batch Campaigns'}".`);
-
-    res.status(200).json({
+    res.status(202).json({
       success: true,
-      summary: {
-        accepted,
-        appended,
-        total: leads.length
-      },
-      details
+      message: 'Batch ingestion started in background.',
+      job_id: job.id
     });
   } catch (error) {
     next(error);
