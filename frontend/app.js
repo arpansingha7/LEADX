@@ -1,4 +1,4 @@
-// LeadX Dashboard Orchestrator
+// LEADX Dashboard Orchestrator
 const API_BASE = '/leads';
 let currentTenant = 'default-tenant';
 let tenantWeights = {
@@ -11,6 +11,7 @@ let tenantWeights = {
 let allLeads = [];
 let currentFilter = 'all';
 let tenantOnboardingConfig = {};
+let systemNotifications = [];
 
 // Global Chart.js instances to avoid render glitches on reuse
 let connectRateChartInstance = null;
@@ -97,6 +98,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // startActivitySimulator();
   // seedInitialDataIfEmpty();
   fetchCampaignsList();
+  
+  // Poll campaigns list every 5 seconds to catch ingestion status
+  setInterval(fetchCampaignsList, 5000);
 
   // Poll call events stream every 5 seconds
   setInterval(fetchCallEventsStream, 5000);
@@ -212,9 +216,218 @@ window.goToPage = function(pageId) {
   }
 };
 
+// ==========================================
+// NOTIFICATION CENTER LOGIC
+// ==========================================
+function setupNotifications() {
+  const notifBtn = document.getElementById('navNotificationBtn');
+  const notifDropdown = document.getElementById('navNotifDropdown');
+  const notifClearBtn = document.getElementById('navNotifClearBtn');
+  
+  if (notifBtn && notifDropdown) {
+    notifBtn.addEventListener('click', (e) => {
+      // Toggle dropdown
+      const isVisible = notifDropdown.style.display === 'flex';
+      notifDropdown.style.display = isVisible ? 'none' : 'flex';
+      
+      // If we are opening it, reset the unread badge
+      if (!isVisible) {
+        const badge = document.getElementById('navNotifBadge');
+        if (badge) {
+          badge.style.display = 'none';
+        }
+      }
+      e.stopPropagation();
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!notifBtn.contains(e.target) && notifDropdown.style.display === 'flex') {
+        notifDropdown.style.display = 'none';
+      }
+    });
+    
+    // Prevent closing when clicking inside the dropdown
+    notifDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  if (notifClearBtn) {
+    notifClearBtn.addEventListener('click', () => {
+      systemNotifications = [];
+      renderNotifications();
+    });
+  }
+}
+
+function addNotification(title, message, iconName = 'info', type = 'info') {
+  systemNotifications.unshift({
+    title,
+    message,
+    iconName,
+    type,
+    time: new Date()
+  });
+  
+  // Keep only the last 20 notifications to save memory
+  if (systemNotifications.length > 20) {
+    systemNotifications.pop();
+  }
+  
+  renderNotifications();
+  
+  // Update Unread Badge
+  const notifDropdown = document.getElementById('navNotifDropdown');
+  if (notifDropdown && notifDropdown.style.display !== 'flex') {
+    const badge = document.getElementById('navNotifBadge');
+    if (badge) {
+      badge.style.display = 'block';
+    }
+  }
+}
+
+function renderNotifications() {
+  const list = document.getElementById('navNotifList');
+  if (!list) return;
+  
+  list.innerHTML = '';
+  
+  if (systemNotifications.length === 0) {
+    list.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--lx-muted); font-size: 13px;">No new notifications</div>';
+    return;
+  }
+  
+  systemNotifications.forEach(n => {
+    let iconColor = 'var(--lx-text)';
+    if (n.type === 'error') iconColor = 'var(--lx-red)';
+    else if (n.type === 'success' || n.type === 'check-circle') iconColor = 'var(--lx-green)';
+    
+    const div = document.createElement('div');
+    div.style.padding = '12px 16px';
+    div.style.borderBottom = '1px solid var(--lx-border)';
+    div.style.display = 'flex';
+    div.style.gap = '12px';
+    div.style.alignItems = 'flex-start';
+    
+    div.innerHTML = `
+      <i data-lucide="${n.iconName}" style="width: 16px; height: 16px; color: ${iconColor}; margin-top: 2px; flex-shrink: 0;"></i>
+      <div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--lx-text); margin-bottom: 2px;">${n.title}</div>
+        <div style="font-size: 11.5px; color: var(--lx-muted); line-height: 1.4;">${n.message}</div>
+        <div style="font-size: 10px; color: var(--lx-hint); margin-top: 4px;">${n.time.toLocaleTimeString()}</div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+  
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+// ==========================================
+// SCHEDULER LOGIC
+// ==========================================
+
+function setupScheduler() {
+  const btnCreateSchedule = document.getElementById('btnCreateSchedule');
+  if (btnCreateSchedule) {
+    btnCreateSchedule.addEventListener('click', createScheduledJob);
+  }
+  
+  // Load jobs when Scheduler tab is clicked
+  const schedulerTab = document.querySelector('[data-page="scheduler"]');
+  if (schedulerTab) {
+    schedulerTab.addEventListener('click', () => {
+      fetchScheduledJobs();
+    });
+  }
+}
+
+async function fetchScheduledJobs() {
+  try {
+    const res = await fetch('http://localhost:3000/scheduler');
+    const data = await res.json();
+    if (data.success) {
+      renderScheduledJobs(data.jobs);
+    }
+  } catch (err) {
+    console.error('Error fetching jobs:', err);
+  }
+}
+
+function renderScheduledJobs(jobs) {
+  const tbody = document.querySelector('#scheduler-jobs-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (jobs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--lx-muted);">No active scheduled jobs</td></tr>';
+    return;
+  }
+  
+  jobs.forEach(job => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${job.name || job.id}</td>
+      <td><span class="lx-badge blue">${job.cron}</span></td>
+      <td>${new Date(job.next).toLocaleString()}</td>
+      <td>
+        <button class="lx-btn danger" onclick="deleteScheduledJob('${encodeURIComponent(job.key)}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function createScheduledJob() {
+  const type = document.getElementById('scheduleJobType').value;
+  let cron = document.getElementById('schedulePattern').value;
+  if (cron === 'custom') {
+    cron = document.getElementById('customCronInput').value;
+  }
+  const tenantId = document.getElementById('scheduleTenantId').value;
+  
+  try {
+    const res = await fetch('http://localhost:3000/scheduler', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, tenantId, cronExpression: cron })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Scheduled', 'Job scheduled successfully', 'check-circle');
+      document.getElementById('modalScheduleJob').style.display = 'none';
+      fetchScheduledJobs();
+    } else {
+      showToast('Error', data.error || 'Failed to schedule job', 'alert-triangle', 'error');
+    }
+  } catch (err) {
+    showToast('Error', 'API connection failed', 'alert-triangle', 'error');
+  }
+}
+
+window.deleteScheduledJob = async function(key) {
+  if (!confirm('Are you sure you want to delete this scheduled job?')) return;
+  try {
+    const res = await fetch(`http://localhost:3000/scheduler/${key}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Deleted', 'Scheduled job removed', 'trash');
+      fetchScheduledJobs();
+    }
+  } catch (err) {
+    console.error('Failed to delete job', err);
+  }
+};
+
+
 
 // 2. Set Up Event Listeners
 function setupEventListeners() {
+  setupNotifications();
+  setupScheduler();
   // Switch Tenant Context
   loadTenantBtn.addEventListener('click', () => {
     const val = tenantIdInput.value.trim();
@@ -254,6 +467,49 @@ function setupEventListeners() {
   }
   if (closeMaximizePreviewModalBtn) {
     closeMaximizePreviewModalBtn.addEventListener('click', hideMaximizeModal);
+  }
+
+  const copyPreviewModalBtn = document.getElementById('copyPreviewModalBtn');
+  if (copyPreviewModalBtn) {
+    copyPreviewModalBtn.addEventListener('click', () => {
+      const head = document.getElementById('maximizedPreviewHead');
+      const body = document.getElementById('maximizedPreviewBody');
+      if (!head || !body) return;
+      
+      let tsv = '';
+      const ths = head.querySelectorAll('th');
+      const headers = Array.from(ths).map(th => {
+        // Strip out the (Generated) text and keep only the main header
+        let text = th.innerText.trim();
+        return text.replace(/\n\(Generated\)/gi, '').trim();
+      });
+      tsv += headers.join('\t') + '\n';
+      
+      const trs = body.querySelectorAll('tr');
+      trs.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        const row = Array.from(tds).map(td => {
+          // If there's an error message inside the cell, it comes out as "value\nerror message" in innerText. We'll try to just grab the first line or let it be. For clean copy, taking the full innerText and replacing newlines with spaces works best.
+          return td.innerText.replace(/\n/g, ' ').trim();
+        });
+        tsv += row.join('\t') + '\n';
+      });
+      
+      navigator.clipboard.writeText(tsv).then(() => {
+        const originalText = copyPreviewModalBtn.innerHTML;
+        copyPreviewModalBtn.innerHTML = '<i data-lucide="check" style="width:14px; height:14px;"></i> Copied!';
+        if (window.lucide) window.lucide.createIcons();
+        
+        setTimeout(() => {
+          copyPreviewModalBtn.innerHTML = originalText;
+          if (window.lucide) window.lucide.createIcons();
+        }, 2000);
+        showToast('Copied to Clipboard', 'The table data has been copied to your clipboard.', 'copy', 'success');
+      }).catch(err => {
+        console.error('Copy failed', err);
+        showToast('Copy Failed', 'Could not copy to clipboard.', 'alert-triangle', 'error');
+      });
+    });
   }
 
 
@@ -1457,7 +1713,7 @@ window.preflightVerifyCampaign = function() {
 window.exportClientReport = function() {
   showToast('Exporting Report', 'Compiling upGrad School of Technology performance sheets...', 'folder');
   setTimeout(() => {
-    showToast('Download Ready', 'LeadX_uGSOT_Report_June.pdf has been generated.', 'upload');
+    showToast('Download Ready', 'LEADX_uGSOT_Report_June.pdf has been generated.', 'upload');
   }, 1500);
 };
 
@@ -1796,7 +2052,7 @@ window.parseAndPrepareMapping = function(isCrm = false) {
 
   if (isCrm) {
     const syncBackFields = [
-      { key: 'leadx_id', label: 'LeadX ID', desc: 'Generated unique ID per lead', importance: 'compulsory' },
+      { key: 'leadx_id', label: 'LEADX ID', desc: 'Generated unique ID per lead', importance: 'compulsory' },
       { key: 'campaign_id', label: 'Campaign ID', desc: 'Campaign ingestion identifier', importance: 'compulsory' }
     ];
 
@@ -1821,7 +2077,7 @@ window.parseAndPrepareMapping = function(isCrm = false) {
   } else {
     syncBackFieldsContainer.innerHTML = `
       <div style="font-size:11.5px; color:var(--lx-muted); padding:10px; background:rgba(255,255,255,0.02); border:1px solid var(--lx-border); border-radius:6px; text-align:center;">
-        CSV mode selected. When the campaign starts, an updated CSV containing generated <b>LeadX IDs</b> and <b>Campaign IDs</b> will be available for download in the Client Portal.
+        CSV mode selected. When the campaign starts, an updated CSV containing generated <b>LEADX IDs</b> and <b>Campaign IDs</b> will be available for download in the Client Portal.
       </div>
     `;
   }
@@ -2049,7 +2305,7 @@ window.validateMappingAndProceed = function() {
     });
 
     if (missingSync.length > 0) {
-      showToast('Mapping Error', 'Please map all Sync-Back fields (LeadX ID, Campaign ID) before proceeding.', 'alert-triangle', 'error');
+      showToast('Mapping Error', 'Please map all Sync-Back fields (LEADX ID, Campaign ID) before proceeding.', 'alert-triangle', 'error');
       return;
     }
   }
@@ -2324,25 +2580,31 @@ window.commitWizardData = function() {
   });
 };
 
-// 17. Utility Helpers
+// 17. Utility function to show toast notifications
 function showToast(title, body, iconName = 'info', type = 'info') {
-  toastIcon.setAttribute('data-lucide', iconName);
-  toastTitle.textContent = title;
-  toastBody.textContent = body;
+  addNotification(title, body, iconName, type);
 
-  toast.className = 'toast show';
-  if (type === 'error') {
-    toast.style.borderLeft = '4px solid var(--lx-red)';
-  } else if (type === 'warning') {
-    toast.style.borderLeft = '4px solid var(--lx-amber)';
-  } else {
-    toast.style.borderLeft = '4px solid var(--lx-teal)';
+  if (toastIcon) toastIcon.setAttribute('data-lucide', iconName);
+  if (toastTitle) toastTitle.textContent = title;
+  if (toastBody) toastBody.textContent = body;
+
+  if (toast) {
+    toast.className = 'toast show';
+    if (type === 'error') {
+      toast.style.borderLeft = '4px solid var(--lx-red)';
+    } else if (type === 'warning') {
+      toast.style.borderLeft = '4px solid var(--lx-amber)';
+    } else {
+      toast.style.borderLeft = '4px solid var(--lx-teal)';
+    }
   }
   
-  lucide.createIcons();
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 
   setTimeout(() => {
-    toast.classList.remove('show');
+    if (toast) toast.classList.remove('show');
   }, 5000);
 }
 
@@ -3384,7 +3646,7 @@ window.fetchCrmLeadsDirectPreview = async function() {
   btn.textContent = 'Verify Connection';
 };
 
-// Syncs CRM contacts directly into the LeadX database
+// Syncs CRM contacts directly into the LEADX database
 window.syncCrmLeadsDirect = async function() {
   const provider = document.getElementById('directCrmSourceSelect').value;
   const listSelect = document.getElementById('directCrmListSelect');
@@ -3669,17 +3931,28 @@ function renderCampaigns(campaigns) {
     const isScheduled = camp.name.toLowerCase().includes('scheduled');
     const isBatch = camp.name.toLowerCase().includes('batch') || camp.name.toLowerCase().includes('csv') || camp.name.toLowerCase().includes('json') || camp.name.toLowerCase().includes('upload');
     
+    let finalStatus = camp.status || (isScheduled ? 'draft' : 'active');
+    let statusClass = 'badge-green';
+    let finalIcon = isBatch ? 'share-2' : 'phone';
+
+    if (finalStatus === 'draft' || finalStatus === 'scheduled' || finalStatus === 'queued') statusClass = 'badge-gray';
+    if (finalStatus === 'ingesting') {
+      finalStatus = 'Work in progress';
+      statusClass = 'badge-amber';
+      finalIcon = 'loader';
+    }
+    
     return {
       name: camp.name,
-      status: isScheduled ? 'draft' : 'active',
-      statusClass: isScheduled ? 'badge-gray' : 'badge-green',
+      status: finalStatus,
+      statusClass: statusClass,
       cycle: 'Cycle 1',
       mode: isBatch ? 'Auto' : 'Voice Only',
       modeClass: isBatch ? 'badge-teal' : 'badge-blue',
       date: 'Just Ingested',
-      target: camp.ingested || 0,
+      target: camp.ingested || camp.total_leads || 0,
       connected: camp.connected || 0,
-      icon: isBatch ? 'share-2' : 'phone'
+      icon: finalIcon
     };
   });
 
@@ -4545,7 +4818,7 @@ window.viewBriefModal = async function(leadId) {
               printWindow.document.write(`
                 <html>
                   <head>
-                    <title>LeadX Agent Brief - ${brief.lead_name || 'Context'}</title>
+                    <title>LEADX Agent Brief - ${brief.lead_name || 'Context'}</title>
                     <style>
                       body { font-family: 'DM Sans', sans-serif; padding: 40px; color: #1e272e; background: #f5f6fa; }
                       .card { background: white; border: 1px solid #dcdde1; padding: 24px; border-radius: 12px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -4950,8 +5223,8 @@ window.viewLeadDetails = async function(leadId) {
     const idsHtml = `
       <div style="display: flex; flex-direction: column; gap: 6px; background: rgba(255,255,255,0.02); border: 1px solid var(--lx-border); padding: 12px; border-radius: 8px; font-family: var(--lx-mono); font-size: 11px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="color: var(--lx-muted);">LeadX ID:</span>
-          <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${ldxId}'); showToast('Copied', 'LeadX ID copied to clipboard', 'copy')">${ldxId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
+          <span style="color: var(--lx-muted);">LEADX ID:</span>
+          <span style="color: var(--lx-text); font-weight: 600; cursor: pointer;" onclick="navigator.clipboard.writeText('${ldxId}'); showToast('Copied', 'LEADX ID copied to clipboard', 'copy')">${ldxId} <i data-lucide="copy" style="width: 10px; height: 10px; display: inline-block; margin-left: 4px; opacity: 0.6;"></i></span>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="color: var(--lx-muted);">Campaign ID:</span>
@@ -5115,7 +5388,7 @@ window.viewLeadDetails = async function(leadId) {
           </div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
-          <div style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">LeadX Score</div>
+          <div style="font-size: 10px; color: var(--lx-muted); text-transform: uppercase;">LEADX Score</div>
           <div style="font-size: 28px; font-weight: 800; color: ${scoreColor}; font-family: var(--lx-mono);">${score}</div>
         </div>
       </div>

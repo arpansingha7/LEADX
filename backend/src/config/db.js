@@ -1120,6 +1120,24 @@ const db = {
     }
   },
 
+  async getTotalProcessedLeads() {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('processed_leads');
+      if (error && error.code !== '42P01') throw error;
+      if (error && error.code === '42P01') {
+        return mockDb.campaigns.reduce((sum, c) => sum + (c.processed_leads || 0), 0);
+      }
+      if (data) {
+        return data.reduce((sum, c) => sum + (c.processed_leads || 0), 0);
+      }
+      return 0;
+    } else {
+      return mockDb.campaigns.reduce((sum, c) => sum + (c.processed_leads || 0), 0);
+    }
+  },
+
   async insertLeadIngestionError(errorData) {
     const errorVal = {
       id: uuidv4(),

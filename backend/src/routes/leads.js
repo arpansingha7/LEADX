@@ -209,8 +209,21 @@ router.post('/batch', async (req, res, next) => {
       return res.status(400).json({ error: 'Validation Error', message: 'Batch size exceeds the maximum limit of 500 leads' });
     }
 
+    // Create an initial campaign record in ingesting status
+    const campaign = await db.insertCampaign({
+      tenant_id,
+      name: campaign_name || 'Batch Campaigns',
+      total_leads: leads.length,
+      status: 'ingesting'
+    });
+
     // Enqueue the background job
-    const job = await enqueueJob(tenant_id, 'batch_ingest', { tenant_id, leads, dataset_id, campaign_name });
+    const job = await enqueueJob(tenant_id, 'batch_ingest', { 
+      tenant_id, leads, dataset_id, campaign_name, campaign_id: campaign.id 
+    });
+    
+    // Link job ID
+    await db.updateCampaign(campaign.id, { job_id: job.id });
 
     res.status(202).json({
       success: true,

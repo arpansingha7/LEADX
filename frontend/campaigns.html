@@ -6,74 +6,114 @@
     <title>LEADX - Campaign Analytics Dashboard</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --surface-color: #1e293b;
+            --bg-color: #0b1120;
+            --surface-color: rgba(30, 41, 59, 0.7);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --border: #334155;
+            --border: rgba(255, 255, 255, 0.1);
         }
 
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
+            background: linear-gradient(135deg, #0b1120 0%, #111827 100%);
             color: var(--text-main);
             margin: 0;
             padding: 24px;
+            min-height: 100vh;
         }
 
         h1, h2, h3 {
             margin-top: 0;
             font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        h1 {
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .dashboard-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
             border-bottom: 1px solid var(--border);
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 24px;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
         }
 
         .card {
             background-color: var(--surface-color);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            margin: 10px 0;
+            font-size: 36px;
+            font-weight: 800;
+            margin: 12px 0;
+            letter-spacing: -0.05em;
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
         }
 
         .chart-container {
             position: relative;
-            height: 300px;
+            height: 320px;
             width: 100%;
         }
 
         .badge {
-            padding: 4px 8px;
+            padding: 6px 12px;
             border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.025em;
+            text-transform: uppercase;
         }
-        .badge.connected { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .badge.disconnected { background-color: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .badge.connected { 
+            background-color: rgba(16, 185, 129, 0.15); 
+            color: var(--success); 
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+        .badge.disconnected { 
+            background-color: rgba(239, 68, 68, 0.15); 
+            color: var(--danger); 
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        #btn-demo-upload {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+        }
+        #btn-demo-upload:hover {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+            transform: translateY(-1px);
+        }
     </style>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -85,7 +125,10 @@
             <h1>Campaign Analytics</h1>
             <p style="color: var(--text-muted); margin: 0;">Real-time system health and ingestion metrics</p>
         </div>
-        <div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button id="btn-demo-upload" style="background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 14px; transition: opacity 0.2s;">
+                🚀 Simulate 5,000 Lead Ingestion
+            </button>
             <span id="connection-status" class="badge disconnected">Disconnected</span>
         </div>
     </div>
@@ -232,6 +275,54 @@
             statusBadge.textContent = 'Reconnecting...';
             statusBadge.className = 'badge disconnected';
         };
+
+        // UI Demo Upload Logic
+        const btnDemoUpload = document.getElementById('btn-demo-upload');
+        btnDemoUpload.addEventListener('click', async () => {
+            btnDemoUpload.disabled = true;
+            btnDemoUpload.style.opacity = '0.5';
+            btnDemoUpload.textContent = 'Generating & Sending...';
+
+            const leads = [];
+            for (let i = 0; i < 5000; i++) {
+                leads.push({
+                    name: `Demo User ${i}`,
+                    phone: `+1555${String(Math.floor(Math.random() * 900000) + 100000)}`,
+                    email: `demo${i}@example.com`,
+                    source: 'UI Demo Trigger'
+                });
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/campaigns', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tenant_id: 'default-tenant',
+                        campaign_name: 'UI Triggered Upload',
+                        leads: leads
+                    })
+                });
+
+                if (response.ok) {
+                    btnDemoUpload.textContent = '✅ Upload Queued!';
+                    setTimeout(() => {
+                        btnDemoUpload.disabled = false;
+                        btnDemoUpload.style.opacity = '1';
+                        btnDemoUpload.textContent = '🚀 Simulate 5,000 Lead Ingestion';
+                    }, 3000);
+                } else {
+                    btnDemoUpload.textContent = '❌ Failed';
+                    btnDemoUpload.disabled = false;
+                    btnDemoUpload.style.opacity = '1';
+                }
+            } catch (err) {
+                btnDemoUpload.textContent = '❌ Error';
+                console.error(err);
+                btnDemoUpload.disabled = false;
+                btnDemoUpload.style.opacity = '1';
+            }
+        });
     </script>
 </body>
 </html>

@@ -12,7 +12,7 @@ let isProcessing = false;
  * Process a batch ingestion job.
  */
 async function processBatchIngest(job) {
-  const { tenant_id, leads, dataset_id, campaign_name } = job.payload;
+  const { tenant_id, leads, dataset_id, campaign_name, campaign_id } = job.payload;
   
   const weights = await db.getWeights(tenant_id);
 
@@ -132,6 +132,14 @@ async function processBatchIngest(job) {
   });
 
   await sendSlackNotification(`[Ingestion Alert] Bulk leads uploaded: ${accepted} ingested, ${appended} appended for campaign "${campaign_name || 'Batch Campaigns'}".`);
+
+  if (campaign_id) {
+    await db.updateCampaign(campaign_id, {
+      status: 'active',
+      ingested: accepted,
+      connected: 0
+    });
+  }
 
   return {
     success: true,

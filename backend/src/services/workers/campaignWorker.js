@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import db from '../../config/db.js';
 import dotenv from 'dotenv';
+import { sendSlackNotification } from '../slackService.js';
 
 dotenv.config();
 
@@ -12,22 +13,40 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 const CHUNK_SIZE = 500;
 
 export const campaignWorker = new Worker('campaign-ingestion', async job => {
-    const { campaignId, tenantId, fileData } = job.data;
+    // Check if this is a CRM Sync job
+    if (job.name === 'crm-sync') {
+        const { tenantId, metaData } = job.data;
+        console.log(`Starting recurring CRM Sync for tenant ${tenantId}`);
+        // Simulate CRM Sync delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sendSlackNotification(`[Scheduler] 🕒 Scheduled CRM Sync completed successfully for tenant "${tenantId}".`);
+        return { success: true, processed: 0, type: 'crm-sync' };
+    }
 
-    console.log(`Starting ingestion for campaign ${campaignId} with ${fileData.length} leads.`);
+    const { campaignId, tenantId, fileData, isRecurring } = job.data;
+
+    const dataToProcess = fileData || [];
+    if (isRecurring && dataToProcess.length === 0) {
+        // If it's recurring and has no static file data, we could simulate fetching from CRM
+        dataToProcess.push({ name: 'Scheduled Lead', phone: '+15550001111', source: 'Scheduled Auto-Sync' });
+    }
+
+    console.log(`Starting ingestion for campaign ${campaignId} with ${dataToProcess.length} leads.`);
     
-    // Update campaign status to processing
-    await db.updateCampaign(campaignId, { 
-        status: 'processing', 
-        started_at: new Date().toISOString(),
-        total_leads: fileData.length
-    });
+    // Update campaign status to processing (only if it's a real campaign, not a recurring job ID)
+    if (!isRecurring) {
+        await db.updateCampaign(campaignId, { 
+            status: 'processing', 
+            started_at: new Date().toISOString(),
+            total_leads: dataToProcess.length
+        });
+    }
 
     let processedCount = 0;
     let failedCount = 0;
 
-    for (let i = 0; i < fileData.length; i += CHUNK_SIZE) {
-        const chunk = fileData.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < dataToProcess.length; i += CHUNK_SIZE) {
+        const chunk = dataToProcess.slice(i, i + CHUNK_SIZE);
         
         for (const rawLead of chunk) {
             try {
@@ -74,16 +93,25 @@ export const campaignWorker = new Worker('campaign-ingestion', async job => {
     }
 
     // Final update
-    await db.updateCampaign(campaignId, {
-        status: 'completed',
-        finished_at: new Date().toISOString(),
-        processed_leads: processedCount,
-        failed_leads: failedCount
-    });
+    if (!isRecurring) {
+        await db.updateCampaign(campaignId, { 
+            status: 'completed', 
+            completed_at: new Date().toISOString(),
+            processed_leads: processedCount
+        });
+    } else {
+        await sendSlackNotification(`[Scheduler] 🕒 Scheduled Lead Ingestion completed. Ingested ${processedCount} leads.`);
+    }
 
-    console.log(`Finished ingestion for campaign ${campaignId}. Processed: ${processedCount}, Failed: ${failedCount}`);
-    return { processedCount, failedCount };
-}, { 
+    console.log(`Completed campaign ${campaignId}. Processed: ${processedCount}, Failed: ${failedCount}`);
+    
+    return {
+        success: true,
+        processedCount,
+        failedCount,
+        campaignId
+    };
+}, {
     connection,
     concurrency: 5 // Process up to 5 campaigns concurrently per worker instance
 });

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import leadsRouter from './routes/leads.js';
 import oauthRouter from './routes/oauth.js';
 import campaignsRouter from './routes/campaigns.js';
+import schedulerRouter from './routes/scheduler.js';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use(express.static(frontendPath));
 app.use('/leads', leadsRouter);
 app.use('/oauth', oauthRouter);
 app.use('/campaigns', campaignsRouter);
+app.use('/scheduler', schedulerRouter);
 
 // Basic health check route
 app.get('/health', (req, res) => {

@@ -2,6 +2,7 @@ import app from './app.js';
 import dotenv from 'dotenv';
 import queueService from './services/queueService.js';
 import { startWorker as startJobQueueWorker } from './services/jobQueue.js';
+import './services/workers/campaignWorker.js'; // Start campaign ingestion worker
 
 dotenv.config();
 

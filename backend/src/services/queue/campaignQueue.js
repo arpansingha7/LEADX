@@ -29,6 +29,32 @@ export const addCampaignJob = async (campaignId, tenantId, fileData, scheduleTim
     return job;
 };
 
+// Scheduler Methods
+export const addRepeatableCampaignJob = async (cronExpression, tenantId, type, metaData) => {
+    // Generate a unique ID for the job based on type and tenant
+    const jobId = `recurring-${type}-${tenantId}-${Date.now()}`;
+    
+    const jobOptions = {
+        repeat: { pattern: cronExpression },
+        jobId: jobId, // BullMQ uses this internally for repeatable jobs alongside the pattern
+    };
+
+    // The name of the job can be 'ingest-leads' or 'crm-sync'
+    const jobName = type === 'crm_sync' ? 'crm-sync' : 'ingest-leads';
+    
+    // We add it to the queue. Note: fileData might be empty for crm-sync or auto-generated
+    const job = await campaignQueue.add(jobName, { campaignId: jobId, tenantId, metaData, isRecurring: true }, jobOptions);
+    return job;
+};
+
+export const getRepeatableJobs = async () => {
+    return await campaignQueue.getRepeatableJobs();
+};
+
+export const removeRepeatableJob = async (key) => {
+    return await campaignQueue.removeRepeatableByKey(key);
+};
+
 // Listen to global events for SSE
 campaignQueueEvents.on('progress', ({ jobId, data }, timestamp) => {
     // You can emit this via Node's EventEmitter to be picked up by the SSE endpoint

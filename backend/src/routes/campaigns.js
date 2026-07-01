@@ -120,10 +120,27 @@ router.get('/analytics/stream', (req, res) => {
 
     res.write(`data: ${JSON.stringify({ event: 'connected' })}\n\n`);
 
+    let lastProcessed = null;
+    let lastTime = null;
+
     const interval = setInterval(async () => {
         try {
             const counts = await campaignQueue.getJobCounts();
-            const throughput = Math.floor(Math.random() * 50) + 10; // Mock throughput
+            const totalProcessed = await db.getTotalProcessedLeads();
+            
+            let throughput = 0;
+            const now = Date.now();
+            
+            if (lastProcessed !== null && lastTime !== null) {
+                const timeDiff = (now - lastTime) / 1000;
+                if (timeDiff > 0) {
+                    const processedDiff = Math.max(0, totalProcessed - lastProcessed);
+                    throughput = Math.floor((processedDiff / timeDiff) * 60);
+                }
+            }
+            
+            lastProcessed = totalProcessed;
+            lastTime = now;
             
             res.write(`data: ${JSON.stringify({ 
                 event: 'analytics', 

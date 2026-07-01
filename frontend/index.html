@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="theme.js"></script>
-  <title>LeadX — AI Lead Qualification & Conversion Engine</title>
+  <title>LEADX — AI Lead Qualification & Conversion Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:ital,wght@0,400..800;1,400..800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
       <div class="lx-logo">
         <div class="lx-logo-mark">LX</div>
         <div>
-          <strong>LeadX</strong>
+          <strong>LEADX</strong>
           <span style="font-size: 10px; color: var(--lx-muted); display: block; margin-top: -2px;">Orchestrator v1.2</span>
         </div>
       </div>
@@ -39,6 +39,24 @@
           <span class="lx-dot"></span>
           <span>Client: upGrad (uGSOT)</span>
         </div>
+        
+        <!-- Notification Center -->
+        <div class="lx-notification-wrapper" id="navNotificationBtn" style="position: relative; margin-right: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: var(--lx-card); border: 1px solid var(--lx-border); transition: 0.2s;">
+          <i data-lucide="bell" style="width: 18px; height: 18px; color: var(--lx-text);"></i>
+          <span id="navNotifBadge" style="position: absolute; top: 8px; right: 8px; background: var(--lx-red); width: 8px; height: 8px; border-radius: 50%; display: none; box-shadow: 0 0 0 2px var(--lx-card);"></span>
+          
+          <!-- Dropdown -->
+          <div id="navNotifDropdown" style="display: none; position: absolute; top: 45px; right: 0; width: 320px; background: var(--lx-surface); border: 1px solid var(--lx-border2); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 1000; overflow: hidden; flex-direction: column;">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--lx-border); display: flex; justify-content: space-between; align-items: center;">
+              <strong style="font-size: 14px;">Notifications</strong>
+              <span id="navNotifClearBtn" style="font-size: 12px; color: var(--lx-muted); cursor: pointer;">Clear All</span>
+            </div>
+            <div id="navNotifList" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column;">
+              <div style="padding: 24px; text-align: center; color: var(--lx-muted); font-size: 13px;">No new notifications</div>
+            </div>
+          </div>
+        </div>
+
         <div class="lx-avatar">AF</div>
       </div>
     </header>
@@ -69,6 +87,9 @@
         </div>
         <div class="lx-sidebar-item" data-page="crm">
           <i data-lucide="link-2" class="lx-icon"></i> <span>CRM Sync</span>
+        </div>
+        <div class="lx-sidebar-item" data-page="scheduler">
+          <i data-lucide="calendar-clock" class="lx-icon"></i> <span>Scheduler</span>
         </div>
         <div class="lx-sidebar-section">Real-Time</div>
         <div class="lx-sidebar-item" data-page="monitor">
@@ -272,7 +293,7 @@
               <div style="margin-top: 15px; padding: 12px; background: var(--lx-card2); border: 1px solid var(--lx-border); border-radius: 8px; margin-bottom: 5px;">
                 <div style="font-size: 11px; font-weight: 700; color: var(--lx-text); text-transform: uppercase; margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
                   <i data-lucide="shield-check" style="width:13px; height:13px; color:var(--lx-green);"></i>
-                  LeadX AI Economic Impact &amp; ROI
+                  LEADX AI Economic Impact &amp; ROI
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
                   <div style="background: var(--lx-card); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lx-border-soft);">
@@ -568,7 +589,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
               <div class="form-section-title" style="margin-top:0;">Column Mapping Engine</div>
               <div class="lx-grid-onboarding-split" style="margin-top:12px; gap:20px;">
                 <div>
-                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px;">Ingestion Mapping (CRM -> LeadX)</div>
+                  <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px;">Ingestion Mapping (CRM -> LEADX)</div>
                   <p style="font-size:11.5px; color:var(--lx-muted); margin-bottom:12px; line-height:1.4;">
                     Associate the detected columns from your file with the target system fields.
                   </p>
@@ -577,9 +598,9 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   </div>
 
                   <div id="syncBackSection" style="display:none;">
-                    <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px; border-top:1px solid var(--lx-border); padding-top:20px;">Sync-Back Mapping (LeadX -> CRM)</div>
+                    <div style="font-size:12px; font-weight:700; color:var(--lx-text); margin-bottom:10px; border-top:1px solid var(--lx-border); padding-top:20px;">Sync-Back Mapping (LEADX -> CRM)</div>
                     <p style="font-size:11.5px; color:var(--lx-muted); margin-bottom:12px; line-height:1.4;">
-                      Select the custom columns in your CRM where LeadX should write internally generated data.
+                      Select the custom columns in your CRM where LEADX should write internally generated data.
                     </p>
                     <div id="syncBackFieldsContainer" style="display:flex; flex-direction:column; gap:12px;">
                       <!-- Javascript will dynamically inject selectors for system columns -->
@@ -707,7 +728,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                   <div class="form-group" style="margin-top: 10px;">
                     <label for="wizardLeadxStatusField">CRM Status Property ID</label>
                     <input type="text" id="wizardLeadxStatusField" class="lx-input" value="leadx_status" placeholder="e.g. leadx_status">
-                    <div style="font-size:10px; color:var(--lx-muted); margin-top:4px;">The exact internal property name in HubSpot to sync LeadX statuses (e.g. Ingested, Called)</div>
+                    <div style="font-size:10px; color:var(--lx-muted); margin-top:4px;">The exact internal property name in HubSpot to sync LEADX statuses (e.g. Ingested, Called)</div>
                   </div>
                 </div>
                 <div>
@@ -1202,7 +1223,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           <div style="background: linear-gradient(135deg, #a4812f, #d2a43a); color: #000; padding: 18px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
               <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">upGrad uGSOT CO-BRANDED PORTAL</div>
-              <h2 style="font-size: 20px; font-weight: 700; margin-top: 2px; letter-spacing: -0.3px;">LeadX Ingestion & Dialing Rolldown</h2>
+              <h2 style="font-size: 20px; font-weight: 700; margin-top: 2px; letter-spacing: -0.3px;">LEADX Ingestion & Dialing Rolldown</h2>
             </div>
             <div style="display:flex; gap: 8px;">
               <button class="lx-btn" style="background:#000; border-color:#000; color:#fff;" onclick="exportClientReport()">Export PDF Report</button>
@@ -1306,6 +1327,76 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
         </section>
 
         <!-- 8. CRM INTEGRATION PAGE -->
+        <section class="lx-page" id="page-scheduler">
+          <header class="lx-header">
+            <div>
+              <h2>Job Scheduler</h2>
+              <div class="lx-subtitle">Automate recurring lead ingestion and CRM syncs</div>
+            </div>
+            <button class="lx-btn primary" onclick="document.getElementById('modalScheduleJob').style.display='flex'">
+              <i data-lucide="plus"></i> New Scheduled Job
+            </button>
+          </header>
+
+          <div class="lx-card" style="margin-top: 24px;">
+            <h3>Active Scheduled Jobs</h3>
+            <table class="lx-table" id="scheduler-jobs-table" style="margin-top: 16px;">
+              <thead>
+                <tr>
+                  <th>Job ID / Type</th>
+                  <th>Schedule (Cron)</th>
+                  <th>Next Run</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Scheduler Modal -->
+        <div class="lx-modal-overlay" id="modalScheduleJob" style="display: none;">
+          <div class="lx-modal">
+            <div class="lx-modal-header">
+              <h3>Create Scheduled Job</h3>
+              <i data-lucide="x" class="lx-close-modal" onclick="document.getElementById('modalScheduleJob').style.display='none'"></i>
+            </div>
+            <div class="lx-modal-body">
+              <div class="lx-form-group">
+                <label>Job Type</label>
+                <select id="scheduleJobType" class="lx-input">
+                  <option value="ingestion">Lead Ingestion (Auto-Sync)</option>
+                  <option value="crm_sync">CRM Write-back</option>
+                </select>
+              </div>
+              <div class="lx-form-group">
+                <label>Schedule Pattern</label>
+                <select id="schedulePattern" class="lx-input" onchange="document.getElementById('customCronGroup').style.display = this.value === 'custom' ? 'block' : 'none'">
+                  <option value="0 15 * * *">Every Day at 3:00 PM</option>
+                  <option value="0 18 * * *">Every Day at 6:00 PM</option>
+                  <option value="0 21 * * *">Every Day at 9:00 PM</option>
+                  <option value="0 * * * *">Every Hour</option>
+                  <option value="custom">Custom Cron Expression</option>
+                </select>
+              </div>
+              <div class="lx-form-group" id="customCronGroup" style="display: none;">
+                <label>Cron Expression</label>
+                <input type="text" id="customCronInput" class="lx-input" placeholder="e.g., */15 * * * *">
+              </div>
+              <div class="lx-form-group">
+                <label>Tenant ID</label>
+                <input type="text" id="scheduleTenantId" class="lx-input" value="tenant-123">
+              </div>
+            </div>
+            <div class="lx-modal-footer">
+              <button class="lx-btn secondary" onclick="document.getElementById('modalScheduleJob').style.display='none'">Cancel</button>
+              <button class="lx-btn primary" id="btnCreateSchedule">Schedule Job</button>
+            </div>
+          </div>
+        </div>
+
         <section class="lx-page" id="page-crm">
           <div class="lx-section-title">
             CRM Sync Control Center
@@ -1426,7 +1517,7 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
                     </div>
                     <div class="li-checkbox-group">
                       <input type="checkbox" id="ls-rule-custom" checked>
-                      <label for="ls-rule-custom">Map custom LeadX attributes (Score, Tenant, Status)</label>
+                      <label for="ls-rule-custom">Map custom LEADX attributes (Score, Tenant, Status)</label>
                     </div>
                   </div>
                 </div>
@@ -1741,6 +1832,11 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
             </div>
           </div>
         </section>
+        
+        <!-- CAMPAIGNS IFRAME PAGE -->
+        <section class="lx-page" id="page-campaigns" style="height: 100%; padding: 0;">
+          <iframe src="campaigns.html" width="100%" height="100%" style="border: none; flex-grow: 1;"></iframe>
+        </section>
       </main>
     </div>
   </div>
@@ -1797,7 +1893,12 @@ Amit Sen,+919999922222,amit@mail.com,32,70000"></textarea>
           </h3>
           <span style="font-size: 11px; color: var(--lx-muted); margin-top: 2px; display: block;" id="maximizedPreviewCount">Showing all rows</span>
         </div>
-        <button id="closeMaximizePreviewModal" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer; padding: 4px;">&times;</button>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button id="copyPreviewModalBtn" class="lx-btn secondary lx-btn-small" style="display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="copy" style="width:14px; height:14px;"></i> Copy to Clipboard
+          </button>
+          <button id="closeMaximizePreviewModal" style="background: none; border: none; font-size: 20px; color: var(--lx-muted); cursor: pointer; padding: 4px;">&times;</button>
+        </div>
       </div>
       <div style="overflow: auto; flex: 1; border: 1px solid var(--lx-border); border-radius: 8px;">
         <table class="lx-table" style="font-size:11.5px; margin:0; width: 100%; table-layout: auto;">
